@@ -133,6 +133,12 @@ footer { min-height: 3.4rem; }
 .team-chip { background: #34518e; }
 .vote-chip.approve { background: var(--ok); }
 .vote-chip.reject { background: var(--bad); }
+.lean-chip { background: transparent; font-size: 0.85rem; padding: 0; }
+.lean-picker { display: inline-flex; gap: 0.25rem; }
+.lean-btn { padding: 0.3em 0.5em; }
+.lean-btn.active.approve { background: var(--ok); }
+.lean-btn.active.reject { background: var(--bad); }
+.lean-btn.active.unsure { background: var(--gold); }
 .thinking-dots { color: var(--dim); animation: pulse 1.2s infinite; font-size: 0.6rem; letter-spacing: 0.15em; }
 @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 

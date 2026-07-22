@@ -164,6 +164,49 @@ test('illegal decisions are rejected without corrupting state', () => {
   assert.equal(g.phase, 'proposal')
 })
 
+test('post-proposal talk runs extra rounds while people speak, ends early when silent', () => {
+  const g = createGame({ seed: 'rounds', playerCount: 5, talk: { preProposal: 0, postProposal: 3 } })
+  propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
+  assert.equal(g.phase, 'discussion')
+
+  // Round 1: one player speaks (with a lean), others pass — earns round 2.
+  for (let i = 0; i < 5; i++) {
+    const [req] = expectedDecisions(g)
+    applyDecision(g, req.seat, {
+      kind: 'discuss',
+      say: i === 2 ? 'I do not like this team.' : '',
+      lean: i === 2 ? 'reject' : undefined,
+    })
+  }
+  assert.equal(g.phase, 'discussion')
+  assert.equal(g.discussion!.roundNum, 2)
+
+  // Round 2: everyone passes — discussion ends despite maxRounds=3.
+  for (let i = 0; i < 5; i++) {
+    const [req] = expectedDecisions(g)
+    applyDecision(g, req.seat, { kind: 'discuss', say: '' })
+  }
+  assert.equal(g.phase, 'vote')
+
+  // The lean was recorded publicly on the utterance.
+  const leaned = g.log.find((ev) => ev.type === 'utterance' && ev.payload.lean !== undefined)
+  assert.ok(leaned)
+  assert.equal(leaned!.payload.lean, 'reject')
+})
+
+test('a lean outside a pending proposal is dropped, invalid lean throws', () => {
+  const g = createGame({ seed: 'lean2', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const [req] = expectedDecisions(g)
+  applyDecision(g, req.seat, { kind: 'discuss', say: 'hello', lean: 'approve' }) // no team yet
+  const ev = g.log.filter((e) => e.type === 'utterance').at(-1)!
+  assert.equal(ev.payload.lean, undefined)
+  const [req2] = expectedDecisions(g)
+  assert.throws(
+    () => applyDecision(g, req2.seat, { kind: 'discuss', say: '', lean: 'maybe' as any }),
+    /invalid lean/,
+  )
+})
+
 test('discussion turns walk the table from the leader', () => {
   const g = createGame({ seed: 'talk', playerCount: 5, talk: { preProposal: 1, postProposal: 1 } })
   assert.equal(g.phase, 'discussion')

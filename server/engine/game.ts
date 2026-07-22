@@ -87,30 +87,36 @@ export function createGame(opts: CreateGameOpts): Game {
 
 // ---- phase transitions ----
 
-function speakerOrder(game: Game, rounds: number): Seat[] {
+function speakerOrder(game: Game): Seat[] {
   const n = game.config.playerCount
-  const one = Array.from({ length: n }, (_, i) => (game.leaderSeat + i) % n)
-  const out: Seat[] = []
-  for (let r = 0; r < rounds; r++) out.push(...one)
-  return out
+  return Array.from({ length: n }, (_, i) => (game.leaderSeat + i) % n)
+}
+
+function startDiscussion(game: Game, slot: 'pre' | 'post', maxRounds: number): boolean {
+  if (maxRounds <= 0) return false
+  game.phase = 'discussion'
+  game.discussion = {
+    slot, remaining: speakerOrder(game), roundNum: 1, maxRounds, anySpoke: false,
+  }
+  return true
+}
+
+function endDiscussion(game: Game): void {
+  const slot = game.discussion!.slot
+  game.discussion = undefined
+  game.phase = slot === 'pre' ? 'proposal' : 'vote'
 }
 
 function enterProposalCycle(game: Game): void {
   game.currentTeam = undefined
   game.pendingVotes = {}
-  if (game.config.talk.preProposal > 0) {
-    game.phase = 'discussion'
-    game.discussion = { slot: 'pre', remaining: speakerOrder(game, game.config.talk.preProposal) }
-  } else {
+  if (!startDiscussion(game, 'pre', game.config.talk.preProposal)) {
     game.phase = 'proposal'
   }
 }
 
 function afterProposal(game: Game): void {
-  if (game.config.talk.postProposal > 0) {
-    game.phase = 'discussion'
-    game.discussion = { slot: 'post', remaining: speakerOrder(game, game.config.talk.postProposal) }
-  } else {
+  if (!startDiscussion(game, 'post', game.config.talk.postProposal)) {
     game.phase = 'vote'
   }
 }
@@ -180,13 +186,30 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
   switch (decision.kind) {
     case 'discuss': {
       if (typeof decision.say !== 'string') throw new EngineError('say must be a string')
+      const lean = decision.lean
+      if (lean !== undefined && lean !== 'approve' && lean !== 'reject' && lean !== 'unsure') {
+        throw new EngineError(`invalid lean: ${String(lean)}`)
+      }
       const say = decision.say.slice(0, 600)
-      emit(game, 'utterance', { seat, text: say, slot: game.discussion!.slot }, 'public')
-      game.discussion!.remaining.shift()
-      if (game.discussion!.remaining.length === 0) {
-        const slot = game.discussion!.slot
-        game.discussion = undefined
-        game.phase = slot === 'pre' ? 'proposal' : 'vote'
+      const d = game.discussion!
+      // A lean is a public signal about the team on the table — only
+      // meaningful while a proposal is pending.
+      const withLean = lean !== undefined && game.currentTeam ? { lean } : {}
+      emit(game, 'utterance', {
+        seat, text: say, slot: d.slot, round: d.roundNum, ...withLean,
+      }, 'public')
+      if (say.trim() !== '') d.anySpoke = true
+      d.remaining.shift()
+      if (d.remaining.length === 0) {
+        // Another round only if this one had any speech and rounds remain —
+        // a silent table is done talking.
+        if (d.anySpoke && d.roundNum < d.maxRounds) {
+          d.roundNum += 1
+          d.anySpoke = false
+          d.remaining = speakerOrder(game)
+        } else {
+          endDiscussion(game)
+        }
       }
       return game
     }

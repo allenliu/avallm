@@ -10,7 +10,7 @@ export function ActionBar({ view, ask, onDecide }: {
     return <div className="action-bar waiting">The table is playing… watch the feed.</div>
   }
   switch (ask.kind) {
-    case 'discuss': return <Discuss onDecide={onDecide} />
+    case 'discuss': return <Discuss view={view} onDecide={onDecide} />
     case 'propose': return <Propose view={view} onDecide={onDecide} />
     case 'vote': return <Vote view={view} onDecide={onDecide} />
     case 'quest': return <QuestCard view={view} onDecide={onDecide} />
@@ -18,20 +18,40 @@ export function ActionBar({ view, ask, onDecide }: {
   }
 }
 
-function Discuss({ onDecide }: { onDecide: (d: Record<string, unknown>) => void }) {
+function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const [say, setSay] = useState('')
-  const submit = (text: string) => { onDecide({ kind: 'discuss', say: text }); setSay('') }
+  const [lean, setLean] = useState<string | null>(null)
+  const teamPending = !!view.currentTeam
+  const round = view.discussionRound ?? 1
+  const submit = (text: string) => {
+    onDecide({ kind: 'discuss', say: text, lean: lean ?? undefined })
+    setSay('')
+    setLean(null)
+  }
   return (
     <div className="action-bar">
-      <span className="action-label">Your turn to speak</span>
+      <span className="action-label">
+        Your turn to speak{round > 1 ? ` (round ${round})` : ''}
+      </span>
       <input
         autoFocus value={say} maxLength={300}
-        placeholder="Say something to the table…"
+        placeholder={teamPending ? 'React to the proposed team…' : 'Say something to the table…'}
         onChange={(e) => setSay(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') submit(say) }}
       />
+      {teamPending && (
+        <span className="lean-picker" title="Signal how you're leaning on this team (not binding)">
+          {(['approve', 'reject', 'unsure'] as const).map((l) => (
+            <button
+              key={l}
+              className={`secondary lean-btn${lean === l ? ` active ${l}` : ''}`}
+              onClick={() => setLean(lean === l ? null : l)}
+            >{l === 'approve' ? '👍' : l === 'reject' ? '👎' : '🤔'}</button>
+          ))}
+        </span>
+      )}
       <button onClick={() => submit(say)}>Say</button>
-      <button className="secondary" onClick={() => submit('')}>Pass</button>
+      <button className="secondary" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
     </div>
   )
 }

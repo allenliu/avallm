@@ -38,8 +38,12 @@ interface FeedRow {
 function renderEvent(ev: GameEvent, name: (s: number) => string): FeedRow | null {
   const p = ev.payload
   switch (ev.type) {
-    case 'utterance':
-      return p.text ? { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text } : null
+    case 'utterance': {
+      const lean = p.lean ? ` ${p.lean === 'approve' ? '👍' : p.lean === 'reject' ? '👎' : '🤔'}` : ''
+      if (p.text) return { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text + lean }
+      if (p.lean) return { key: ev.seq, cls: 'system', seat: p.seat, text: `signals ${p.lean}${lean}` }
+      return null
+    }
     case 'proposal': {
       const team = (p.team as number[]).map(name).join(', ')
       const pitch = p.pitch ? ` — “${p.pitch}”` : ''

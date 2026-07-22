@@ -46,7 +46,9 @@ export interface PlayerView {
   quests: Quest[]
   proposals: ProposalRecord[]
   currentTeam?: Seat[]
-  transcript: { seat: Seat; name: string; text: string }[]
+  discussionSlot?: 'pre' | 'post'
+  discussionRound?: number
+  transcript: { seat: Seat; name: string; text: string; lean?: string }[]
   events: GameEvent[]
   winner?: Alignment
   winReason?: string

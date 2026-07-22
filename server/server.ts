@@ -121,7 +121,9 @@ function newSession(opts: { playerCount?: number; seed?: string; bots?: string }
     names.push(botMode === 'llm' ? rosterById(id).displayName : `Bot ${seat}`)
   }
 
-  const game = createGame({ seed, playerCount, names, talk: { preProposal: 1, postProposal: 0 } })
+  // Up to 1 talk round before a proposal, 2 reaction rounds after it —
+  // rounds end early once a full round passes silently.
+  const game = createGame({ seed, playerCount, names, talk: { preProposal: 1, postProposal: 2 } })
   const agents = new Map<Seat, AvalonAgent>()
   for (let seat = 1; seat < playerCount; seat++) {
     agents.set(seat, botMode === 'llm'

@@ -12,8 +12,11 @@ export type Phase =
   | 'discussion' | 'proposal' | 'vote' | 'quest' | 'assassination' | 'gameOver'
 
 export interface TalkConfig {
-  preProposal: number   // table-talk rounds before each proposal
-  postProposal: number  // table-talk rounds between proposal and vote
+  // MAX table-talk rounds before / after each proposal. Rounds terminate
+  // early: a full round in which nobody speaks ends the discussion, so these
+  // are caps, not fixed counts. Passing is a normal move.
+  preProposal: number
+  postProposal: number
 }
 
 export interface GameConfig {
@@ -64,7 +67,13 @@ export interface Game {
   leaderSeat: Seat
   players: Player[]
   quests: Quest[]
-  discussion?: { slot: 'pre' | 'post'; remaining: Seat[] }
+  discussion?: {
+    slot: 'pre' | 'post'
+    remaining: Seat[]     // speakers left in the current round
+    roundNum: number      // 1-based
+    maxRounds: number
+    anySpoke: boolean     // did anyone speak (non-empty say) this round?
+  }
   currentTeam?: Seat[]
   pendingVotes: Record<Seat, 'approve' | 'reject'>
   pendingCards: Record<Seat, 'success' | 'fail'>
@@ -87,8 +96,10 @@ export interface DecisionRequest {
 // `thinking` is the deciding agent's private in-character reasoning — the
 // engine records it as an event visible only to that seat (post-game reveal
 // material). `pitch` on propose is public speech attached to the proposal.
+export type Lean = 'approve' | 'reject' | 'unsure'
+
 export type Decision =
-  | { kind: 'discuss'; say: string; thinking?: string }
+  | { kind: 'discuss'; say: string; lean?: Lean; thinking?: string }
   | { kind: 'propose'; team: Seat[]; pitch?: string; thinking?: string }
   | { kind: 'vote'; vote: 'approve' | 'reject'; thinking?: string }
   | { kind: 'quest'; card: 'success' | 'fail'; thinking?: string }
@@ -133,7 +144,9 @@ export interface PlayerView {
   quests: Quest[]               // quest teams/results/failCounts are public
   proposals: ProposalRecord[]
   currentTeam?: Seat[]
-  transcript: { seat: Seat; name: string; text: string }[]
+  discussionSlot?: 'pre' | 'post'
+  discussionRound?: number
+  transcript: { seat: Seat; name: string; text: string; lean?: Lean }[]
   events: GameEvent[]           // only events visible to this seat
   winner?: Alignment
   winReason?: string

@@ -188,7 +188,14 @@ function decideAssassinate(view: PlayerView, rng: Rng): Decision {
 }
 
 function decideDiscuss(view: PlayerView, rng: Rng): Decision {
-  if (rng.chance(0.3)) return { kind: 'discuss', say: '' } // passing is natural
+  // Lean: when a team is on the table, signal how we'd vote right now.
+  const lean = view.currentTeam
+    ? (decideVote(view, rng) as { vote: 'approve' | 'reject' }).vote
+    : undefined
+  // Passing is natural, and later rounds are mostly for whoever still has
+  // something to say.
+  const passChance = (view.discussionRound ?? 1) >= 2 ? 0.75 : 0.3
+  if (rng.chance(passChance)) return { kind: 'discuss', say: '', lean }
   const sus = suspicion(view)
   const nameOf = (s: Seat) => view.players[s].name
 
@@ -201,7 +208,7 @@ function decideDiscuss(view: PlayerView, rng: Rng): Decision {
       `I'm comfortable with how this is shaping up.`,
       `No strong reads from me yet.`,
     ]
-    return { kind: 'discuss', say: rng.pick(lines) }
+    return { kind: 'discuss', say: rng.pick(lines), lean }
   }
 
   const ranked = view.players.map((p) => p.seat).filter((s) => s !== view.seat)
@@ -209,14 +216,14 @@ function decideDiscuss(view: PlayerView, rng: Rng): Decision {
   const worst = ranked[0]
   const trusted = ranked[ranked.length - 1]
   if (sus[worst] > 1) {
-    return { kind: 'discuss', say: `I don't trust ${nameOf(worst)}.` }
+    return { kind: 'discuss', say: `I don't trust ${nameOf(worst)}.`, lean }
   }
   const lines = [
     `I'd feel better with ${nameOf(trusted)} on this one.`,
     `Watch the votes closely this round.`,
     `No strong reads from me yet.`,
   ]
-  return { kind: 'discuss', say: rng.pick(lines) }
+  return { kind: 'discuss', say: rng.pick(lines), lean }
 }
 
 // ---- entry points ----

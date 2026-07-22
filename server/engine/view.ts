@@ -35,11 +35,13 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
   }
 
   const transcript = game.log
-    .filter((ev) => ev.type === 'utterance' && (ev.payload.text as string).length > 0)
+    .filter((ev) => ev.type === 'utterance' &&
+      ((ev.payload.text as string).length > 0 || ev.payload.lean !== undefined))
     .map((ev) => ({
       seat: ev.payload.seat as Seat,
       name: game.players[ev.payload.seat as Seat].name,
       text: ev.payload.text as string,
+      ...(ev.payload.lean !== undefined ? { lean: ev.payload.lean as any } : {}),
     }))
 
   return {
@@ -58,6 +60,8 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
     quests: game.quests.map((q) => ({ ...q, team: q.team?.slice() })),
     proposals,
     currentTeam: game.currentTeam?.slice(),
+    discussionSlot: game.discussion?.slot,
+    discussionRound: game.discussion?.roundNum,
     transcript,
     events,
     winner: game.winner,

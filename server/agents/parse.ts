@@ -46,8 +46,11 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
 
   switch (kind) {
     case 'discuss': {
+      const leanRaw = typeof o?.lean === 'string' ? o.lean.toLowerCase() : undefined
+      const lean = leanRaw === 'approve' || leanRaw === 'reject' || leanRaw === 'unsure'
+        ? leanRaw : undefined
       if (o && typeof o.say === 'string') {
-        return { decision: { kind: 'discuss', say: o.say.trim().slice(0, SAY_MAX_CHARS), thinking }, thinking, parseFailed: false }
+        return { decision: { kind: 'discuss', say: o.say.trim().slice(0, SAY_MAX_CHARS), lean, thinking }, thinking, parseFailed: false }
       }
       // Salvage: a model that answered in prose is still speech — but JSON-ish
       // debris is not.
@@ -55,7 +58,7 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
       if (raw && !raw.includes('{') && !raw.includes('"say"')) {
         return { decision: { kind: 'discuss', say: raw.slice(0, SAY_MAX_CHARS), thinking }, thinking, parseFailed: false }
       }
-      return fail('expected {"thinking": "...", "say": "..."}')
+      return fail('expected {"thinking": "...", "say": "...", "lean": "..."}')
     }
 
     case 'propose': {

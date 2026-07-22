@@ -30,7 +30,7 @@ const ROLE_GUIDANCE: Record<string, string> = {
 }
 
 const OUTPUT_CONTRACTS: Record<LlmCallKind, string> = {
-  discuss: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=60 words>", "say": "<what you say aloud, <=50 words, or empty string to pass>"}. "say" is heard by everyone — never reveal private knowledge in it.`,
+  discuss: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=60 words>", "say": "<what you say aloud, <=50 words, or empty string to pass>", "lean": "approve"|"reject"|"unsure"}. "say" is heard by everyone — never reveal private knowledge in it. "lean" is your public signal about the proposed team (include it only when a team is on the table; it is not binding). Passing (empty say) is completely normal — do it when you have nothing NEW to add, especially in later rounds.`,
   propose: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "team": [<seat numbers, exactly the required team size>], "pitch": "<one sentence to the table about this team>"}.`,
   vote: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "vote": "approve" or "reject"}.`,
   quest: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "card": "success" or "fail"}.`,
@@ -99,12 +99,22 @@ export function transcriptText(view: PlayerView, maxUtterances = 14): string {
   const recent = view.transcript.slice(-maxUtterances)
   if (!recent.length) return '(no table talk yet)'
   return recent
-    .map((u) => `${u.name}(seat ${u.seat}): "${sanitizeSpeech(u.text)}"`)
+    .map((u) => {
+      const lean = u.lean ? ` [leans ${u.lean}]` : ''
+      const speech = u.text ? `"${sanitizeSpeech(u.text)}"` : '(passes)'
+      return `${u.name}(seat ${u.seat}): ${speech}${lean}`
+    })
     .join('\n')
 }
 
 const ASKS: Record<LlmCallKind, (view: PlayerView) => string> = {
-  discuss: () => `It is your turn to speak. What do you say to the table (or pass)?`,
+  discuss: (v) => {
+    const round = v.discussionRound ?? 1
+    const teamNote = v.currentTeam
+      ? ` A team is on the table — react to it and include your lean.`
+      : ''
+    return `It is your turn in table-talk round ${round}.${teamNote} Speak only if you have something new to add — passing is normal${round > 1 ? ', and most players pass by round 2' : ''}.`
+  },
   propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}, and give a one-line pitch.`,
   vote: () => `Vote on the proposed team: approve or reject.`,
   quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
