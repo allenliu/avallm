@@ -291,7 +291,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
   const started = preview.status === 'started'
   return (
     <div className="landing">
-      <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+      <h1><Brand /></h1>
       <p className="tagline">
         <b>{preview.hostName}</b> has a table for {preview.playerCount}: {preview.members.length}/{preview.humanSeats} humans
         {preview.table.length > 0 && <> + {preview.table.join(', ')}</>}.
@@ -325,7 +325,7 @@ function LobbyScreen({ lobby, lobbyId, onBack }: {
   const waitingFor = lobby.humanSeats - lobby.members.length
   return (
     <div className="landing">
-      <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+      <h1><Brand /></h1>
       <p className="tagline">
         The game starts automatically when {lobby.humanSeats} human{lobby.humanSeats === 1 ? '' : 's'} are seated.
         No turn timers — play it like mail chess.
