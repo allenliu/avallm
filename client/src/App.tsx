@@ -4,6 +4,7 @@ import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './set
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
 import { Feed } from './components/Feed.tsx'
+import { HistoryGrid } from './components/HistoryGrid.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
 import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
@@ -27,6 +28,7 @@ export function App() {
   const [starting, setStarting] = useState(false)
   const [library, setLibrary] = useState<Library | null>(null)
   const [showRef, setShowRef] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const esRef = useRef<EventSource | null>(null)
 
   const refreshLibrary = useCallback(() => {
@@ -110,9 +112,13 @@ export function App() {
       <header>
         <h1 className="small">Avalon <span className="vs">vs.</span> the Machines</h1>
         <QuestBoard view={view} />
-        <button className="secondary" onClick={() => setShowRef(true)}>📖 Reference</button>
+        <span className="header-buttons">
+          <button className="secondary" onClick={() => setShowHistory(true)}>📊 History</button>
+          <button className="secondary" onClick={() => setShowRef(true)}>📖 Reference</button>
+        </span>
       </header>
       {showRef && <Reference view={view} bots={bots} onClose={() => setShowRef(false)} />}
+      {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
       <TableSeats view={view} bots={bots} acting={acting} />
       <main>
         <Feed view={view} bots={bots} />

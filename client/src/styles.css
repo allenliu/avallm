@@ -164,6 +164,28 @@ input:focus, select:focus { outline: 1px solid var(--good); }
 .ref-row .role-toggle-name.good { color: var(--good); }
 .ref-row .role-toggle-name.evil { color: var(--evil); }
 .agent-name { display: inline-flex; gap: 0.4rem; align-items: center; }
+.header-buttons { display: inline-flex; gap: 0.4rem; }
+
+/* ---- history grid ---- */
+.history-panel { width: min(860px, 94vw); }
+.history-scroll { overflow-x: auto; }
+.history-grid { border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+.history-grid th, .history-grid td {
+  border: 1px solid #333644;
+  padding: 0.3rem 0.5rem;
+  text-align: center;
+}
+.hg-name { text-align: left !important; font-weight: 600; }
+.hg-name .badge { margin-right: 0.4rem; }
+.hg-quest.ok { color: var(--ok); }
+.hg-quest.bad { color: var(--bad); }
+.hg-quest.pending { color: var(--gold); }
+.hg-prop { color: var(--dim); font-weight: 400; }
+.hg-prop.rejected { color: var(--bad); }
+.hg-cell.on-team { background: #24304a; }
+.hg-cell.yes { color: var(--ok); }
+.hg-cell.no { color: var(--bad); }
+.hg-legend { color: var(--dim); font-size: 0.78rem; }
 
 /* ---- game layout ---- */
 .game {
