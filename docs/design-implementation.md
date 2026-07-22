@@ -537,13 +537,11 @@ than distorting the baseline heuristics further.
 7. **Human-absent phases.** When the human is dead-weight (not on team, not leader), the game is a
    spectator scene for 30s. Open: auto-advance vs. a "continue" button pacing control (lean:
    human-paced "continue" — Avalon's tension is in the beats).
-8. **Multiplayer (future).** Persistent online play with multiple humans is architecturally
-   pre-paved: the server is already authoritative, state is event-sourced, and every consumer gets
-   a seat-filtered `viewFor` — so multiplayer is a *lobby + seat-auth* problem (per-seat session
-   tokens on the SSE/decide endpoints, a join flow, reconnect via snapshot + event replay), not an
-   engine rework. The pump loop generalizes from "wait for THE human" to "wait for all human
-   seats". Needs real persistence (the JSON-snapshot pattern in §1) and a hosted deployment;
-   deliberately out of scope until the single-human game is proven fun.
+8. **Multiplayer.** Designed in [design-multiplayer.md](design-multiplayer.md): lobby + join-URL +
+   ready-up flow, seat tokens (no accounts), per-seat SSE streams, the pump generalized to wait on
+   all human seats, single-player as a degenerate auto-start lobby. Engine needs zero changes.
+   Phased MP1 (lobby+seats) → MP2 (resilience/spectate) → MP3 (free-form chat, hosted + invite
+   gate).
 
 ---
 
