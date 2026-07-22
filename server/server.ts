@@ -126,6 +126,7 @@ async function pump(s: Session): Promise<void> {
 
 function newSession(opts: {
   playerCount?: number; seed?: string; bots?: string; roles?: unknown; table?: unknown
+  humanName?: unknown
 }): { id: string; session: Session } {
   const playerCount = opts.playerCount ?? 7
   if (playerCount < 5 || playerCount > 9) throw new Error('playerCount must be 5-9')
@@ -160,10 +161,18 @@ function newSession(opts: {
   }
   const defs = tableIds.map(libById)
 
+  // The human plays under a real name (bots address players by name, and
+  // multiplayer will need names anyway). Sanitized; 'You' stays the default.
+  const humanName = (typeof opts.humanName === 'string' ? opts.humanName : '')
+    .replace(/[<>{}[\]|\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 24) || 'You'
+
   // Names: agent names, deduped with a numeric suffix when the same agent
-  // plays multiple seats.
-  const names = ['You']
-  const nameCount = new Map<string, number>()
+  // plays multiple seats (the human's name is reserved first).
+  const names = [humanName]
+  const nameCount = new Map<string, number>([[humanName, 1]])
   for (const def of defs) {
     const n = (nameCount.get(def.name) ?? 0) + 1
     nameCount.set(def.name, n)

@@ -31,14 +31,14 @@ export function App() {
   }, [])
   useEffect(refreshLibrary, [refreshLibrary])
 
-  const newGame = useCallback(async (playerCount: number, table: string[], roles: Role[] | null) => {
+  const newGame = useCallback(async (playerCount: number, table: string[], roles: Role[] | null, humanName: string) => {
     setStarting(true)
     setError(null)
     try {
       const res = await fetch('/api/game/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerCount, table, ...(roles ? { roles } : {}) }),
+        body: JSON.stringify({ playerCount, table, humanName, ...(roles ? { roles } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'failed to start game')
@@ -141,13 +141,14 @@ function defaultTable(library: Library | null, count: number): string[] {
 }
 
 function Launcher({ onStart, starting, library, onLibraryChange }: {
-  onStart: (playerCount: number, table: string[], roles: Role[] | null) => void
+  onStart: (playerCount: number, table: string[], roles: Role[] | null, humanName: string) => void
   starting: boolean
   library: Library | null
   onLibraryChange: () => void
 }) {
   const [players, setPlayers] = useState(7)
   const [table, setTable] = useState<string[]>([])
+  const [humanName, setHumanName] = useState(() => localStorage.getItem('avalon-name') ?? '')
   const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
   const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(7))
   const [showRules, setShowRules] = useState(false)
@@ -199,6 +200,16 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
         </ul>
       )}
       <div className="row">
+        <label>
+          Your name{' '}
+          <input
+            value={humanName} maxLength={24} placeholder="You"
+            onChange={(e) => {
+              setHumanName(e.target.value)
+              localStorage.setItem('avalon-name', e.target.value)
+            }}
+          />
+        </label>
         <label>
           Players{' '}
           <select value={players} onChange={(e) => setPlayersAndRoles(Number(e.target.value))}>
@@ -256,7 +267,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
       )}
       <button
         disabled={starting || !built.roles || table.length !== players - 1}
-        onClick={() => onStart(players, table, built.roles)}
+        onClick={() => onStart(players, table, built.roles, humanName)}
       >
         {starting ? 'Dealing roles…' : 'Sit down at the table'}
       </button>

@@ -67,6 +67,15 @@ test('discuss: prose is speech, JSON debris is not', () => {
   assert.equal(debris.parseFailed, true)
 })
 
+test('pitch: clean JSON, prose salvage, empty fails', () => {
+  const clean = parseDecision('pitch', '{"thinking":"t","pitch":"Trust this pair."}', view)
+  assert.equal(clean.parseFailed, false)
+  assert.equal(clean.pitch, 'Trust this pair.')
+  const prose = parseDecision('pitch', 'A solid team to start us off.', view)
+  assert.equal(prose.pitch, 'A solid team to start us off.')
+  assert.equal(parseDecision('pitch', '   ', view).parseFailed, true)
+})
+
 test('reflect: structured and raw scratchpads, empty fails', () => {
   const clean = parseDecision('reflect',
     '{"suspicions":[{"seat":2,"read":"votes with evil","confidence":70}],"plan":"watch seat 2"}', view)

@@ -42,7 +42,7 @@ test('provider policy: glm-5.2 pinned, everything else unconstrained', () => {
 })
 
 test('call params cover every kind with json mode', () => {
-  for (const kind of ['discuss', 'propose', 'vote', 'quest', 'assassinate', 'reflect'] as const) {
+  for (const kind of ['discuss', 'propose', 'pitch', 'vote', 'quest', 'assassinate', 'reflect'] as const) {
     const p = CALL_PARAMS[kind]
     assert.ok(p.max_tokens >= 100 && p.max_tokens <= 500, kind)
     assert.ok(p.temperature >= 0 && p.temperature <= 1, kind)

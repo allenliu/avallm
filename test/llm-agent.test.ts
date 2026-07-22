@@ -50,6 +50,37 @@ test('one malformed reply triggers exactly one correction retry', async () => {
   assert.equal(n, 2)
 })
 
+test('propose is commit-then-explain: pitch generated with the team locked', async () => {
+  const client = fakeClient((opts, messages) => {
+    if (opts.tag?.endsWith('/propose')) return '{"thinking": "clean pair", "team": [0, 2]}'
+    if (opts.tag?.endsWith('/pitch')) {
+      // The pitch prompt must carry the locked team, by name.
+      const user = messages.find((m) => m.role === 'user')!
+      assert.match(user.content, /locked in/)
+      assert.ok(user.content.includes(view0.players[0].name))
+      assert.ok(user.content.includes(view0.players[2].name))
+      return '{"thinking": "sell it", "pitch": "Clean start with a proven pair."}'
+    }
+    throw new Error(`unexpected call ${opts.tag}`)
+  })
+  const agent = createLlmAgent({ modelId: 'deepseek', client })
+  const d = await agent.decide({ kind: 'propose', seat: 0, round: 1, proposalNum: 1 }, view0)
+  assert.deepEqual((d as any).team, [0, 2])
+  assert.equal((d as any).pitch, 'Clean start with a proven pair.')
+  assert.equal(client.calls.length, 2)
+})
+
+test('a failed pitch call still yields a (silent) proposal', async () => {
+  const client = fakeClient((opts) => {
+    if (opts.tag?.endsWith('/propose')) return '{"team": [0, 1]}'
+    throw new Error('pitch model exploded')
+  })
+  const agent = createLlmAgent({ modelId: 'gemini', client })
+  const d = await agent.decide({ kind: 'propose', seat: 0, round: 1, proposalNum: 1 }, view0)
+  assert.deepEqual((d as any).team, [0, 1])
+  assert.equal((d as any).pitch, undefined)
+})
+
 test('two failures throw (the runner then degrades to heuristic)', async () => {
   const client = fakeClient(() => 'zzz')
   const agent = createLlmAgent({ modelId: 'kimi', client })

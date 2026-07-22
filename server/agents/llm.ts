@@ -11,7 +11,7 @@ import type { LlmCallKind } from '../llm/call-params.ts'
 import { rosterById } from '../llm/roster.ts'
 import type { OpenRouterClient, Msg } from '../llm/openrouter.ts'
 import { buildMessages } from './prompts.ts'
-import type { PromptOverrides } from './prompts.ts'
+import type { AskExtra, PromptOverrides } from './prompts.ts'
 import { legalityError, parseDecision } from './parse.ts'
 import type { Decision, DecisionRequest, PlayerView } from '../engine/types.ts'
 import type { AvalonAgent } from './types.ts'
@@ -31,9 +31,12 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   let scratchpad = ''
   let reflectedQuests = 0
 
-  async function callKind(kind: LlmCallKind, view: PlayerView, correction?: { prior: string; error: string }): Promise<string> {
+  async function callKind(
+    kind: LlmCallKind, view: PlayerView,
+    correction?: { prior: string; error: string }, extra?: AskExtra,
+  ): Promise<string> {
     const params = CALL_PARAMS[kind]
-    const messages: Msg[] = buildMessages(kind, view, scratchpad, overrides)
+    const messages: Msg[] = buildMessages(kind, view, scratchpad, overrides, extra)
     if (correction) {
       messages.push(
         { role: 'assistant', content: correction.prior },
@@ -80,7 +83,25 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
           throw new Error(`${entry.displayName} failed ${kind} twice: ${error}`)
         }
       }
-      return parsed.decision!
+      const decision = parsed.decision!
+      // Commit-then-explain: the team is locked before the pitch is written,
+      // so the speech can never contradict the action. Best-effort — a failed
+      // pitch call just means a silent proposal.
+      if (decision.kind === 'propose') {
+        try {
+          const content = await callKind('pitch', view, undefined, { chosenTeam: decision.team })
+          const pitchParsed = parseDecision('pitch', content, view)
+          if (!pitchParsed.parseFailed && pitchParsed.pitch) {
+            decision.pitch = pitchParsed.pitch
+            if (pitchParsed.thinking) {
+              decision.thinking = [decision.thinking, pitchParsed.thinking].filter(Boolean).join(' / ')
+            }
+          }
+        } catch {
+          // silent proposal — the table will notice
+        }
+      }
+      return decision
     },
   }
 }

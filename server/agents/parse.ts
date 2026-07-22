@@ -8,6 +8,7 @@ import type { LlmCallKind } from '../llm/call-params.ts'
 export interface ParsedDecision {
   decision?: Decision
   scratchpad?: string   // reflect only
+  pitch?: string        // pitch only
   thinking: string
   parseFailed: boolean
   error?: string
@@ -61,9 +62,21 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
       return fail('expected {"thinking": "...", "say": "...", "lean": "..."}')
     }
 
+    case 'pitch': {
+      if (o && typeof o.pitch === 'string' && o.pitch.trim()) {
+        return { pitch: o.pitch.trim().slice(0, SAY_MAX_CHARS), thinking, parseFailed: false }
+      }
+      const raw = content.trim()
+      if (raw && !raw.includes('{')) {
+        return { pitch: raw.slice(0, SAY_MAX_CHARS), thinking, parseFailed: false }
+      }
+      return fail('expected {"thinking": "...", "pitch": "..."}')
+    }
+
     case 'propose': {
       const team = Array.isArray(o?.team) ? o.team : null
       if (team && team.every((s) => Number.isInteger(s))) {
+        // Tolerate models that still bundle a pitch with the team.
         const pitch = typeof o?.pitch === 'string' ? o.pitch.trim().slice(0, SAY_MAX_CHARS) : undefined
         return { decision: { kind: 'propose', team: team as Seat[], pitch, thinking }, thinking, parseFailed: false }
       }
