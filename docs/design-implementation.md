@@ -122,6 +122,26 @@ chokepoint (§2) applies unchanged. An imported agent that expects extra observa
 AvalonBench's engine callbacks) gets it derived from the view inside the shim, never from raw
 state.
 
+### The agent library (implemented in M2)
+
+Above the engine-level interface sits a **config layer**: an agent is an `AgentDef`
+(`server/agents/defs.ts`) — identity (name / version / author / about / badge) plus an engine.
+For `llm` engines the config owns the **model** and the **prompt layers**: an always-on
+`personality` and optional per-role `roleGuidance` overrides. The rules digest, output contracts,
+injection guard, and view rendering are deliberately NOT config-overridable — a custom agent can
+change how it plays, never what it can see or how its output is parsed. That keeps custom agents
+leak-safe and mutually comparable (same harness, different brain).
+
+The library = built-ins (one agent per roster model with baseline prompts, plus **Autopilot**, the
+heuristic player as a first-class pickable agent) + user agents persisted as JSON files in
+`data/agents/` (gitignored). Server API: `GET /api/agents` (browse), `POST /api/agents` (create —
+**llm engines only**; a stdio engine names a command to execute and must never be settable over
+HTTP — stdio defs are file-drop only). Table setup maps each bot seat to a library id (`table:
+[ids]` on game creation; the same agent may play multiple seats, names deduped). The client's
+setup screen has the library browser + create-agent form, and the in-game Reference panel (Rules /
+Roles in play / The table / Setup) shows each opponent's card including its persona — transparency
+is part of the premise.
+
 **Determinism rule:** the engine is a pure reducer `(state, event) → state` over an append-only
 event log, with a seeded RNG (see §2). LLM outputs enter the engine only as validated events.
 Replaying the event log reproduces the game exactly — that's the debugging story and the test story.
@@ -517,6 +537,13 @@ than distorting the baseline heuristics further.
 7. **Human-absent phases.** When the human is dead-weight (not on team, not leader), the game is a
    spectator scene for 30s. Open: auto-advance vs. a "continue" button pacing control (lean:
    human-paced "continue" — Avalon's tension is in the beats).
+8. **Multiplayer (future).** Persistent online play with multiple humans is architecturally
+   pre-paved: the server is already authoritative, state is event-sourced, and every consumer gets
+   a seat-filtered `viewFor` — so multiplayer is a *lobby + seat-auth* problem (per-seat session
+   tokens on the SSE/decide endpoints, a join flow, reconnect via snapshot + event replay), not an
+   engine rework. The pump loop generalizes from "wait for THE human" to "wait for all human
+   seats". Needs real persistence (the JSON-snapshot pattern in §1) and a hosted deployment;
+   deliberately out of scope until the single-human game is proven fun.
 
 ---
 

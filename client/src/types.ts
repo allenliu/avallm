@@ -61,12 +61,25 @@ export interface DecisionRequest {
   proposalNum: number
 }
 
+export interface AgentInfo {
+  id: string
+  name: string
+  version?: string
+  author?: string
+  about?: string
+  model: string
+  color: string
+  monogram: string
+  personality?: string
+  custom: boolean
+}
+
 export interface ServerPayload {
   view: PlayerView
   ask: DecisionRequest[]
   acting: Seat[]
   degraded: number
-  bots: Record<number, string>
+  bots: Record<number, AgentInfo>
 }
 
 export interface RevealPlayer {
@@ -82,14 +95,3 @@ export interface RevealPayload {
   degraded: { seat: Seat; kind: string; error: string }[]
 }
 
-// Mirror of server/llm/roster.ts badges (display only).
-export const BADGES: Record<string, { color: string; monogram: string }> = {
-  deepseek: { color: '#4D6BFE', monogram: 'DS' },
-  gemini: { color: '#1A73E8', monogram: 'GM' },
-  'gemini-flash': { color: '#34A853', monogram: 'GF' },
-  haiku: { color: '#D97757', monogram: 'HK' },
-  kimi: { color: '#16A8A8', monogram: 'KM' },
-  glm: { color: '#8B5CF6', monogram: 'GL' },
-  'gpt-oss': { color: '#10A37F', monogram: 'GP' },
-  seed: { color: '#F0424C', monogram: 'SD' },
-}

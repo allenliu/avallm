@@ -1,16 +1,17 @@
-import type { PlayerView, Seat } from '../types.ts'
-import { BADGES } from '../types.ts'
+import type { AgentInfo, PlayerView, Seat } from '../types.ts'
 
-export function ModelBadge({ botId }: { botId: string | undefined }) {
-  if (!botId) return null
-  const b = BADGES[botId]
-  if (!b) return null
-  return <span className="badge" style={{ background: b.color }}>{b.monogram}</span>
+export function ModelBadge({ info }: { info: AgentInfo | undefined }) {
+  if (!info) return null
+  return (
+    <span className="badge" style={{ background: info.color }} title={`${info.name} — ${info.model}`}>
+      {info.monogram}
+    </span>
+  )
 }
 
 export function TableSeats({ view, bots, acting }: {
   view: PlayerView
-  bots: Record<number, string>
+  bots: Record<number, AgentInfo>
   acting: Seat[]
 }) {
   const lastVoted = [...view.proposals].reverse().find((p) => p.votes)
@@ -37,7 +38,7 @@ export function TableSeats({ view, bots, acting }: {
           <div key={p.seat} className={`seat${p.seat === view.seat ? ' me' : ''}${onTeam ? ' on-team' : ''}`}>
             <div className="seat-top">
               {isLeader && <span className="crown" title="Leader">♛</span>}
-              <ModelBadge botId={bots[p.seat]} />
+              <ModelBadge info={bots[p.seat]} />
               <span className="seat-name">{p.name}</span>
             </div>
             <div className="seat-bottom">

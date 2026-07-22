@@ -14,14 +14,23 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createGame, applyDecision, expectedDecisions } from './engine/game.ts'
-import { viewFor, eventVisibleTo } from './engine/view.ts'
-import { heuristicDecide, createHeuristicAgent } from './agents/heuristic.ts'
-import { createLlmAgent } from './agents/llm.ts'
+import { viewFor } from './engine/view.ts'
+import { heuristicDecide } from './agents/heuristic.ts'
+import { createAgentFromDef } from './agents/registry.ts'
+import { loadAgentLibrary, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
+import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
 import { getClient } from './llm/client.ts'
-import { ROSTER, DEFAULT_TABLE, rosterById } from './llm/roster.ts'
+import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
 import { ROLE_ALIGNMENT } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
 import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
+
+let library: AgentDef[] = loadAgentLibrary()
+const libById = (id: string): AgentDef => {
+  const def = library.find((d) => d.id === id)
+  if (!def) throw new Error(`unknown agent: ${id}`)
+  return def
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, '..', 'client', 'dist')
@@ -31,7 +40,7 @@ const HUMAN: Seat = 0
 interface Session {
   game: Game
   agents: Map<Seat, AvalonAgent>
-  botIds: Record<number, string> // seat -> roster id ('' for heuristic bots)
+  botInfo: Record<number, AgentPublicInfo> // seat -> library agent info
   waiting: DecisionRequest[]
   acting: Seat[]
   degraded: { seat: Seat; kind: string; error: string }[]
@@ -47,7 +56,7 @@ function humanPayload(s: Session) {
     ask: s.waiting,
     acting: s.acting,
     degraded: s.degraded.length,
-    bots: s.botIds,
+    bots: s.botInfo,
   }
 }
 
@@ -107,12 +116,11 @@ async function pump(s: Session): Promise<void> {
 }
 
 function newSession(opts: {
-  playerCount?: number; seed?: string; bots?: string; roles?: unknown
+  playerCount?: number; seed?: string; bots?: string; roles?: unknown; table?: unknown
 }): { id: string; session: Session } {
   const playerCount = opts.playerCount ?? 7
   if (playerCount < 5 || playerCount > 9) throw new Error('playerCount must be 5-9')
   const seed = opts.seed || `web-${Math.random().toString(36).slice(2, 10)}`
-  const botMode = opts.bots === 'heuristic' ? 'heuristic' : 'llm'
   // Optional custom role set; full legality (counts, merlin/assassin pairing,
   // uniqueness) is enforced by createGame -> validateRoles.
   let roles: Role[] | undefined
@@ -123,29 +131,50 @@ function newSession(opts: {
     roles = opts.roles as Role[]
   }
 
-  // Seat 0 is the human; bots fill the rest from the default table then roster.
-  const tableIds = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((id) => !DEFAULT_TABLE.includes(id))]
-  const botIds: Record<number, string> = {}
+  // Seat 0 is the human. The table is a list of agent-library ids for seats
+  // 1..n-1; when absent, fall back to the default model table (or all
+  // Autopilot for bots: 'heuristic').
+  let tableIds: string[]
+  if (opts.table !== undefined) {
+    if (!Array.isArray(opts.table) || !opts.table.every((t) => typeof t === 'string')) {
+      throw new Error('table must be an array of agent ids')
+    }
+    if (opts.table.length !== playerCount - 1) {
+      throw new Error(`table must have exactly ${playerCount - 1} agents`)
+    }
+    tableIds = opts.table
+  } else if (opts.bots === 'heuristic') {
+    tableIds = Array.from({ length: playerCount - 1 }, () => 'autopilot')
+  } else {
+    const pool = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((rid) => !DEFAULT_TABLE.includes(rid))]
+    tableIds = Array.from({ length: playerCount - 1 }, (_, i) => pool[i % pool.length])
+  }
+  const defs = tableIds.map(libById)
+
+  // Names: agent names, deduped with a numeric suffix when the same agent
+  // plays multiple seats.
   const names = ['You']
-  for (let seat = 1; seat < playerCount; seat++) {
-    const id = tableIds[(seat - 1) % tableIds.length]
-    botIds[seat] = botMode === 'llm' ? id : ''
-    names.push(botMode === 'llm' ? rosterById(id).displayName : `Bot ${seat}`)
+  const nameCount = new Map<string, number>()
+  for (const def of defs) {
+    const n = (nameCount.get(def.name) ?? 0) + 1
+    nameCount.set(def.name, n)
+    names.push(n === 1 ? def.name : `${def.name} ${n}`)
   }
 
   // Up to 1 talk round before a proposal, 2 reaction rounds after it —
   // rounds end early once a full round passes silently.
   const game = createGame({ seed, playerCount, names, roles, talk: { preProposal: 1, postProposal: 2 } })
   const agents = new Map<Seat, AvalonAgent>()
-  for (let seat = 1; seat < playerCount; seat++) {
-    agents.set(seat, botMode === 'llm'
-      ? createLlmAgent({ modelId: botIds[seat], client: getClient() })
-      : createHeuristicAgent({ seed, seat }))
-  }
+  const botInfo: Record<number, AgentPublicInfo> = {}
+  defs.forEach((def, i) => {
+    const seat = i + 1
+    agents.set(seat, createAgentFromDef(def, { seed, seat }))
+    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
+  })
 
   const id = Math.random().toString(36).slice(2, 10)
   const session: Session = {
-    game, agents, botIds, waiting: [], acting: [], degraded: [],
+    game, agents, botInfo, waiting: [], acting: [], degraded: [],
     listeners: new Set(), pumping: false,
   }
   sessions.set(id, session)
@@ -240,6 +269,39 @@ const server = http.createServer(async (req, res) => {
         })
         return
       }
+    }
+    if (req.method === 'GET' && url.pathname === '/api/agents') {
+      json(res, 200, {
+        agents: library.map(publicInfo),
+        models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, tier: r.tier })),
+      })
+      return
+    }
+    if (req.method === 'POST' && url.pathname === '/api/agents') {
+      // Custom agents over HTTP are LLM-engine only: a stdio engine names a
+      // command to execute, which must never be settable remotely.
+      const body = await readBody(req)
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'agent'
+      let id = base
+      for (let i = 2; library.some((d) => d.id === id); i++) id = `${base}-${i}`
+      const def = validateDef({
+        id,
+        name,
+        version: '1.0',
+        author: typeof body.author === 'string' ? body.author.slice(0, 60) : 'local',
+        about: typeof body.about === 'string' ? body.about.slice(0, 300) : undefined,
+        engine: {
+          type: 'llm',
+          model: body.model,
+          personality: typeof body.personality === 'string' && body.personality.trim()
+            ? body.personality.trim() : undefined,
+        },
+      })
+      saveCustomDef(def)
+      library = loadAgentLibrary()
+      json(res, 200, { agent: publicInfo({ ...def, custom: true }) })
+      return
     }
     if (req.method === 'GET' && url.pathname === '/api/usage') {
       try {

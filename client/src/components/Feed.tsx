@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
-import type { GameEvent, PlayerView } from '../types.ts'
+import type { AgentInfo, GameEvent, PlayerView } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
 
-export function Feed({ view, bots }: { view: PlayerView; bots: Record<number, string> }) {
+export function Feed({ view, bots }: { view: PlayerView; bots: Record<number, AgentInfo> }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
@@ -17,7 +17,7 @@ export function Feed({ view, bots }: { view: PlayerView; bots: Record<number, st
         <div key={row.key} className={`feed-row ${row.cls}`}>
           {row.seat !== undefined && (
             <span className="feed-speaker">
-              <ModelBadge botId={bots[row.seat]} />
+              <ModelBadge info={bots[row.seat]} />
               {name(row.seat)}
             </span>
           )}

@@ -124,15 +124,27 @@ const ASKS: Record<LlmCallKind, (view: PlayerView) => string> = {
 
 // ---- the builder ----
 
+// Agent-config prompt layers (agent defs, server/agents/defs.ts). The rules
+// digest, output contracts, and injection guard are NOT overridable.
+export interface PromptOverrides {
+  personality?: string
+  roleGuidance?: Partial<Record<string, string>>
+}
+
 export function buildMessages(
   kind: LlmCallKind, view: PlayerView, scratchpad: string,
+  overrides: PromptOverrides = {},
 ): Msg[] {
+  const guidance = overrides.roleGuidance?.[view.role] ?? ROLE_GUIDANCE[view.role] ?? ''
   const system = [
     RULES_DIGEST,
     ``,
     `You are ${nameOf(view, view.seat)}. Your secret role: ${view.role.toUpperCase()} (${view.alignment}).`,
     knowledgeText(view),
-    ROLE_GUIDANCE[view.role] ?? '',
+    guidance,
+    ...(overrides.personality
+      ? [``, `Your table persona — play this way: ${overrides.personality}`]
+      : []),
     ``,
     INJECTION_GUARD,
     ``,

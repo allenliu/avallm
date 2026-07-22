@@ -101,6 +101,70 @@ input:focus, select:focus { outline: 1px solid var(--good); }
 .warning { color: var(--gold); font-size: 0.85rem; }
 .role-desc { color: var(--dim); font-size: 0.8rem; line-height: 1.4; }
 
+/* ---- table picker + agent library ---- */
+.table-picker {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+  text-align: left;
+  width: 100%;
+  max-width: 34rem;
+}
+.table-picker-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+.fill-buttons { color: var(--dim); font-size: 0.8rem; display: inline-flex; gap: 0.4rem; align-items: center; }
+.fill-buttons button { font-size: 0.78rem; padding: 0.3em 0.7em; }
+.table-picker-row { display: flex; align-items: center; gap: 0.5rem; }
+.table-picker-row select { flex-shrink: 0; }
+.table-picker-row .role-toggle-desc {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.add-agent {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0.8rem 1rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  width: 100%; max-width: 34rem;
+  text-align: left;
+}
+.add-agent textarea {
+  background: var(--panel-2);
+  border: 1px solid #3a3d4d;
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.5em 0.8em;
+  font-size: 0.88rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.add-agent input { width: 100%; }
+
+/* ---- reference panel ---- */
+.ref-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20;
+}
+.ref-panel {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  width: min(680px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.8rem;
+}
+.ref-tabs { display: flex; gap: 0.4rem; align-items: center; }
+.ref-tabs button.active { background: var(--good); color: #fff; }
+.ref-close { margin-left: auto; }
+.ref-list { display: flex; flex-direction: column; gap: 0.65rem; }
+.ref-row { display: flex; gap: 0.7rem; align-items: baseline; }
+.ref-row .role-toggle-name { min-width: 9rem; }
+.ref-row .role-toggle-name.good { color: var(--good); }
+.ref-row .role-toggle-name.evil { color: var(--evil); }
+.agent-name { display: inline-flex; gap: 0.4rem; align-items: center; }
+
 /* ---- game layout ---- */
 .game {
   display: flex;

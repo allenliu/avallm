@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { PlayerView, RevealPayload } from '../types.ts'
+import type { AgentInfo, PlayerView, RevealPayload } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
 
 export function Reveal({ view, reveal, bots, onNewGame }: {
   view: PlayerView
   reveal: RevealPayload | null
-  bots: Record<number, string>
+  bots: Record<number, AgentInfo>
   onNewGame: () => void
 }) {
   const [showThinking, setShowThinking] = useState(false)
@@ -19,7 +19,7 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
         <div className="reveal-roles">
           {reveal.players.map((p) => (
             <span key={p.seat} className={`reveal-role ${p.alignment}`}>
-              <ModelBadge botId={bots[p.seat]} />
+              <ModelBadge info={bots[p.seat]} />
               {p.name}: <b>{p.role}</b>
             </span>
           ))}
@@ -36,7 +36,7 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
   )
 }
 
-function ThinkingTimeline({ reveal, bots }: { reveal: RevealPayload; bots: Record<number, string> }) {
+function ThinkingTimeline({ reveal, bots }: { reveal: RevealPayload; bots: Record<number, AgentInfo> }) {
   const name = (s: number) => reveal.players.find((p) => p.seat === s)?.name ?? `seat ${s}`
   const rows = reveal.log.filter((ev) =>
     ev.type === 'thinking' || ev.type === 'questCard' || ev.type === 'proposal' || ev.type === 'questResult')
@@ -47,7 +47,7 @@ function ThinkingTimeline({ reveal, bots }: { reveal: RevealPayload; bots: Recor
         if (ev.type === 'thinking') {
           return (
             <div key={ev.seq} className="think-row">
-              <span className="feed-speaker"><ModelBadge botId={bots[p.seat]} />{name(p.seat)}</span>
+              <span className="feed-speaker"><ModelBadge info={bots[p.seat]} />{name(p.seat)}</span>
               <span className="think-kind">[{p.kind}]</span>
               <em>{p.text}</em>
             </div>

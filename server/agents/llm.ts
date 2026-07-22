@@ -11,6 +11,7 @@ import type { LlmCallKind } from '../llm/call-params.ts'
 import { rosterById } from '../llm/roster.ts'
 import type { OpenRouterClient, Msg } from '../llm/openrouter.ts'
 import { buildMessages } from './prompts.ts'
+import type { PromptOverrides } from './prompts.ts'
 import { legalityError, parseDecision } from './parse.ts'
 import type { Decision, DecisionRequest, PlayerView } from '../engine/types.ts'
 import type { AvalonAgent } from './types.ts'
@@ -18,17 +19,21 @@ import type { AvalonAgent } from './types.ts'
 export interface LlmAgentOpts {
   modelId: string           // roster id, e.g. 'deepseek'
   client: OpenRouterClient
+  agentId?: string          // library agent id, used for spend tags (defaults to modelId)
+  prompts?: PromptOverrides // agent-config prompt layers
 }
 
 export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   const entry = rosterById(opts.modelId)
   const { client } = opts
+  const tagId = opts.agentId ?? entry.id
+  const overrides = opts.prompts ?? {}
   let scratchpad = ''
   let reflectedQuests = 0
 
   async function callKind(kind: LlmCallKind, view: PlayerView, correction?: { prior: string; error: string }): Promise<string> {
     const params = CALL_PARAMS[kind]
-    const messages: Msg[] = buildMessages(kind, view, scratchpad)
+    const messages: Msg[] = buildMessages(kind, view, scratchpad, overrides)
     if (correction) {
       messages.push(
         { role: 'assistant', content: correction.prior },
@@ -36,7 +41,7 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
       )
     }
     return client.call(entry.slug, messages, {
-      tag: `${entry.id}/${kind}`,
+      tag: `${tagId}/${kind}`,
       temperature: params.temperature,
       max_tokens: params.max_tokens,
       response_format: params.json ? { type: 'json_object' } : undefined,
