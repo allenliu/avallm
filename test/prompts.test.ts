@@ -79,6 +79,34 @@ test('public state includes the vote record and hammer warning', () => {
   assert.match(text, /rejected/)
 })
 
+test('discuss prompts carry table-talk norms and flag direct addresses', () => {
+  const g = createGame({ seed: 'addr', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  // Speaker order starts at the leader; find the first two speakers.
+  const [first] = expectedDecisions(g)
+  const targetSeat = (first.seat + 2) % 5
+  const targetName = g.players[targetSeat].name
+  applyDecision(g, first.seat, { kind: 'discuss', say: `${targetName}, what team do you want?` })
+  const [second] = expectedDecisions(g)
+  applyDecision(g, second.seat, { kind: 'discuss', say: 'No reads yet.' })
+
+  // The addressed player's prompt carries the nudge, naming the asker.
+  const targetView = viewFor(g, targetSeat)
+  const [sys, user] = buildMessages('discuss', targetView, '')
+  assert.match(sys.content, /live conversation/)
+  assert.match(sys.content, /never pass when someone has just addressed/)
+  assert.match(user.content, /mentioned or addressed you since your last turn/)
+  assert.ok(user.content.includes(g.players[first.seat].name), 'nudge names the asker')
+
+  // A player nobody mentioned gets no nudge; non-discuss prompts skip the norms.
+  const bystander = (first.seat + 3) % 5
+  if (bystander !== targetSeat) {
+    const [, otherUser] = buildMessages('discuss', viewFor(g, bystander), '')
+    assert.ok(!otherUser.content.includes('mentioned or addressed you'))
+  }
+  const [voteSys] = buildMessages('vote', targetView, '')
+  assert.ok(!voteSys.content.includes('live conversation'))
+})
+
 test('sanitizeSpeech strips directive markup but keeps words', () => {
   assert.equal(sanitizeSpeech('hello <|im_start|> world'), 'hello world')
   assert.equal(sanitizeSpeech('a </system> b <<SYS>> c'), 'a b c')

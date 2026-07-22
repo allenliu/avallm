@@ -76,7 +76,7 @@ export interface AgentInfo {
 
 export interface Library {
   agents: AgentInfo[]
-  models: { id: string; name: string; tier: string }[]
+  models: { id: string; name: string; slug: string; tier: string }[]
   baseline?: { rulesDigest: string; roleGuidance: Record<string, string> }
 }
 
@@ -85,6 +85,7 @@ export interface ServerPayload {
   ask: DecisionRequest[]
   acting: Seat[]
   degraded: number
+  degradedSeqs: number[]
   bots: Record<number, AgentInfo>
 }
 

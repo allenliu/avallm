@@ -45,6 +45,7 @@ interface Session {
   waiting: DecisionRequest[]
   acting: Seat[]
   degraded: { seat: Seat; kind: string; error: string }[]
+  degradedSeqs: number[] // log seqs of events produced by autopilot fallbacks
   listeners: Set<http.ServerResponse>
   pumping: boolean
 }
@@ -57,6 +58,7 @@ function humanPayload(s: Session) {
     ask: s.waiting,
     acting: s.acting,
     degraded: s.degraded.length,
+    degradedSeqs: s.degradedSeqs,
     bots: s.botInfo,
   }
 }
@@ -86,16 +88,18 @@ async function pump(s: Session): Promise<void> {
         const view = viewFor(s.game, req.seat)
         const agent = s.agents.get(req.seat)!
         try {
-          return { req, decision: await agent.decide(req, view) }
+          return { req, decision: await agent.decide(req, view), fallback: false }
         } catch (err) {
           s.degraded.push({
             seat: req.seat, kind: req.kind,
             error: err instanceof Error ? err.message : String(err),
           })
-          return { req, decision: heuristicDecide(req, view, s.game.seed) }
+          return { req, decision: heuristicDecide(req, view, s.game.seed), fallback: true }
         }
       }))
-      for (const { req, decision } of decisions) {
+      for (const { req, decision, fallback } of decisions) {
+        const seqStart = s.game.log.length
+        let wasFallback = fallback
         try {
           applyDecision(s.game, req.seat, decision)
         } catch (err) {
@@ -104,6 +108,10 @@ async function pump(s: Session): Promise<void> {
             error: err instanceof Error ? err.message : String(err),
           })
           applyDecision(s.game, req.seat, heuristicDecide(req, viewFor(s.game, req.seat), s.game.seed))
+          wasFallback = true
+        }
+        if (wasFallback) {
+          for (let seq = seqStart; seq < s.game.log.length; seq++) s.degradedSeqs.push(seq)
         }
         broadcast(s)
       }
@@ -175,7 +183,7 @@ function newSession(opts: {
 
   const id = Math.random().toString(36).slice(2, 10)
   const session: Session = {
-    game, agents, botInfo, waiting: [], acting: [], degraded: [],
+    game, agents, botInfo, waiting: [], acting: [], degraded: [], degradedSeqs: [],
     listeners: new Set(), pumping: false,
   }
   sessions.set(id, session)
@@ -274,7 +282,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/agents') {
       json(res, 200, {
         agents: library.map(publicInfo),
-        models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, tier: r.tier })),
+        models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, slug: r.slug, tier: r.tier })),
         // The engine-owned prompt layers every llm agent shares — browsable
         // for transparency (custom personalities layer on top of these).
         baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },

@@ -148,8 +148,10 @@ export function saveCustomDef(def: AgentDef): void {
 }
 
 export function publicInfo(def: AgentDef): AgentPublicInfo {
+  // The OpenRouter slug, not a marketing name — "deepseek/deepseek-v4-flash"
+  // tells you exactly what you're playing against.
   const model = def.engine.type === 'llm'
-    ? rosterById(def.engine.model).displayName
+    ? rosterById(def.engine.model).slug
     : def.engine.type === 'heuristic' ? 'rule-based' : 'external'
   return {
     id: def.id,

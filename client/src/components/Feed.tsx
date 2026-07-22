@@ -2,12 +2,17 @@ import { useEffect, useRef } from 'react'
 import type { AgentInfo, GameEvent, PlayerView } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
 
-export function Feed({ view, bots }: { view: PlayerView; bots: Record<number, AgentInfo> }) {
+export function Feed({ view, bots, degradedSeqs }: {
+  view: PlayerView
+  bots: Record<number, AgentInfo>
+  degradedSeqs?: number[]
+}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
   }, [view.events.length])
   const name = (s: number) => view.players[s]?.name ?? `seat ${s}`
+  const degraded = new Set(degradedSeqs ?? [])
 
   const rows = view.events.map((ev) => renderEvent(ev, name)).filter(Boolean) as FeedRow[]
 
@@ -22,6 +27,12 @@ export function Feed({ view, bots }: { view: PlayerView; bots: Record<number, Ag
             </span>
           )}
           <span className="feed-text">{row.text}</span>
+          {degraded.has(row.key) && (
+            <span
+              className="chip autopilot-chip"
+              title="This decision fell back to the rule-based autopilot — the model's reply was unusable"
+            >🤖 autopilot</span>
+          )}
         </div>
       ))}
     </div>

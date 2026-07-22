@@ -278,6 +278,7 @@ footer { min-height: 3.4rem; }
 .team-chip { background: #34518e; }
 .vote-chip.approve { background: var(--ok); }
 .vote-chip.reject { background: var(--bad); }
+.autopilot-chip { background: #3a3d4d; color: var(--dim); margin-left: 0.45rem; }
 .lean-chip { background: transparent; font-size: 0.85rem; padding: 0; }
 .lean-picker { display: inline-flex; gap: 0.25rem; }
 .lean-btn { padding: 0.3em 0.5em; }

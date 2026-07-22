@@ -116,7 +116,7 @@ export function App() {
       {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
       <TableSeats view={view} bots={bots} acting={acting} />
       <main>
-        <Feed view={view} bots={bots} />
+        <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
         <aside>
           <RoleCard view={view} />
           {payload.degraded > 0 && (
@@ -349,7 +349,7 @@ function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: 
       <div className="row">
         <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
         <select value={model || library.models[0]?.id} onChange={(e) => setModel(e.target.value)}>
-          {library.models.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>)}
+          {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
         </select>
       </div>
       <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
