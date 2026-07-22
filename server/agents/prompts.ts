@@ -115,7 +115,7 @@ const ASKS: Record<LlmCallKind, (view: PlayerView) => string> = {
       : ''
     return `It is your turn in table-talk round ${round}.${teamNote} Speak only if you have something new to add — passing is normal${round > 1 ? ', and most players pass by round 2' : ''}.`
   },
-  propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}, and give a one-line pitch.`,
+  propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}, and give a one-line pitch. If you announced an intended team during table talk, propose THAT team — changing it without explaining yourself in the pitch looks erratic and draws suspicion.`,
   vote: () => `Vote on the proposed team: approve or reject.`,
   quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
   assassinate: () => `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. If you are right, evil wins.`,

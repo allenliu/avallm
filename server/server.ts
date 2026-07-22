@@ -19,8 +19,9 @@ import { heuristicDecide, createHeuristicAgent } from './agents/heuristic.ts'
 import { createLlmAgent } from './agents/llm.ts'
 import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE, rosterById } from './llm/roster.ts'
+import { ROLE_ALIGNMENT } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
-import type { Decision, DecisionRequest, Game, Seat } from './engine/types.ts'
+import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, '..', 'client', 'dist')
@@ -105,11 +106,22 @@ async function pump(s: Session): Promise<void> {
   }
 }
 
-function newSession(opts: { playerCount?: number; seed?: string; bots?: string }): { id: string; session: Session } {
+function newSession(opts: {
+  playerCount?: number; seed?: string; bots?: string; roles?: unknown
+}): { id: string; session: Session } {
   const playerCount = opts.playerCount ?? 7
   if (playerCount < 5 || playerCount > 9) throw new Error('playerCount must be 5-9')
   const seed = opts.seed || `web-${Math.random().toString(36).slice(2, 10)}`
   const botMode = opts.bots === 'heuristic' ? 'heuristic' : 'llm'
+  // Optional custom role set; full legality (counts, merlin/assassin pairing,
+  // uniqueness) is enforced by createGame -> validateRoles.
+  let roles: Role[] | undefined
+  if (opts.roles !== undefined) {
+    if (!Array.isArray(opts.roles) || !opts.roles.every((r) => typeof r === 'string' && r in ROLE_ALIGNMENT)) {
+      throw new Error('roles must be an array of valid role names')
+    }
+    roles = opts.roles as Role[]
+  }
 
   // Seat 0 is the human; bots fill the rest from the default table then roster.
   const tableIds = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((id) => !DEFAULT_TABLE.includes(id))]
@@ -123,7 +135,7 @@ function newSession(opts: { playerCount?: number; seed?: string; bots?: string }
 
   // Up to 1 talk round before a proposal, 2 reaction rounds after it —
   // rounds end early once a full round passes silently.
-  const game = createGame({ seed, playerCount, names, talk: { preProposal: 1, postProposal: 2 } })
+  const game = createGame({ seed, playerCount, names, roles, talk: { preProposal: 1, postProposal: 2 } })
   const agents = new Map<Seat, AvalonAgent>()
   for (let seat = 1; seat < playerCount; seat++) {
     agents.set(seat, botMode === 'llm'

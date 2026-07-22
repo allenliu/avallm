@@ -41,7 +41,7 @@ export function TableSeats({ view, bots, acting }: {
               <span className="seat-name">{p.name}</span>
             </div>
             <div className="seat-bottom">
-              {onTeam && <span className="chip team-chip">team</span>}
+              {onTeam && <span className="chip team-chip" title="Proposed for the current quest (says nothing about loyalty)">on quest</span>}
               {lean && <span className={`chip lean-chip ${lean}`} title={`leaning ${lean}`}>
                 {lean === 'approve' ? '👍' : lean === 'reject' ? '👎' : '🤔'}
               </span>}

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { PlayerView } from '../types.ts'
+import { ROLE_INFO } from '../setup.ts'
+import type { Role } from '../setup.ts'
 
 export function RoleCard({ view }: { view: PlayerView }) {
   const [open, setOpen] = useState(true)
@@ -14,6 +16,7 @@ export function RoleCard({ view }: { view: PlayerView }) {
         <div className="role-body">
           <div className="role-name">{view.role.toUpperCase()}</div>
           <div className={`role-align ${view.alignment}`}>{view.alignment}</div>
+          <p className="role-desc">{ROLE_INFO[view.role as Role]?.desc}</p>
           {info.knownEvil && info.knownEvil.length > 0 && (
             <p>You see evil: <b>{info.knownEvil.map(name).join(', ')}</b></p>
           )}

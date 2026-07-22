@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DecisionRequest, RevealPayload, ServerPayload } from './types.ts'
+import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
+import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
 import { Feed } from './components/Feed.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
@@ -19,14 +21,14 @@ export function App() {
   const [starting, setStarting] = useState(false)
   const esRef = useRef<EventSource | null>(null)
 
-  const newGame = useCallback(async (playerCount: number, bots: 'llm' | 'heuristic') => {
+  const newGame = useCallback(async (playerCount: number, bots: 'llm' | 'heuristic', roles: Role[] | null) => {
     setStarting(true)
     setError(null)
     try {
       const res = await fetch('/api/game/new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerCount, bots }),
+        body: JSON.stringify({ playerCount, bots, ...(roles ? { roles } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'failed to start game')
@@ -117,27 +119,107 @@ export function App() {
 }
 
 function Launcher({ onStart, starting }: {
-  onStart: (playerCount: number, bots: 'llm' | 'heuristic') => void
+  onStart: (playerCount: number, bots: 'llm' | 'heuristic', roles: Role[] | null) => void
   starting: boolean
 }) {
   const [players, setPlayers] = useState(7)
   const [bots, setBots] = useState<'llm' | 'heuristic'>('llm')
+  const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
+  const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(7))
+  const [showRules, setShowRules] = useState(false)
+
+  const setPlayersAndRoles = (n: number) => {
+    setPlayers(n)
+    if (preset !== 'custom') setSel(PRESETS[preset].pick(n))
+  }
+  const applyPreset = (p: PresetId) => {
+    setPreset(p)
+    setSel(PRESETS[p].pick(players))
+  }
+  const toggle = (key: keyof SpecialSelection) => {
+    setPreset('custom')
+    setSel((s) => ({ ...s, [key]: !s[key] }))
+  }
+
+  const built = useMemo(() => buildRoles(players, sel), [players, sel])
+  const evil = EVIL_COUNT[players]
+
+  const toggles: { key: keyof SpecialSelection; label: string; roles: Role[] }[] = [
+    { key: 'merlinPair', label: 'Merlin & Assassin', roles: ['merlin', 'assassin'] },
+    { key: 'percival', label: 'Percival', roles: ['percival'] },
+    { key: 'morgana', label: 'Morgana', roles: ['morgana'] },
+    { key: 'mordred', label: 'Mordred', roles: ['mordred'] },
+    { key: 'oberon', label: 'Oberon', roles: ['oberon'] },
+  ]
+
   return (
     <div className="launcher">
-      <label>
-        Players{' '}
-        <select value={players} onChange={(e) => setPlayers(Number(e.target.value))}>
-          {[5, 6, 7, 8, 9].map((n) => <option key={n} value={n}>{n}</option>)}
-        </select>
-      </label>
-      <label>
-        Opponents{' '}
-        <select value={bots} onChange={(e) => setBots(e.target.value as 'llm' | 'heuristic')}>
-          <option value="llm">LLM models (costs a few cents)</option>
-          <option value="heuristic">Rule-based (free)</option>
-        </select>
-      </label>
-      <button disabled={starting} onClick={() => onStart(players, bots)}>
+      <button className="secondary rules-toggle" onClick={() => setShowRules(!showRules)}>
+        {showRules ? 'Hide the rules' : 'How do you play Avalon?'}
+      </button>
+      {showRules && (
+        <ul className="rules-summary">
+          {RULES_SUMMARY.map((line, i) => <li key={i}>{line}</li>)}
+        </ul>
+      )}
+      <div className="row">
+        <label>
+          Players{' '}
+          <select value={players} onChange={(e) => setPlayersAndRoles(Number(e.target.value))}>
+            {[5, 6, 7, 8, 9].map((n) => (
+              <option key={n} value={n}>{n} ({n - EVIL_COUNT[n]} good / {EVIL_COUNT[n]} evil)</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Opponents{' '}
+          <select value={bots} onChange={(e) => setBots(e.target.value as 'llm' | 'heuristic')}>
+            <option value="llm">LLM models (costs a few cents)</option>
+            <option value="heuristic">Rule-based (free)</option>
+          </select>
+        </label>
+      </div>
+      <div className="preset-row">
+        {(Object.keys(PRESETS) as PresetId[]).map((p) => (
+          <button
+            key={p}
+            className={`secondary preset-btn${preset === p ? ' active' : ''}`}
+            title={PRESETS[p].blurb}
+            onClick={() => applyPreset(p)}
+          >{PRESETS[p].label}</button>
+        ))}
+        {preset === 'custom' && <span className="preset-custom">custom</span>}
+      </div>
+      <div className="role-toggles">
+        {toggles.map((t) => (
+          <label key={t.key} className={`role-toggle-row ${ROLE_INFO[t.roles[0]].side}`}>
+            <input
+              type="checkbox"
+              checked={sel[t.key]}
+              onChange={() => toggle(t.key)}
+            />
+            <span className="role-toggle-name">{t.label}</span>
+            <span className="role-toggle-desc">
+              {t.roles.map((r) => ROLE_INFO[r].desc).join(' ')}
+            </span>
+          </label>
+        ))}
+        <p className="role-fill-note">
+          Remaining seats are filled with Loyal Servants (good, no knowledge) and
+          Minions (evil, know each other). {evil} of {players} players are evil.
+        </p>
+      </div>
+      {built.error && <p className="error">{built.error}</p>}
+      {built.warning && <p className="warning">{built.warning}</p>}
+      {built.roles && (
+        <p className="roles-preview">
+          In play: {built.roles.map((r) => ROLE_INFO[r].name).join(', ')}
+        </p>
+      )}
+      <button
+        disabled={starting || !built.roles}
+        onClick={() => onStart(players, bots, built.roles)}
+      >
         {starting ? 'Dealing roles…' : 'Sit down at the table'}
       </button>
     </div>
