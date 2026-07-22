@@ -11,6 +11,21 @@ export function eventVisibleTo(ev: GameEvent, seat: Seat): boolean {
   return ev.visibility === 'public' || ev.visibility.only.includes(seat)
 }
 
+// A role-less observer: strictly the public record. Client code gates all
+// role/alignment UI on role === 'spectator'.
+export function viewForSpectator(game: Game): PlayerView {
+  const base = viewFor(game, 0)
+  return {
+    ...base,
+    seat: -1,
+    name: 'Spectator',
+    role: 'spectator' as PlayerView['role'],
+    alignment: 'good', // placeholder — never rendered for spectators
+    privateInfo: {},
+    events: game.log.filter((ev) => ev.visibility === 'public'),
+  }
+}
+
 export function viewFor(game: Game, seat: Seat): PlayerView {
   const me = game.players[seat]
   if (!me) throw new Error(`no player at seat ${seat}`)

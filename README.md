@@ -21,7 +21,9 @@ npm --prefix client install && npm --prefix client run build
 node server/server.ts                      # then open http://localhost:8787
 ```
 
-The launcher offers LLM opponents (a few cents per game, ~$0.12 measured at 5 players) or free rule-based bots. Post-game, the reveal screen shows every bot's secret quest cards and private reasoning.
+The launcher offers LLM opponents (a few cents per game, ~$0.12 measured at 5 players) or free rule-based bots, seated from a browsable agent library (including agents you define yourself). Post-game, the reveal screen shows every bot's secret quest cards and private reasoning.
+
+**Multiplayer**: set "Humans" above 1 to create a lobby and get an invite link — the game auto-starts when the last human seat fills, bots take the remaining chairs, and latecomers can spectate (public information only). No turn timers; play it like mail chess. Works over LAN by sharing your machine's address.
 
 Headless tools:
 

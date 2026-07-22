@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createGame } from '../server/engine/game.ts'
-import { viewFor, eventVisibleTo } from '../server/engine/view.ts'
+import { viewFor, viewForSpectator, eventVisibleTo } from '../server/engine/view.ts'
 import { createHeuristicAgent } from '../server/agents/heuristic.ts'
 import { runGame } from '../server/sim/runner.ts'
 import type { AvalonAgent } from '../server/agents/types.ts'
@@ -64,6 +64,24 @@ test('completed heuristic games leak nothing at any seat', async () => {
       await runGame({ game: g, agents })
       for (const p of g.players) assertNoLeaks(g, p.seat)
     }
+  }
+})
+
+test('spectator views carry only public events and no private info', async () => {
+  const seed = 'leak-spec'
+  const g = createGame({ seed, playerCount: 7, talk: { preProposal: 1, postProposal: 0 } })
+  const agents = new Map<Seat, AvalonAgent>(
+    g.players.map((p) => [p.seat, createHeuristicAgent({ seed, seat: p.seat })]),
+  )
+  await runGame({ game: g, agents })
+  const view = viewForSpectator(g)
+  assert.equal(view.role, 'spectator')
+  assert.deepEqual(view.privateInfo, {})
+  for (const ev of view.events) {
+    assert.equal(ev.visibility, 'public', `spectator saw private event seq=${ev.seq} type=${ev.type}`)
+  }
+  for (const p of view.players) {
+    assert.deepEqual(Object.keys(p).sort(), ['name', 'seat'])
   }
 })
 

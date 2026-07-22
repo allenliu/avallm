@@ -1,13 +1,21 @@
 import { useState } from 'react'
 import type { DecisionRequest, PlayerView, Seat } from '../types.ts'
 
-export function ActionBar({ view, ask, onDecide }: {
+export function ActionBar({ view, ask, onDecide, waitingOn }: {
   view: PlayerView
   ask: DecisionRequest | undefined
   onDecide: (d: Record<string, unknown>) => void
+  waitingOn?: string[]
 }) {
   if (!ask) {
-    return <div className="action-bar waiting">The table is playing… watch the feed.</div>
+    const others = (waitingOn ?? []).filter((n) => n !== view.name)
+    return (
+      <div className="action-bar waiting">
+        {others.length
+          ? `Waiting on ${others.join(', ')}… (no rush — this table plays like mail chess)`
+          : 'The table is playing… watch the feed.'}
+      </div>
+    )
   }
   switch (ask.kind) {
     case 'discuss': return <Discuss view={view} onDecide={onDecide} />

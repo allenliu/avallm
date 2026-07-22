@@ -213,6 +213,23 @@ input:focus, select:focus { outline: 1px solid var(--good); }
   display: flex; flex-direction: column; gap: 0.35rem;
 }
 
+/* ---- lobby / join ---- */
+.join-url-row {
+  display: flex; gap: 0.6rem; align-items: center;
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  max-width: 34rem;
+  width: 100%;
+}
+.join-url {
+  flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--gold);
+  font-size: 0.85rem;
+  text-align: left;
+}
+
 /* ---- game layout ---- */
 .game {
   display: flex;

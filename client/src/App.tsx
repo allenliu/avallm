@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentInfo, DecisionRequest, Library, RevealPayload, ServerPayload } from './types.ts'
+import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPayload } from './types.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
@@ -13,11 +13,26 @@ import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 
 type Screen =
   | { name: 'landing' }
-  | { name: 'game'; id: string }
+  | { name: 'join'; lobbyId: string }
+  | { name: 'lobby'; lobbyId: string; token: string }
+  | { name: 'game'; id: string; token: string }
+
+const tokenKey = (lobbyId: string) => `avalon-token-${lobbyId}`
+
+function parseHash(): Screen {
+  const m = window.location.hash.match(/^#\/join\/([a-z0-9]+)/)
+  if (m) {
+    const stored = localStorage.getItem(tokenKey(m[1]))
+    if (stored) return { name: 'lobby', lobbyId: m[1], token: stored }
+    return { name: 'join', lobbyId: m[1] }
+  }
+  return { name: 'landing' }
+}
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>({ name: 'landing' })
+  const [screen, setScreen] = useState<Screen>(parseHash)
   const [payload, setPayload] = useState<ServerPayload | null>(null)
+  const [lobby, setLobby] = useState<LobbyPayload | null>(null)
   const [reveal, setReveal] = useState<RevealPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -25,78 +40,153 @@ export function App() {
   const [showRef, setShowRef] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const esRef = useRef<EventSource | null>(null)
+  const lobbyEsRef = useRef<EventSource | null>(null)
 
   const refreshLibrary = useCallback(() => {
     fetch('/api/agents').then((r) => r.json()).then(setLibrary).catch(() => {})
   }, [])
   useEffect(refreshLibrary, [refreshLibrary])
+  useEffect(() => () => { esRef.current?.close(); lobbyEsRef.current?.close() }, [])
 
-  const newGame = useCallback(async (playerCount: number, table: string[], roles: Role[] | null, humanName: string) => {
+  const openGame = useCallback((id: string, token: string) => {
+    lobbyEsRef.current?.close()
+    esRef.current?.close()
+    setReveal(null)
+    setPayload(null)
+    setScreen({ name: 'game', id, token })
+    const es = new EventSource(`/api/game/${id}/events?token=${token}`)
+    es.onmessage = (ev) => setPayload(JSON.parse(ev.data))
+    es.onerror = () => setError('lost connection to the server')
+    esRef.current = es
+  }, [])
+
+  const enterLobby = useCallback((lobbyId: string, token: string) => {
+    window.location.hash = `#/join/${lobbyId}`
+    setScreen({ name: 'lobby', lobbyId, token })
+    lobbyEsRef.current?.close()
+    const es = new EventSource(`/api/lobby/${lobbyId}/events`)
+    es.onmessage = (ev) => {
+      const data: LobbyPayload = JSON.parse(ev.data)
+      setLobby(data)
+      if (data.status === 'started' && data.gameId) openGame(data.gameId, token)
+    }
+    lobbyEsRef.current = es
+  }, [openGame])
+
+  // Entering via a stored-token lobby URL: resolve whether it already started.
+  useEffect(() => {
+    if (screen.name !== 'lobby' || lobbyEsRef.current) return
+    enterLobby(screen.lobbyId, screen.token)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const startGame = useCallback(async (opts: {
+    players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string
+  }) => {
     setStarting(true)
     setError(null)
     try {
-      const res = await fetch('/api/game/new', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerCount, table, humanName, ...(roles ? { roles } : {}) }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'failed to start game')
-      setPayload(data)
-      setReveal(null)
-      setScreen({ name: 'game', id: data.id })
-      esRef.current?.close()
-      const es = new EventSource(`/api/game/${data.id}/events`)
-      es.onmessage = (ev) => setPayload(JSON.parse(ev.data))
-      es.onerror = () => setError('lost connection to the server')
-      esRef.current = es
+      if (opts.humanSeats <= 1) {
+        const res = await fetch('/api/game/new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playerCount: opts.players, table: opts.table, humanName: opts.humanName,
+            ...(opts.roles ? { roles: opts.roles } : {}),
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'failed to start game')
+        openGame(data.id, data.token)
+        setPayload(data)
+      } else {
+        const res = await fetch('/api/lobby', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: opts.humanName, playerCount: opts.players, humanSeats: opts.humanSeats,
+            table: opts.table, ...(opts.roles ? { roles: opts.roles } : {}),
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'failed to create lobby')
+        localStorage.setItem(tokenKey(data.lobbyId), data.token)
+        setLobby(data)
+        enterLobby(data.lobbyId, data.token)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     } finally {
       setStarting(false)
     }
-  }, [])
-
-  useEffect(() => () => esRef.current?.close(), [])
+  }, [openGame, enterLobby])
 
   const gameId = screen.name === 'game' ? screen.id : null
+  const gameToken = screen.name === 'game' ? screen.token : null
   const gameOver = payload?.view.phase === 'gameOver'
 
   useEffect(() => {
     if (gameOver && gameId && !reveal) {
-      fetch(`/api/game/${gameId}/reveal`)
-        .then((r) => r.json())
-        .then(setReveal)
-        .catch(() => {})
+      fetch(`/api/game/${gameId}/reveal`).then((r) => r.json()).then(setReveal).catch(() => {})
     }
   }, [gameOver, gameId, reveal])
 
   const decide = useCallback(async (decision: Record<string, unknown>) => {
-    if (!gameId) return
+    if (!gameId || !gameToken) return
     setError(null)
     const res = await fetch(`/api/game/${gameId}/decide`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ decision }),
+      body: JSON.stringify({ token: gameToken, decision }),
     })
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error ?? 'decision rejected')
     }
-  }, [gameId])
+  }, [gameId, gameToken])
 
-  if (screen.name === 'landing' || !payload) {
+  const backToLanding = useCallback(() => {
+    esRef.current?.close()
+    lobbyEsRef.current?.close()
+    window.location.hash = ''
+    setPayload(null)
+    setLobby(null)
+    setScreen({ name: 'landing' })
+  }, [])
+
+  if (screen.name === 'landing') {
     return (
       <div className="landing">
         <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
         <p className="tagline">
-          Hidden roles, open models. Every other player at the table is an LLM —
-          and you know exactly which one you're trying to fool.
+          Hidden roles, open models. Play against LLMs — or invite friends and
+          let the machines fill the empty chairs.
         </p>
-        <Launcher onStart={newGame} starting={starting} library={library} onLibraryChange={refreshLibrary} />
+        <Launcher onStart={startGame} starting={starting} library={library} onLibraryChange={refreshLibrary} />
         {error && <p className="error">{error}</p>}
       </div>
     )
+  }
+
+  if (screen.name === 'join') {
+    return <JoinScreen
+      lobbyId={screen.lobbyId}
+      onJoined={(token, data) => {
+        localStorage.setItem(tokenKey(screen.lobbyId), token)
+        setLobby(data)
+        if (data.status === 'started' && data.gameId) openGame(data.gameId, token)
+        else enterLobby(screen.lobbyId, token)
+      }}
+      onBack={backToLanding}
+    />
+  }
+
+  if (screen.name === 'lobby') {
+    return <LobbyScreen lobby={lobby} lobbyId={screen.lobbyId} onBack={backToLanding} />
+  }
+
+  if (!payload) {
+    return <div className="landing"><p className="tagline">Joining the table…</p></div>
   }
 
   const { view, ask, acting, bots } = payload
@@ -118,7 +208,12 @@ export function App() {
       <main>
         <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
         <aside>
-          <RoleCard view={view} />
+          {payload.spectator
+            ? <div className="role-card"><div className="role-body">
+                <div className="role-name">SPECTATOR</div>
+                <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
+              </div></div>
+            : <RoleCard view={view} />}
           {payload.degraded > 0 && (
             <div className="degraded-note">{payload.degraded} bot decision{payload.degraded === 1 ? '' : 's'} fell back to autopilot</div>
           )}
@@ -126,10 +221,136 @@ export function App() {
       </main>
       <footer>
         {gameOver
-          ? <Reveal view={view} reveal={reveal} bots={bots} onNewGame={() => setScreen({ name: 'landing' })} />
-          : <ActionBar view={view} ask={myAsk} onDecide={decide} />}
+          ? <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} />
+          : payload.spectator
+            ? <div className="action-bar waiting">
+                Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
+              </div>
+            : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
         {error && <p className="error">{error}</p>}
       </footer>
+    </div>
+  )
+}
+
+function JoinScreen({ lobbyId, onJoined, onBack }: {
+  lobbyId: string
+  onJoined: (token: string, data: LobbyPayload & { token: string }) => void
+  onBack: () => void
+}) {
+  const [preview, setPreview] = useState<LobbyPayload | null>(null)
+  const [missing, setMissing] = useState(false)
+  const [name, setName] = useState(() => localStorage.getItem('avalon-name') ?? '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/lobby/${lobbyId}/preview`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(setPreview)
+      .catch(() => setMissing(true))
+  }, [lobbyId])
+
+  const join = async (mode: 'play' | 'spectate') => {
+    setBusy(true)
+    setErr(null)
+    try {
+      const res = await fetch(`/api/lobby/${lobbyId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, mode }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'failed to join')
+      localStorage.setItem('avalon-name', name)
+      onJoined(data.token, data)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (missing) {
+    return (
+      <div className="landing">
+        <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+        <p className="tagline">That lobby doesn't exist (or the server restarted).</p>
+        <button onClick={onBack}>Start your own game</button>
+      </div>
+    )
+  }
+  if (!preview) return <div className="landing"><p className="tagline">Finding the table…</p></div>
+
+  const started = preview.status === 'started'
+  return (
+    <div className="landing">
+      <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+      <p className="tagline">
+        <b>{preview.hostName}</b> has a table for {preview.playerCount}: {preview.members.length}/{preview.humanSeats} humans
+        {preview.table.length > 0 && <> + {preview.table.join(', ')}</>}.
+        {started ? ' The game is underway.' : preview.openSeats > 0 ? ` ${preview.openSeats} seat${preview.openSeats === 1 ? '' : 's'} open.` : ' All seats taken.'}
+      </p>
+      <div className="launcher">
+        <label>
+          Your name{' '}
+          <input value={name} maxLength={24} placeholder="Player" onChange={(e) => setName(e.target.value)} />
+        </label>
+        <div className="row">
+          {!started && preview.openSeats > 0 && (
+            <button disabled={busy} onClick={() => join('play')}>Take a seat</button>
+          )}
+          <button className="secondary" disabled={busy} onClick={() => join('spectate')}>Spectate</button>
+        </div>
+        {err && <p className="error">{err}</p>}
+      </div>
+    </div>
+  )
+}
+
+function LobbyScreen({ lobby, lobbyId, onBack }: {
+  lobby: LobbyPayload | null
+  lobbyId: string
+  onBack: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+  const joinUrl = `${window.location.origin}/#/join/${lobbyId}`
+  if (!lobby) return <div className="landing"><p className="tagline">Opening the lobby…</p></div>
+  const waitingFor = lobby.humanSeats - lobby.members.length
+  return (
+    <div className="landing">
+      <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+      <p className="tagline">
+        The game starts automatically when {lobby.humanSeats} human{lobby.humanSeats === 1 ? '' : 's'} are seated.
+        No turn timers — play it like mail chess.
+      </p>
+      <div className="launcher">
+        <div className="join-url-row">
+          <code className="join-url">{joinUrl}</code>
+          <button className="secondary" onClick={() => {
+            navigator.clipboard.writeText(joinUrl).then(() => {
+              setCopied(true)
+              setTimeout(() => setCopied(false), 1500)
+            })
+          }}>{copied ? 'Copied!' : 'Copy invite link'}</button>
+        </div>
+        <div className="table-picker">
+          <span className="action-label">Seated ({lobby.members.length}/{lobby.humanSeats})</span>
+          {lobby.members.map((m, i) => (
+            <div key={i} className="table-picker-row"><span>{m}{i === 0 ? ' (host)' : ''}</span></div>
+          ))}
+          {waitingFor > 0 && (
+            <p className="roles-preview">Waiting for {waitingFor} more player{waitingFor === 1 ? '' : 's'}…</p>
+          )}
+          {lobby.table.length > 0 && (
+            <p className="roles-preview">Bots at this table: {lobby.table.join(', ')}</p>
+          )}
+          {lobby.spectators > 0 && (
+            <p className="roles-preview">{lobby.spectators} spectator{lobby.spectators === 1 ? '' : 's'} watching</p>
+          )}
+        </div>
+        <button className="secondary" onClick={onBack}>Leave lobby</button>
+      </div>
     </div>
   )
 }
@@ -141,32 +362,35 @@ function defaultTable(library: Library | null, count: number): string[] {
 }
 
 function Launcher({ onStart, starting, library, onLibraryChange }: {
-  onStart: (playerCount: number, table: string[], roles: Role[] | null, humanName: string) => void
+  onStart: (opts: { players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string }) => void
   starting: boolean
   library: Library | null
   onLibraryChange: () => void
 }) {
   const [players, setPlayers] = useState(7)
+  const [humanSeats, setHumanSeats] = useState(1)
   const [table, setTable] = useState<string[]>([])
   const [humanName, setHumanName] = useState(() => localStorage.getItem('avalon-name') ?? '')
   const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
   const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(7))
   const [showRules, setShowRules] = useState(false)
 
-  // Fill the table once the library arrives; resize it when players changes.
+  const botCount = players - humanSeats
+
+  // Fill the table once the library arrives; resize when players/humans change.
   useEffect(() => {
     if (!library) return
     setTable((t) => {
-      const want = players - 1
       const valid = t.filter((id) => library.agents.some((a) => a.id === id))
-      if (valid.length === want && t.length === want) return t
-      if (valid.length === 0) return defaultTable(library, want)
-      return Array.from({ length: want }, (_, i) => valid[i % valid.length])
+      if (valid.length === botCount && t.length === botCount) return t
+      if (valid.length === 0) return defaultTable(library, botCount)
+      return Array.from({ length: botCount }, (_, i) => valid[i % Math.max(valid.length, 1)])
     })
-  }, [players, library])
+  }, [botCount, library])
 
   const setPlayersAndRoles = (n: number) => {
     setPlayers(n)
+    setHumanSeats((h) => Math.min(h, n))
     if (preset !== 'custom') setSel(PRESETS[preset].pick(n))
   }
   const applyPreset = (p: PresetId) => {
@@ -218,15 +442,25 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
             ))}
           </select>
         </label>
+        <label>
+          Humans{' '}
+          <select value={humanSeats} onChange={(e) => setHumanSeats(Number(e.target.value))}>
+            {Array.from({ length: players }, (_, i) => i + 1).map((n) => (
+              <option key={n} value={n}>{n === 1 ? 'just me' : `${n} (invite link)`}</option>
+            ))}
+          </select>
+        </label>
       </div>
-      <TablePicker
-        library={library}
-        table={table}
-        onChange={setTable}
-        onFill={(mode) => setTable(mode === 'models'
-          ? defaultTable(library, players - 1)
-          : Array.from({ length: players - 1 }, () => 'autopilot'))}
-      />
+      {botCount > 0 && (
+        <TablePicker
+          library={library}
+          table={table}
+          onChange={setTable}
+          onFill={(mode) => setTable(mode === 'models'
+            ? defaultTable(library, botCount)
+            : Array.from({ length: botCount }, () => 'autopilot'))}
+        />
+      )}
       <AddAgentForm library={library} onAdded={onLibraryChange} />
       <div className="preset-row">
         {(Object.keys(PRESETS) as PresetId[]).map((p) => (
@@ -266,10 +500,12 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
         </p>
       )}
       <button
-        disabled={starting || !built.roles || table.length !== players - 1}
-        onClick={() => onStart(players, table, built.roles, humanName)}
+        disabled={starting || !built.roles || table.length !== botCount}
+        onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName })}
       >
-        {starting ? 'Dealing roles…' : 'Sit down at the table'}
+        {starting
+          ? 'Setting the table…'
+          : humanSeats > 1 ? 'Create lobby & get invite link' : 'Sit down at the table'}
       </button>
     </div>
   )
@@ -291,7 +527,7 @@ function TablePicker({ library, table, onChange, onFill }: {
   return (
     <div className="table-picker">
       <div className="table-picker-head">
-        <span className="action-label">Your opponents</span>
+        <span className="action-label">Bot opponents</span>
         <span className="fill-buttons">
           fill with:{' '}
           <button className="secondary" onClick={() => onFill('models')}>LLM models</button>

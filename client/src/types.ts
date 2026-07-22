@@ -84,9 +84,24 @@ export interface ServerPayload {
   view: PlayerView
   ask: DecisionRequest[]
   acting: Seat[]
+  waitingOn: string[]
   degraded: number
   degradedSeqs: number[]
   bots: Record<number, AgentInfo>
+  spectator: boolean
+}
+
+export interface LobbyPayload {
+  id: string
+  status: 'open' | 'started'
+  gameId?: string
+  playerCount: number
+  humanSeats: number
+  openSeats: number
+  members: string[]
+  spectators: number
+  hostName: string
+  table: string[]
 }
 
 export interface RevealPlayer {

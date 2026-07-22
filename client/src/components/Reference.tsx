@@ -82,7 +82,7 @@ function TableTab({ view, bots }: { view: PlayerView; bots: Record<number, Agent
           return (
             <div key={p.seat} className="ref-row">
               <span className="role-toggle-name">{p.name}</span>
-              <span className="role-toggle-desc">That's you.</span>
+              <span className="role-toggle-desc">{p.seat === view.seat ? "That's you." : 'Human player.'}</span>
             </div>
           )
         }

@@ -1,30 +1,43 @@
 // Thin authoritative game server (plain node:http, zero deps).
-// Owns game state, drives bot decisions, serves the human's filtered view
-// only — hidden roles and prompts never reach the browser.
+// Owns game state, drives bot decisions, serves each human seat its own
+// filtered view — hidden roles and prompts never reach any browser.
 //
-//   POST /api/game/new {playerCount?, seed?, bots?: 'llm'|'heuristic'}
-//   GET  /api/game/:id/events   (SSE: {view, ask, acting, degraded})
-//   POST /api/game/:id/decide   {decision}
-//   GET  /api/game/:id/reveal   (gameOver only: roles + full log)
-//   GET  /api/usage
+// Multiplayer (MP1): lobby -> join URL -> auto-start when the last human
+// seat fills. Seat identity is an opaque bearer token minted at join; the
+// join URL names only the lobby. No timers — correspondence pacing.
+//
+//   POST /api/lobby                    {name, playerCount, humanSeats, table?, roles?}
+//   GET  /api/lobby/:id/preview
+//   GET  /api/lobby/:id/events        (SSE, public lobby state)
+//   POST /api/lobby/:id/join          {name, mode: 'play'|'spectate'}
+//   POST /api/game/new                (solo sugar: a humanSeats=1 lobby, auto-started)
+//   GET  /api/game/:id/events?token=  (SSE: that seat's view; spectators get public-only)
+//   POST /api/game/:id/decide         {token, decision}
+//   GET  /api/game/:id/reveal         (gameOver only)
+//   GET/POST /api/agents, GET /api/usage
 // Static: client/dist
 
 import http from 'node:http'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createGame, applyDecision, expectedDecisions } from './engine/game.ts'
-import { viewFor } from './engine/view.ts'
+import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
 import { loadAgentLibrary, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
-import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
+import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
 import { ROLE_ALIGNMENT } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
 import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const DIST = path.join(__dirname, '..', 'client', 'dist')
+const PORT = Number(process.env.AVALON_PORT) || 8787
 
 let library: AgentDef[] = loadAgentLibrary()
 const libById = (id: string): AgentDef => {
@@ -33,39 +46,201 @@ const libById = (id: string): AgentDef => {
   return def
 }
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const DIST = path.join(__dirname, '..', 'client', 'dist')
-const PORT = Number(process.env.AVALON_PORT) || 8787
-const HUMAN: Seat = 0
+const newToken = () => crypto.randomBytes(16).toString('hex')
+const newId = () => crypto.randomBytes(5).toString('hex')
+
+function cleanName(raw: unknown, fallback: string): string {
+  return (typeof raw === 'string' ? raw : '')
+    .replace(/[<>{}[\]|\\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 24) || fallback
+}
+
+// ---------- lobbies ----------
+
+interface Lobby {
+  id: string
+  config: {
+    playerCount: number
+    humanSeats: number
+    table: string[]        // bot agent ids, length playerCount - humanSeats
+    roles?: Role[]
+  }
+  members: { token: string; name: string }[]     // members[0] is the host
+  spectators: { token: string; name: string }[]
+  status: 'open' | 'started'
+  gameId?: string
+  listeners: Set<http.ServerResponse>
+}
+
+const lobbies = new Map<string, Lobby>()
+
+function lobbyPayload(l: Lobby) {
+  return {
+    id: l.id,
+    status: l.status,
+    gameId: l.gameId,
+    playerCount: l.config.playerCount,
+    humanSeats: l.config.humanSeats,
+    openSeats: l.status === 'open' ? l.config.humanSeats - l.members.length : 0,
+    members: l.members.map((m) => m.name),
+    spectators: l.spectators.length,
+    hostName: l.members[0]?.name ?? '?',
+    table: l.config.table.map((id) => publicInfo(libById(id)).name),
+  }
+}
+
+function lobbyBroadcast(l: Lobby): void {
+  const data = `data: ${JSON.stringify(lobbyPayload(l))}\n\n`
+  for (const res of l.listeners) res.write(data)
+}
+
+function createLobby(body: any): { lobby: Lobby; token: string } {
+  const playerCount = Number(body.playerCount) || 7
+  if (playerCount < 5 || playerCount > 9) throw new Error('playerCount must be 5-9')
+  const humanSeats = Number(body.humanSeats) || 1
+  if (humanSeats < 1 || humanSeats > playerCount) throw new Error('humanSeats must be 1..playerCount')
+
+  let roles: Role[] | undefined
+  if (body.roles !== undefined) {
+    if (!Array.isArray(body.roles) || !body.roles.every((r: unknown) => typeof r === 'string' && r in ROLE_ALIGNMENT)) {
+      throw new Error('roles must be an array of valid role names')
+    }
+    roles = body.roles as Role[]
+  }
+
+  const botCount = playerCount - humanSeats
+  let table: string[]
+  if (body.table !== undefined) {
+    if (!Array.isArray(body.table) || !body.table.every((t: unknown) => typeof t === 'string')) {
+      throw new Error('table must be an array of agent ids')
+    }
+    if (body.table.length !== botCount) throw new Error(`table must have exactly ${botCount} agents`)
+    body.table.forEach(libById)
+    table = body.table
+  } else {
+    const pool = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((rid) => !DEFAULT_TABLE.includes(rid))]
+    table = Array.from({ length: botCount }, (_, i) => pool[i % pool.length])
+  }
+
+  const token = newToken()
+  const lobby: Lobby = {
+    id: newId(),
+    config: { playerCount, humanSeats, table, roles },
+    members: [{ token, name: cleanName(body.name, 'Host') }],
+    spectators: [],
+    status: 'open',
+    listeners: new Set(),
+  }
+  lobbies.set(lobby.id, lobby)
+  if (lobby.members.length === humanSeats) startLobby(lobby)
+  return { lobby, token }
+}
+
+function startLobby(l: Lobby): void {
+  const { playerCount } = l.config
+  const defs = l.config.table.map(libById)
+
+  // Shuffle humans across the whole table (no "host is always seat 0" tell).
+  const seats = Array.from({ length: playerCount }, (_, i) => i)
+  for (let i = seats.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[seats[i], seats[j]] = [seats[j], seats[i]]
+  }
+  const humanSeatList = seats.slice(0, l.members.length).sort((a, b) => a - b)
+  const botSeatList = seats.slice(l.members.length).sort((a, b) => a - b)
+
+  // Names, seat-indexed; human names reserved first, then bots deduped.
+  const names = new Array<string>(playerCount)
+  const nameCount = new Map<string, number>()
+  const reserve = (want: string): string => {
+    const n = (nameCount.get(want) ?? 0) + 1
+    nameCount.set(want, n)
+    return n === 1 ? want : `${want} ${n}`
+  }
+  const humans = new Map<Seat, { token: string; name: string }>()
+  l.members.forEach((m, i) => {
+    const seat = humanSeatList[i]
+    names[seat] = reserve(m.name)
+    humans.set(seat, { token: m.token, name: names[seat] })
+  })
+  const botInfo: Record<number, AgentPublicInfo> = {}
+  const agents = new Map<Seat, AvalonAgent>()
+  const seed = `web-${newId()}`
+  botSeatList.forEach((seat, i) => {
+    const def = defs[i]
+    names[seat] = reserve(def.name)
+    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
+  })
+
+  const game = createGame({
+    seed, playerCount, names, roles: l.config.roles,
+    talk: { preProposal: 1, postProposal: 2 },
+  })
+  botSeatList.forEach((seat, i) => {
+    agents.set(seat, createAgentFromDef(defs[i], { seed, seat }))
+  })
+
+  const id = newId()
+  const session: Session = {
+    game, agents, humans, botInfo,
+    spectators: new Set(l.spectators.map((s) => s.token)),
+    waiting: [], acting: [], degraded: [], degradedSeqs: [],
+    listeners: new Set(), pumping: false,
+  }
+  sessions.set(id, session)
+  l.status = 'started'
+  l.gameId = id
+  lobbyBroadcast(l)
+  void pump(session)
+}
+
+// ---------- game sessions ----------
 
 interface Session {
   game: Game
-  agents: Map<Seat, AvalonAgent>
-  botInfo: Record<number, AgentPublicInfo> // seat -> library agent info
-  waiting: DecisionRequest[]
+  agents: Map<Seat, AvalonAgent>                       // bot seats
+  humans: Map<Seat, { token: string; name: string }>
+  spectators: Set<string>                              // spectator tokens
+  botInfo: Record<number, AgentPublicInfo>
+  waiting: DecisionRequest[]                           // pending HUMAN asks (any seat)
   acting: Seat[]
   degraded: { seat: Seat; kind: string; error: string }[]
-  degradedSeqs: number[] // log seqs of events produced by autopilot fallbacks
-  listeners: Set<http.ServerResponse>
+  degradedSeqs: number[]
+  listeners: Set<{ res: http.ServerResponse; token: string }>
   pumping: boolean
 }
 
 const sessions = new Map<string, Session>()
 
-function humanPayload(s: Session) {
+// token -> seat number, 'spectator', or null (unknown).
+function seatOf(s: Session, token: string): Seat | 'spectator' | null {
+  for (const [seat, h] of s.humans) if (h.token === token) return seat
+  if (s.spectators.has(token)) return 'spectator'
+  return null
+}
+
+function payloadFor(s: Session, token: string) {
+  const who = seatOf(s, token)
+  const spectator = who === 'spectator' || who === null
+  const view = spectator ? viewForSpectator(s.game) : viewFor(s.game, who as Seat)
   return {
-    view: viewFor(s.game, HUMAN),
-    ask: s.waiting,
+    view,
+    ask: spectator ? [] : s.waiting.filter((w) => w.seat === who),
     acting: s.acting,
+    waitingOn: s.waiting.map((w) => s.humans.get(w.seat)?.name ?? `seat ${w.seat}`),
     degraded: s.degraded.length,
     degradedSeqs: s.degradedSeqs,
     bots: s.botInfo,
+    spectator,
   }
 }
 
 function broadcast(s: Session): void {
-  const data = `data: ${JSON.stringify(humanPayload(s))}\n\n`
-  for (const res of s.listeners) res.write(data)
+  for (const l of s.listeners) {
+    l.res.write(`data: ${JSON.stringify(payloadFor(s, l.token))}\n\n`)
+  }
 }
 
 async function pump(s: Session): Promise<void> {
@@ -74,15 +249,14 @@ async function pump(s: Session): Promise<void> {
   try {
     while (s.game.phase !== 'gameOver') {
       const reqs = expectedDecisions(s.game)
-      const botReqs = reqs.filter((r) => r.seat !== HUMAN)
+      const botReqs = reqs.filter((r) => s.agents.has(r.seat))
+      s.waiting = reqs.filter((r) => !s.agents.has(r.seat))
       if (botReqs.length === 0) {
-        s.waiting = reqs
         s.acting = []
         broadcast(s)
-        return // resumes when the human POSTs a decision
+        return // resumes when a human POSTs a decision
       }
       s.acting = botReqs.map((r) => r.seat)
-      s.waiting = reqs.filter((r) => r.seat === HUMAN)
       broadcast(s)
       const decisions = await Promise.all(botReqs.map(async (req) => {
         const view = viewFor(s.game, req.seat)
@@ -124,93 +298,25 @@ async function pump(s: Session): Promise<void> {
   }
 }
 
-function newSession(opts: {
-  playerCount?: number; seed?: string; bots?: string; roles?: unknown; table?: unknown
-  humanName?: unknown
-}): { id: string; session: Session } {
-  const playerCount = opts.playerCount ?? 7
-  if (playerCount < 5 || playerCount > 9) throw new Error('playerCount must be 5-9')
-  const seed = opts.seed || `web-${Math.random().toString(36).slice(2, 10)}`
-  // Optional custom role set; full legality (counts, merlin/assassin pairing,
-  // uniqueness) is enforced by createGame -> validateRoles.
-  let roles: Role[] | undefined
-  if (opts.roles !== undefined) {
-    if (!Array.isArray(opts.roles) || !opts.roles.every((r) => typeof r === 'string' && r in ROLE_ALIGNMENT)) {
-      throw new Error('roles must be an array of valid role names')
-    }
-    roles = opts.roles as Role[]
-  }
-
-  // Seat 0 is the human. The table is a list of agent-library ids for seats
-  // 1..n-1; when absent, fall back to the default model table (or all
-  // Autopilot for bots: 'heuristic').
-  let tableIds: string[]
-  if (opts.table !== undefined) {
-    if (!Array.isArray(opts.table) || !opts.table.every((t) => typeof t === 'string')) {
-      throw new Error('table must be an array of agent ids')
-    }
-    if (opts.table.length !== playerCount - 1) {
-      throw new Error(`table must have exactly ${playerCount - 1} agents`)
-    }
-    tableIds = opts.table
-  } else if (opts.bots === 'heuristic') {
-    tableIds = Array.from({ length: playerCount - 1 }, () => 'autopilot')
-  } else {
-    const pool = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((rid) => !DEFAULT_TABLE.includes(rid))]
-    tableIds = Array.from({ length: playerCount - 1 }, (_, i) => pool[i % pool.length])
-  }
-  const defs = tableIds.map(libById)
-
-  // The human plays under a real name (bots address players by name, and
-  // multiplayer will need names anyway). Sanitized; 'You' stays the default.
-  const humanName = (typeof opts.humanName === 'string' ? opts.humanName : '')
-    .replace(/[<>{}[\]|\\]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 24) || 'You'
-
-  // Names: agent names, deduped with a numeric suffix when the same agent
-  // plays multiple seats (the human's name is reserved first).
-  const names = [humanName]
-  const nameCount = new Map<string, number>([[humanName, 1]])
-  for (const def of defs) {
-    const n = (nameCount.get(def.name) ?? 0) + 1
-    nameCount.set(def.name, n)
-    names.push(n === 1 ? def.name : `${def.name} ${n}`)
-  }
-
-  // Up to 1 talk round before a proposal, 2 reaction rounds after it —
-  // rounds end early once a full round passes silently.
-  const game = createGame({ seed, playerCount, names, roles, talk: { preProposal: 1, postProposal: 2 } })
-  const agents = new Map<Seat, AvalonAgent>()
-  const botInfo: Record<number, AgentPublicInfo> = {}
-  defs.forEach((def, i) => {
-    const seat = i + 1
-    agents.set(seat, createAgentFromDef(def, { seed, seat }))
-    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
-  })
-
-  const id = Math.random().toString(36).slice(2, 10)
-  const session: Session = {
-    game, agents, botInfo, waiting: [], acting: [], degraded: [], degradedSeqs: [],
-    listeners: new Set(), pumping: false,
-  }
-  sessions.set(id, session)
-  return { id, session }
-}
-
-// ---- http plumbing ----
+// ---------- http plumbing ----------
 
 function json(res: http.ServerResponse, status: number, body: unknown): void {
-  const s = JSON.stringify(body)
   res.writeHead(status, { 'Content-Type': 'application/json' })
-  res.end(s)
+  res.end(JSON.stringify(body))
 }
 
 async function readBody(req: http.IncomingMessage): Promise<any> {
   let raw = ''
   for await (const chunk of req) raw += chunk
   return raw ? JSON.parse(raw) : {}
+}
+
+function sse(res: http.ServerResponse): void {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  })
 }
 
 const MIME: Record<string, string> = {
@@ -222,7 +328,6 @@ function serveStatic(res: http.ServerResponse, urlPath: string): void {
   const rel = urlPath === '/' ? 'index.html' : urlPath.slice(1)
   const file = path.join(DIST, path.normalize(rel))
   if (!file.startsWith(DIST) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
-    // SPA: unknown paths get index.html if it exists.
     const index = path.join(DIST, 'index.html')
     if (fs.existsSync(index)) {
       res.writeHead(200, { 'Content-Type': 'text/html' })
@@ -241,38 +346,95 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://localhost')
   const parts = url.pathname.split('/').filter(Boolean)
   try {
-    if (req.method === 'POST' && url.pathname === '/api/game/new') {
+    // ---- lobbies ----
+    if (req.method === 'POST' && url.pathname === '/api/lobby') {
       const body = await readBody(req)
-      const { id, session } = newSession(body)
-      void pump(session)
-      json(res, 200, { id, ...humanPayload(session) })
+      const { lobby, token } = createLobby(body)
+      json(res, 200, { lobbyId: lobby.id, token, ...lobbyPayload(lobby) })
       return
     }
+    if (parts[0] === 'api' && parts[1] === 'lobby' && parts[2]) {
+      const lobby = lobbies.get(parts[2])
+      if (!lobby) return json(res, 404, { error: 'no such lobby' })
+      if (req.method === 'GET' && parts[3] === 'preview') {
+        json(res, 200, lobbyPayload(lobby))
+        return
+      }
+      if (req.method === 'GET' && parts[3] === 'events') {
+        sse(res)
+        res.write(`data: ${JSON.stringify(lobbyPayload(lobby))}\n\n`)
+        lobby.listeners.add(res)
+        req.on('close', () => lobby.listeners.delete(res))
+        return
+      }
+      if (req.method === 'POST' && parts[3] === 'join') {
+        const body = await readBody(req)
+        const name = cleanName(body.name, 'Player')
+        const token = newToken()
+        if (body.mode === 'spectate') {
+          lobby.spectators.push({ token, name })
+          if (lobby.status === 'started' && lobby.gameId) {
+            sessions.get(lobby.gameId)?.spectators.add(token)
+          }
+          lobbyBroadcast(lobby)
+          json(res, 200, { token, mode: 'spectate', ...lobbyPayload(lobby) })
+          return
+        }
+        if (lobby.status !== 'open') {
+          return json(res, 409, { error: 'game already started — you can still spectate', spectateAvailable: true })
+        }
+        if (lobby.members.length >= lobby.config.humanSeats) {
+          return json(res, 409, { error: 'all player seats are taken — you can still spectate', spectateAvailable: true })
+        }
+        lobby.members.push({ token, name })
+        if (lobby.members.length === lobby.config.humanSeats) startLobby(lobby)
+        else lobbyBroadcast(lobby)
+        json(res, 200, { token, mode: 'play', ...lobbyPayload(lobby) })
+        return
+      }
+    }
+
+    // ---- solo sugar: a humanSeats=1 lobby, auto-started ----
+    if (req.method === 'POST' && url.pathname === '/api/game/new') {
+      const body = await readBody(req)
+      const { lobby, token } = createLobby({
+        name: body.humanName, playerCount: body.playerCount, humanSeats: 1,
+        table: body.table, roles: body.roles,
+      })
+      const session = sessions.get(lobby.gameId!)!
+      json(res, 200, { id: lobby.gameId, token, ...payloadFor(session, token) })
+      return
+    }
+
+    // ---- game sessions ----
     if (parts[0] === 'api' && parts[1] === 'game' && parts[2]) {
       const s = sessions.get(parts[2])
       if (!s) return json(res, 404, { error: 'no such game' })
       if (req.method === 'GET' && parts[3] === 'events') {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-        })
-        res.write(`data: ${JSON.stringify(humanPayload(s))}\n\n`)
-        s.listeners.add(res)
-        req.on('close', () => s.listeners.delete(res))
+        const token = url.searchParams.get('token') ?? ''
+        if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
+        sse(res)
+        res.write(`data: ${JSON.stringify(payloadFor(s, token))}\n\n`)
+        const listener = { res, token }
+        s.listeners.add(listener)
+        req.on('close', () => s.listeners.delete(listener))
         return
       }
       if (req.method === 'POST' && parts[3] === 'decide') {
         const body = await readBody(req)
+        const who = seatOf(s, typeof body.token === 'string' ? body.token : '')
+        if (who === null || who === 'spectator') {
+          return json(res, 403, { error: 'spectators cannot act' })
+        }
         const decision = body.decision as Decision
-        const match = s.waiting.find((w) => w.kind === decision?.kind)
+        const match = s.waiting.find((w) => w.seat === who && w.kind === decision?.kind)
         if (!match) return json(res, 400, { error: `not waiting for a ${decision?.kind} from you` })
         try {
-          applyDecision(s.game, HUMAN, decision)
+          applyDecision(s.game, who, decision)
         } catch (err) {
           return json(res, 400, { error: err instanceof Error ? err.message : String(err) })
         }
-        s.waiting = []
+        s.waiting = s.waiting.filter((w) => w !== match)
         broadcast(s)
         void pump(s)
         json(res, 200, { ok: true })
@@ -288,19 +450,17 @@ const server = http.createServer(async (req, res) => {
         return
       }
     }
+
+    // ---- agents / usage ----
     if (req.method === 'GET' && url.pathname === '/api/agents') {
       json(res, 200, {
         agents: library.map(publicInfo),
         models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, slug: r.slug, tier: r.tier })),
-        // The engine-owned prompt layers every llm agent shares — browsable
-        // for transparency (custom personalities layer on top of these).
         baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },
       })
       return
     }
     if (req.method === 'POST' && url.pathname === '/api/agents') {
-      // Custom agents over HTTP are LLM-engine only: a stdio engine names a
-      // command to execute, which must never be settable remotely.
       const body = await readBody(req)
       const name = typeof body.name === 'string' ? body.name.trim() : ''
       const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'agent'
