@@ -60,6 +60,68 @@ mirror) applied at the agent level: the engine never knows or cares whether a de
 model, a heuristic, or a person, so the whole game is simulatable headless at zero API cost
 (datingsim's calibration-harness trick — the single most valuable pattern in that repo).
 
+### Pluggable agents (the decision interface is a plugin API)
+
+The three answerers above are the built-ins, but the interface is deliberately a **plugin
+boundary**: any seat can be driven by any agent, including third-party agents written for other
+Avalon frameworks. Design goals: our custom LLM agent is the default table; a rule-based agent
+ships as the baseline/fallback; imported agents (e.g. from AvalonBench) are a supported roster
+option.
+
+**In-process interface** (TypeScript, what every agent ultimately implements):
+
+```ts
+interface AvalonAgent {
+  decide(req: DecisionRequest, view: PlayerView): Promise<Decision>
+  // view = viewFor(game, seat) — the ONLY game data an agent ever receives.
+}
+```
+
+Notification of game events needs no separate callback: `view` carries the seat-filtered event
+log, so agents are stateless-by-default and any memory (scratchpads, believed-sides tables) is
+their own business.
+
+**Agent specs and registry.** Table setup maps each seat to an `AgentSpec`; a registry constructs
+the agent (datingsim's alias-map-as-allowlist pattern):
+
+```ts
+type AgentSpec =
+  | { type: 'llm', model: ModelId }            // default — our custom agent, §3
+  | { type: 'heuristic' }                      // built-in rule-based baseline (M1, forever-fallback)
+  | { type: 'random' }                         // fuzz/testing
+  | { type: 'human' }
+  | { type: 'stdio', cmd: string, args: string[], label: string }   // external agent process
+```
+
+**External agent protocol (the cross-language door).** `stdio` agents are child processes speaking
+newline-delimited JSON: we send `{ id, type: 'decide', request, view }`, they answer
+`{ id, decision }` (plus a `{ type: 'hello', capabilities }` handshake — agents that can't
+discuss declare it and are auto-passed in table-talk rounds). Same envelope could ride HTTP later;
+stdio first because it's zero-infra and testable in CI with a 20-line dummy agent. External
+decisions go through exactly the same legality validation + fallback ladder as LLM output (§3) —
+a buggy third-party agent degrades to the heuristic, never stalls the game.
+
+**AvalonBench import (the concrete third-party target).** AvalonBench
+([jonathanmli/Avalon-LLM](https://github.com/jonathanmli/Avalon-LLM)) is Python, built on
+AgentBench; its `Agent` base class (`src/server/tasks/avalon/agents/agent.py`) exposes
+`propose_team(mission_id)`, `vote_on_team(mission_id, team)`, `vote_on_mission(mission_id,
+quest_team)`, `assassinate(num_players)`, `get_believed_sides(num_players)`; discussion exists only
+in the "speakable" variants (`baseline_speakable_agents.py`, `llm_with_discussion.py`); the ICLR
+"Strategist" is `SearchlightLLMAgentWithDiscussion` (`search_agent.py`). The bridge is a small
+Python shim (`agents/bridges/avalonbench_shim.py`) that instantiates any AvalonBench `Agent`
+subclass and speaks our stdio protocol, mapping `propose → propose_team`, `vote → vote_on_team`,
+`quest → vote_on_mission`, `assassinate → assassinate`, and declaring `discuss: false` for
+non-speakable agents. Their naive baselines (`baseline_agents.py`) are the first import target
+(good difficulty calibration); Strategist is the stretch goal (it's MCTS-heavy — expect latency,
+and its search may assume AvalonBench's exact ruleset, so validate against our engine's).
+Mapping notes: AvalonBench uses int player ids and `frozenset` teams (→ JSON arrays), int role
+codes (→ our role strings need a code map), and returns bools for votes/quest cards.
+
+**Boundary rule:** external agents get the same `PlayerView` and nothing else — the hidden-info
+chokepoint (§2) applies unchanged. An imported agent that expects extra observability (e.g.
+AvalonBench's engine callbacks) gets it derived from the view inside the shim, never from raw
+state.
+
 **Determinism rule:** the engine is a pure reducer `(state, event) → state` over an append-only
 event log, with a seeded RNG (see §2). LLM outputs enter the engine only as validated events.
 Replaying the event log reproduces the game exactly — that's the debugging story and the test story.
@@ -381,12 +443,24 @@ format/authority escape, not persuasion:
 - Event-sourced engine, phase reducer, `expectedDecisions`, `viewFor`, seeded RNG, legality
   validation. 5-10 player configs, standard roles (Merlin/Assassin/Percival/Morgana/Mordred/
   Oberon per the rules doc).
-- Heuristic agents good enough to finish games (they double as the forever-fallback).
+- The `AvalonAgent` interface + `AgentSpec` registry (§1) with heuristic and random agents good
+  enough to finish games (heuristic doubles as the forever-fallback).
+- The stdio external-agent protocol: envelope spec, child-process adapter, and a trivial
+  JS dummy agent as its CI test — proves pluggability before any real third-party import.
 - Headless driver: `node sim.mjs --seed 42 --players 7` plays full games; contract tests for the
   knowledge matrix + view-leak greps; hundreds of simulated games as a fuzz test (no crashes,
   every game terminates).
 - Debug UI can be a bare server-rendered page or CLI transcript. **Exit:** a human can play a
   full (boring) game against heuristics.
+
+**M1 result (2026-07-22):** built and tested (25 tests: rules tables, knowledge matrix via
+`viewFor`, leak greps, scripted flow, fuzz at all counts, replay determinism, stdio plugin
+roundtrip + degrade path). Known issue: heuristic self-play is evil-favored — ~66/34 evil at 7p,
+~80/20 at 5p and 10p (300-game sims, `npm run sim -- --games 300 --talk 0,0`). Root cause is
+informational, not a rules bug: heuristic good has no discussion channel, so Merlin's knowledge
+never propagates (the same reason AvalonBench reports ~80% evil wins for naive/LLM agents).
+Expected to improve in M2 when bots actually talk; revisit with the M3 coherence harness rather
+than distorting the baseline heuristics further.
 
 ### Milestone 2 — LLM bots + minimal real UI (≈ 4-6 focused days)
 
@@ -407,6 +481,10 @@ format/authority escape, not persuasion:
   drop models that fallback >10% or play incoherently.
 - Table-setup screen (pick your opponents), difficulty presets (roster tier mix), streamer-safe
   mode, cost dashboard, snapshot save/resume.
+- AvalonBench bridge: the Python stdio shim wrapping their naive baseline agents (difficulty
+  calibration seats); Strategist (`SearchlightLLMAgentWithDiscussion`) as a stretch "boss" seat.
+  UI: non-model agents get their own badge style ("Rule-based", "Strategist") so the
+  model-identity premise stays honest.
 
 ---
 
