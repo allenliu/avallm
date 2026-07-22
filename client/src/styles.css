@@ -319,6 +319,7 @@ footer { min-height: 3.4rem; }
 .feed-row.talk .feed-text::after { content: "”"; color: var(--dim); }
 .feed-speaker { font-weight: 600; margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; }
 .feed-row.system { color: var(--dim); }
+.feed-row.pass { opacity: 0.55; font-size: 0.85rem; }
 .feed-row.system.ok { color: var(--ok); }
 .feed-row.system.bad { color: var(--bad); }
 .feed-row.big { font-weight: 700; font-size: 1.02rem; }

@@ -53,7 +53,8 @@ function renderEvent(ev: GameEvent, name: (s: number) => string): FeedRow | null
       const lean = p.lean ? ` ${p.lean === 'approve' ? '👍' : p.lean === 'reject' ? '👎' : '🤔'}` : ''
       if (p.text) return { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text + lean }
       if (p.lean) return { key: ev.seq, cls: 'system', seat: p.seat, text: `signals ${p.lean}${lean}` }
-      return null
+      // Silence is information too.
+      return { key: ev.seq, cls: 'system pass', seat: p.seat, text: 'passes' }
     }
     case 'proposal': {
       const team = (p.team as number[]).map(name).join(', ')
