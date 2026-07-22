@@ -45,6 +45,7 @@ export type EventType =
   | 'gameCreated' | 'roleDealt' | 'knowledge'
   | 'utterance' | 'proposal' | 'voteCast' | 'voteReveal'
   | 'questCard' | 'questResult' | 'assassination' | 'gameOver'
+  | 'thinking'
 
 export interface GameEvent {
   seq: number
@@ -83,12 +84,15 @@ export interface DecisionRequest {
   proposalNum: number
 }
 
+// `thinking` is the deciding agent's private in-character reasoning — the
+// engine records it as an event visible only to that seat (post-game reveal
+// material). `pitch` on propose is public speech attached to the proposal.
 export type Decision =
-  | { kind: 'discuss'; say: string }
-  | { kind: 'propose'; team: Seat[] }
-  | { kind: 'vote'; vote: 'approve' | 'reject' }
-  | { kind: 'quest'; card: 'success' | 'fail' }
-  | { kind: 'assassinate'; target: Seat }
+  | { kind: 'discuss'; say: string; thinking?: string }
+  | { kind: 'propose'; team: Seat[]; pitch?: string; thinking?: string }
+  | { kind: 'vote'; vote: 'approve' | 'reject'; thinking?: string }
+  | { kind: 'quest'; card: 'success' | 'fail'; thinking?: string }
+  | { kind: 'assassinate'; target: Seat; thinking?: string }
 
 // ---- Views (the hidden-information chokepoint) ----
 
@@ -103,6 +107,7 @@ export interface ProposalRecord {
   proposalNum: number
   leader: Seat
   team: Seat[]
+  pitch?: string
   votes?: { seat: Seat; vote: 'approve' | 'reject' }[]
   approved?: boolean
 }

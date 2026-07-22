@@ -171,6 +171,12 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
     )
   }
 
+  if (typeof decision.thinking === 'string' && decision.thinking.trim()) {
+    emit(game, 'thinking', {
+      seat, kind: decision.kind, text: decision.thinking.trim().slice(0, 900),
+    }, { only: [seat] })
+  }
+
   switch (decision.kind) {
     case 'discuss': {
       if (typeof decision.say !== 'string') throw new EngineError('say must be a string')
@@ -203,6 +209,9 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
       emit(game, 'proposal', {
         round: game.round, proposalNum: game.proposalNum,
         leader: seat, team: game.currentTeam,
+        ...(typeof decision.pitch === 'string' && decision.pitch.trim()
+          ? { pitch: decision.pitch.trim().slice(0, 400) }
+          : {}),
       }, 'public')
       afterProposal(game)
       return game

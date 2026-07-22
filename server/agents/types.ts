@@ -12,7 +12,8 @@ export type AgentSpec =
   | { type: 'heuristic' }
   | { type: 'random' }
   | { type: 'stdio'; cmd: string; args: string[]; label?: string }
-  // Milestone 2+: { type: 'llm'; model: string } and { type: 'human' }
+  | { type: 'llm'; model: string } // model = roster id (server/llm/roster.ts)
+  // Milestone 3: { type: 'human' } is constructed directly by the server/CLIs
 
 export interface AgentContext {
   seed: string   // the game seed — agents derive their own RNG from it

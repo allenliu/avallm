@@ -1,0 +1,108 @@
+// The LLM agent's ladder and scratchpad, with a fake transport — no API.
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { createGame } from '../server/engine/game.ts'
+import { viewFor } from '../server/engine/view.ts'
+import { createLlmAgent } from '../server/agents/llm.ts'
+import { createHeuristicAgent } from '../server/agents/heuristic.ts'
+import { runGame } from '../server/sim/runner.ts'
+import type { Msg, OpenRouterClient, CallOpts } from '../server/llm/openrouter.ts'
+import type { AvalonAgent } from '../server/agents/types.ts'
+import type { Seat } from '../server/engine/types.ts'
+
+function fakeClient(handler: (opts: CallOpts, messages: Msg[]) => string): OpenRouterClient & { calls: CallOpts[] } {
+  const calls: CallOpts[] = []
+  return {
+    calls,
+    async call(_model, messages, opts = {}) {
+      calls.push(opts)
+      return handler(opts, messages)
+    },
+    getSpend: () => ({}),
+    getTotalCost: () => 0,
+  }
+}
+
+const game = createGame({ seed: 'llm-t', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+const view0 = viewFor(game, 0)
+
+test('clean decision carries thinking into the Decision', async () => {
+  const client = fakeClient(() => '{"thinking": "seat 2 is loud", "vote": "approve"}')
+  const agent = createLlmAgent({ modelId: 'deepseek', client })
+  const d = await agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 1 }, view0)
+  assert.deepEqual(d, { kind: 'vote', vote: 'approve', thinking: 'seat 2 is loud' })
+  assert.equal(client.calls.length, 1)
+  assert.equal(client.calls[0].tag, 'deepseek/vote')
+})
+
+test('one malformed reply triggers exactly one correction retry', async () => {
+  let n = 0
+  const client = fakeClient((_opts, messages) => {
+    n++
+    if (n === 1) return 'I like this team a lot!!'
+    // The retry must carry the correction context.
+    assert.ok(messages.some((m) => m.role === 'user' && /not usable/.test(m.content)))
+    return '{"vote": "reject"}'
+  })
+  const agent = createLlmAgent({ modelId: 'gemini', client })
+  const d = await agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 1 }, view0)
+  assert.equal((d as any).vote, 'reject')
+  assert.equal(n, 2)
+})
+
+test('two failures throw (the runner then degrades to heuristic)', async () => {
+  const client = fakeClient(() => 'zzz')
+  const agent = createLlmAgent({ modelId: 'kimi', client })
+  await assert.rejects(
+    agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 1 }, view0),
+    /failed vote twice/,
+  )
+})
+
+test('an always-broken llm agent degrades but the game completes', async () => {
+  const seed = 'llm-degrade'
+  const g = createGame({ seed, playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const broken = createLlmAgent({ modelId: 'glm', client: fakeClient(() => '???') })
+  const agents = new Map<Seat, AvalonAgent>(
+    g.players.map((p) => [
+      p.seat,
+      p.seat === 1 ? broken : createHeuristicAgent({ seed, seat: p.seat }),
+    ]),
+  )
+  const result = await runGame({ game: g, agents })
+  assert.equal(result.game.phase, 'gameOver')
+  assert.ok(result.degraded.length > 0)
+  assert.ok(result.degraded.every((d) => d.seat === 1))
+})
+
+test('reflect fires after a quest resolves and feeds the next prompt', async () => {
+  const seed = 'llm-reflect'
+  const g = createGame({ seed, playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  let sawScratchpadInPrompt = false
+  const client = fakeClient((opts, messages) => {
+    if (opts.tag?.endsWith('/reflect')) {
+      return '{"suspicions":[{"seat":3,"read":"failed the quest","confidence":80}],"plan":"reject seat 3"}'
+    }
+    if (messages.some((m) => m.content.includes('failed the quest (80%)'))) {
+      sawScratchpadInPrompt = true
+    }
+    if (opts.tag?.endsWith('/vote')) return '{"vote":"approve"}'
+    if (opts.tag?.endsWith('/quest')) return '{"card":"success"}'
+    if (opts.tag?.endsWith('/propose')) return '{"team":[0,1]}'
+    return '{"say":""}'
+  })
+  const agent = createLlmAgent({ modelId: 'haiku', client })
+
+  // Round 1: propose+approve a team, resolve the quest with the llm agent on it.
+  const { applyDecision } = await import('../server/engine/game.ts')
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'approve' })
+  for (const s of [0, 1]) applyDecision(g, s, { kind: 'quest', card: 'success' })
+
+  // Quest 1 resolved; the agent's next decision should reflect first.
+  const d = await agent.decide({ kind: 'vote', seat: 0, round: 2, proposalNum: 1 }, viewFor(g, 0))
+  assert.equal((d as any).kind, 'vote')
+  const tags = client.calls.map((c) => c.tag)
+  assert.ok(tags.includes('haiku/reflect'), `expected a reflect call, got ${tags}`)
+  assert.ok(sawScratchpadInPrompt, 'reflect output should appear in the following prompt')
+})

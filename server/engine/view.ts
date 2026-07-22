@@ -25,6 +25,7 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
         proposalNum: ev.payload.proposalNum as number,
         leader: ev.payload.leader as Seat,
         team: (ev.payload.team as Seat[]).slice(),
+        ...(typeof ev.payload.pitch === 'string' ? { pitch: ev.payload.pitch } : {}),
       })
     } else if (ev.type === 'voteReveal') {
       const rec = proposals[proposals.length - 1]
