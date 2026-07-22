@@ -13,16 +13,37 @@ export function eventVisibleTo(ev: GameEvent, seat: Seat): boolean {
 
 // A role-less observer: strictly the public record. Client code gates all
 // role/alignment UI on role === 'spectator'.
+//
+// Every field is named EXPLICITLY rather than spread from a seat's view: the
+// seat-private fields (role, alignment, privateInfo, per-seat events) are
+// neutralized here, and any PRIVATE field added to PlayerView later is
+// excluded by default (opt-in public) instead of silently leaking. The
+// remaining fields carried from base are seat-independent public record.
 export function viewForSpectator(game: Game): PlayerView {
   const base = viewFor(game, 0)
   return {
-    ...base,
     seat: -1,
     name: 'Spectator',
     role: 'spectator' as PlayerView['role'],
     alignment: 'good', // placeholder — never rendered for spectators
     privateInfo: {},
     events: game.log.filter((ev) => ev.visibility === 'public'),
+    // --- public record, seat-independent ---
+    playerCount: base.playerCount,
+    rolesInPlay: base.rolesInPlay,
+    players: base.players,
+    phase: base.phase,
+    round: base.round,
+    proposalNum: base.proposalNum,
+    leaderSeat: base.leaderSeat,
+    quests: base.quests,
+    proposals: base.proposals,
+    currentTeam: base.currentTeam,
+    discussionSlot: base.discussionSlot,
+    discussionRound: base.discussionRound,
+    transcript: base.transcript,
+    winner: base.winner,
+    winReason: base.winReason,
   }
 }
 

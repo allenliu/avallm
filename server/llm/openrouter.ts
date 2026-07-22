@@ -67,6 +67,21 @@ export function createOpenRouter(opts: { timeoutMs?: number; quiet?: boolean } =
     return Object.values(SPEND).reduce((s, e) => s + (e.cost || 0), 0)
   }
 
+  // Enforced at the dispatch chokepoint (issue), so EVERY outbound call —
+  // including the blank-under-json retry — is gated, never just the first.
+  // This is refuse-before-call: the crossing call still completes and
+  // concurrent in-flight calls can overshoot, so the cap is best-effort, not
+  // a hard guarantee (no pre-call price is available to reserve against).
+  function enforceCeiling(tag: string): void {
+    const cap = maxSpendUsd()
+    if (cap != null && getTotalCost() >= cap) {
+      if (!quiet) {
+        console.warn(`[openrouter] SPEND CEILING $${cap} reached — refusing ${tag}`)
+      }
+      throw new SpendCeilingError(`spend ceiling $${cap} reached`)
+    }
+  }
+
   function recordSpend(
     tag: string, model: string, usage: any, leaked: boolean,
     provider: string | undefined, providerViolated: boolean,
@@ -93,6 +108,7 @@ export function createOpenRouter(opts: { timeoutMs?: number; quiet?: boolean } =
     model: string, messages: Msg[], callOpts: CallOpts,
     { omitResponseFormat = false } = {},
   ): Promise<string> {
+    enforceCeiling(callOpts.tag || 'other')
     const key = process.env.OPENROUTER_API_KEY
     if (!key) throw new Error('OPENROUTER_API_KEY not set')
     const ctrl = new AbortController()
@@ -157,13 +173,7 @@ export function createOpenRouter(opts: { timeoutMs?: number; quiet?: boolean } =
   }
 
   async function call(model: string, messages: Msg[], callOpts: CallOpts = {}): Promise<string> {
-    const cap = maxSpendUsd()
-    if (cap != null && getTotalCost() >= cap) {
-      if (!quiet) {
-        console.warn(`[openrouter] SPEND CEILING $${cap} reached — refusing ${callOpts.tag || 'call'}`)
-      }
-      throw new SpendCeilingError(`spend ceiling $${cap} reached`)
-    }
+    // Ceiling is enforced inside issue() so the retry below is gated too.
     const content = await issue(model, messages, callOpts)
     // Blank under json_object is never valid; retry once without response_format
     // (re-routes providers and removes the known deepseek json×non-think trap).

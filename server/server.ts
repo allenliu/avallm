@@ -31,7 +31,7 @@ import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
-import { ROLE_ALIGNMENT } from './engine/rules.ts'
+import { ROLE_ALIGNMENT, validateRoles } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
 import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
 
@@ -108,6 +108,10 @@ function createLobby(body: any): { lobby: Lobby; token: string } {
       throw new Error('roles must be an array of valid role names')
     }
     roles = body.roles as Role[]
+    // Validate the full set now (count + evil balance), not later in
+    // startLobby — a throw there would 500 the joiner who fills the lobby and
+    // leave it permanently stuck 'open' with no free seats.
+    validateRoles(playerCount, roles)
   }
 
   const botCount = playerCount - humanSeats

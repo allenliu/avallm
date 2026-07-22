@@ -16,7 +16,7 @@ npm --prefix client install && npm --prefix client run build
 
 # put an OpenRouter key in .env (gitignored):
 #   OPENROUTER_API_KEY=sk-or-...
-#   OPENROUTER_MAX_SPEND_USD=2        # hard spend ceiling, recommended
+#   OPENROUTER_MAX_SPEND_USD=2        # spend ceiling (best-effort), recommended
 
 node server/server.ts                      # then open http://localhost:8787
 ```
