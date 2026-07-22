@@ -1,0 +1,12 @@
+{
+  "name": "avalon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\"",
+    "sim": "node server/sim/sim.ts",
+    "play": "node server/sim/play.ts"
+  }
+}
