@@ -82,6 +82,7 @@ export function App() {
 
   const startGame = useCallback(async (opts: {
     players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string
+    invite?: string
   }) => {
     setStarting(true)
     setError(null)
@@ -92,6 +93,7 @@ export function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             playerCount: opts.players, table: opts.table, humanName: opts.humanName,
+            invite: opts.invite,
             ...(opts.roles ? { roles: opts.roles } : {}),
           }),
         })
@@ -105,7 +107,8 @@ export function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: opts.humanName, playerCount: opts.players, humanSeats: opts.humanSeats,
-            table: opts.table, ...(opts.roles ? { roles: opts.roles } : {}),
+            table: opts.table, invite: opts.invite,
+            ...(opts.roles ? { roles: opts.roles } : {}),
           }),
         })
         const data = await res.json()
@@ -371,6 +374,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   const [humanSeats, setHumanSeats] = useState(1)
   const [table, setTable] = useState<string[]>([])
   const [humanName, setHumanName] = useState(() => localStorage.getItem('avalon-name') ?? '')
+  const [invite, setInvite] = useState(() => localStorage.getItem('avalon-invite') ?? '')
   const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
   const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(7))
   const [showRules, setShowRules] = useState(false)
@@ -450,6 +454,18 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
             ))}
           </select>
         </label>
+        {library?.gated && (
+          <label>
+            Invite code{' '}
+            <input
+              value={invite} maxLength={64} placeholder="required on this server"
+              onChange={(e) => {
+                setInvite(e.target.value)
+                localStorage.setItem('avalon-invite', e.target.value)
+              }}
+            />
+          </label>
+        )}
       </div>
       {botCount > 0 && (
         <TablePicker
@@ -501,7 +517,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
       )}
       <button
         disabled={starting || !built.roles || table.length !== botCount}
-        onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName })}
+        onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName, invite: invite || undefined })}
       >
         {starting
           ? 'Setting the table…'
@@ -575,6 +591,7 @@ function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: 
           model: model || library.models[0]?.id,
           about: about || undefined,
           personality: personality || undefined,
+          invite: localStorage.getItem('avalon-invite') || undefined,
         }),
       })
       const data = await res.json()

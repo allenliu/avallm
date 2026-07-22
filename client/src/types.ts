@@ -78,6 +78,7 @@ export interface Library {
   agents: AgentInfo[]
   models: { id: string; name: string; slug: string; tier: string }[]
   baseline?: { rulesDigest: string; roleGuidance: Record<string, string> }
+  gated?: boolean
 }
 
 export interface ServerPayload {

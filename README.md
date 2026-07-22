@@ -43,6 +43,25 @@ Design docs in `docs/`:
 - `docs/research-strategy.md` — gameplay strategy compendium (feeds bot prompts)
 - `docs/design-implementation.md` — architecture and implementation design
 
+## Deploying (Railway)
+
+The repo carries a `Dockerfile` + `railway.toml` (Dockerfile builder — required, because the
+server runs TypeScript natively on Node 24, which nixpacks won't provide). To deploy:
+
+1. Railway → New Project → Deploy from GitHub repo → pick this repo. The Dockerfile is detected
+   automatically.
+2. Set variables: `OPENROUTER_API_KEY` (required for LLM bots), `OPENROUTER_MAX_SPEND_USD`
+   (recommended hard spend ceiling, e.g. `5`), and `AVALON_INVITE_CODE` (**strongly recommended
+   on any public URL** — without it, anyone who finds the site can start LLM games on your key).
+   Railway injects `PORT` automatically; the server honors it.
+3. Generate a domain (Settings → Networking). Done — lobbies, SSE streams, and invite links all
+   work over a single HTTP port.
+
+The invite code gates creating lobbies/games/custom agents; joining an existing game by invite
+URL is deliberately ungated. Caveats: games live in memory (a redeploy or restart ends running
+games — snapshot persistence is on the roadmap), and custom agents persist to the container
+filesystem (ephemeral on Railway unless you attach a volume at `/app/data`).
+
 ## Prior art
 
 LLM integration patterns (OpenRouter client, prompt structure) draw on the sibling `datingsim` project.

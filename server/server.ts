@@ -37,7 +37,16 @@ import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, '..', 'client', 'dist')
-const PORT = Number(process.env.AVALON_PORT) || 8787
+// Railway (and most PaaS) inject PORT; AVALON_PORT wins for local overrides.
+const PORT = Number(process.env.AVALON_PORT || process.env.PORT) || 8787
+
+// Public-deployment gate: when AVALON_INVITE_CODE is set, creating anything
+// that can spend money or write disk (lobbies, games, custom agents) requires
+// the code. Joining an existing lobby by URL is deliberately NOT gated —
+// invitees were invited by the person who had the code. Read live so an env
+// edit takes effect without a restart.
+const inviteCode = () => process.env.AVALON_INVITE_CODE || ''
+const inviteOk = (body: any) => !inviteCode() || body?.invite === inviteCode()
 
 let library: AgentDef[] = loadAgentLibrary()
 const libById = (id: string): AgentDef => {
@@ -353,6 +362,7 @@ const server = http.createServer(async (req, res) => {
     // ---- lobbies ----
     if (req.method === 'POST' && url.pathname === '/api/lobby') {
       const body = await readBody(req)
+      if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const { lobby, token } = createLobby(body)
       json(res, 200, { lobbyId: lobby.id, token, ...lobbyPayload(lobby) })
       return
@@ -401,6 +411,7 @@ const server = http.createServer(async (req, res) => {
     // ---- solo sugar: a humanSeats=1 lobby, auto-started ----
     if (req.method === 'POST' && url.pathname === '/api/game/new') {
       const body = await readBody(req)
+      if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const { lobby, token } = createLobby({
         name: body.humanName, playerCount: body.playerCount, humanSeats: 1,
         table: body.table, roles: body.roles,
@@ -461,11 +472,13 @@ const server = http.createServer(async (req, res) => {
         agents: library.map(publicInfo),
         models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, slug: r.slug, tier: r.tier })),
         baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },
+        gated: !!inviteCode(),
       })
       return
     }
     if (req.method === 'POST' && url.pathname === '/api/agents') {
       const body = await readBody(req)
+      if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const name = typeof body.name === 'string' ? body.name.trim() : ''
       const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'agent'
       let id = base
