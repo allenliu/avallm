@@ -187,6 +187,32 @@ input:focus, select:focus { outline: 1px solid var(--good); }
 .hg-cell.no { color: var(--bad); }
 .hg-legend { color: var(--dim); font-size: 0.78rem; }
 
+/* ---- library tab / browsable prompts ---- */
+.lib-row { align-items: flex-start; }
+.lib-desc { flex: 1; }
+.prompt-details { margin-top: 0.3rem; }
+.prompt-details summary {
+  cursor: pointer;
+  color: var(--gold);
+  font-size: 0.78rem;
+}
+.prompt-details pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: var(--panel-2);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+.baseline-prompts {
+  border-top: 1px solid #333644;
+  padding-top: 0.7rem;
+  display: flex; flex-direction: column; gap: 0.35rem;
+}
+
 /* ---- game layout ---- */
 .game {
   display: flex;

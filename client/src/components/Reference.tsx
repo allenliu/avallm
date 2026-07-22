@@ -2,16 +2,17 @@
 // and game setup. One persistent place to answer "wait, what does Morgana
 // do again?" mid-game.
 import { useState } from 'react'
-import type { AgentInfo, PlayerView } from '../types.ts'
+import type { AgentInfo, Library, PlayerView } from '../types.ts'
 import { ROLE_INFO, RULES_SUMMARY } from '../setup.ts'
 import type { Role } from '../setup.ts'
 import { ModelBadge } from './TableSeats.tsx'
 
-type Tab = 'rules' | 'roles' | 'table' | 'setup'
+type Tab = 'rules' | 'roles' | 'table' | 'library' | 'setup'
 
-export function Reference({ view, bots, onClose }: {
+export function Reference({ view, bots, library, onClose }: {
   view: PlayerView
   bots: Record<number, AgentInfo>
+  library: Library | null
   onClose: () => void
 }) {
   const [tab, setTab] = useState<Tab>('rules')
@@ -19,6 +20,7 @@ export function Reference({ view, bots, onClose }: {
     { id: 'rules', label: 'Rules' },
     { id: 'roles', label: 'Roles in play' },
     { id: 'table', label: 'The table' },
+    { id: 'library', label: 'Agent library' },
     { id: 'setup', label: 'Setup' },
   ]
   return (
@@ -41,6 +43,7 @@ export function Reference({ view, bots, onClose }: {
         )}
         {tab === 'roles' && <RolesTab view={view} />}
         {tab === 'table' && <TableTab view={view} bots={bots} />}
+        {tab === 'library' && <LibraryTab library={library} />}
         {tab === 'setup' && <SetupTab view={view} />}
       </div>
     </div>
@@ -96,6 +99,51 @@ function TableTab({ view, bots }: { view: PlayerView; bots: Record<number, Agent
           </div>
         )
       })}
+    </div>
+  )
+}
+
+function LibraryTab({ library }: { library: Library | null }) {
+  if (!library) return <p className="roles-preview">Library not loaded.</p>
+  return (
+    <div className="ref-list">
+      {library.agents.map((a) => (
+        <div key={a.id} className="ref-row lib-row">
+          <span className="role-toggle-name agent-name">
+            <ModelBadge info={a} />{a.name}
+          </span>
+          <span className="role-toggle-desc lib-desc">
+            {a.model}{a.version ? ` · v${a.version}` : ''}{a.author ? ` · by ${a.author}` : ''}
+            {a.custom ? ' · custom' : ''}
+            {a.about ? ` — ${a.about}` : ''}
+            {a.personality && (
+              <details className="prompt-details">
+                <summary>personality prompt</summary>
+                <pre>{a.personality}</pre>
+              </details>
+            )}
+          </span>
+        </div>
+      ))}
+      {library.baseline && (
+        <div className="baseline-prompts">
+          <p className="roles-preview">
+            Every LLM agent runs on the same engine-owned baseline — personalities layer on top.
+            The output format, hidden-information filtering, and injection guard are fixed and not
+            part of any agent's config.
+          </p>
+          <details className="prompt-details">
+            <summary>baseline rules digest (shared system prompt)</summary>
+            <pre>{library.baseline.rulesDigest}</pre>
+          </details>
+          {Object.entries(library.baseline.roleGuidance).map(([role, text]) => (
+            <details key={role} className="prompt-details">
+              <summary>baseline guidance: {role}</summary>
+              <pre>{text}</pre>
+            </details>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

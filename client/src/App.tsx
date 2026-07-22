@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { AgentInfo, DecisionRequest, RevealPayload, ServerPayload } from './types.ts'
+import type { AgentInfo, DecisionRequest, Library, RevealPayload, ServerPayload } from './types.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
@@ -10,11 +10,6 @@ import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
-
-interface Library {
-  agents: AgentInfo[]
-  models: { id: string; name: string; tier: string }[]
-}
 
 type Screen =
   | { name: 'landing' }
@@ -117,7 +112,7 @@ export function App() {
           <button className="secondary" onClick={() => setShowRef(true)}>📖 Reference</button>
         </span>
       </header>
-      {showRef && <Reference view={view} bots={bots} onClose={() => setShowRef(false)} />}
+      {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
       {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
       <TableSeats view={view} bots={bots} acting={acting} />
       <main>

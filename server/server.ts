@@ -18,6 +18,7 @@ import { viewFor } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
 import { loadAgentLibrary, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
+import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
 import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
@@ -274,6 +275,9 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, {
         agents: library.map(publicInfo),
         models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, tier: r.tier })),
+        // The engine-owned prompt layers every llm agent shares — browsable
+        // for transparency (custom personalities layer on top of these).
+        baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },
       })
       return
     }

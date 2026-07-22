@@ -74,6 +74,12 @@ export interface AgentInfo {
   custom: boolean
 }
 
+export interface Library {
+  agents: AgentInfo[]
+  models: { id: string; name: string; tier: string }[]
+  baseline?: { rulesDigest: string; roleGuidance: Record<string, string> }
+}
+
 export interface ServerPayload {
   view: PlayerView
   ask: DecisionRequest[]
