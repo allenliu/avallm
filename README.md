@@ -1,6 +1,6 @@
-# Avalon — AI Edition
+# AvaLLM
 
-A web-based implementation of **The Resistance: Avalon** where the other players — allies and opponents alike — are bots powered by LLMs.
+**Avalon vs. the LLMs.** A web-based implementation of **The Resistance: Avalon** where the other players — allies and opponents alike — are bots powered by LLMs.
 
 ## The hook
 

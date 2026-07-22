@@ -521,6 +521,6 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  console.log(`avalon server listening on http://localhost:${PORT}`)
+  console.log(`AvaLLM server listening on http://localhost:${PORT}`)
   console.log(`client dist: ${fs.existsSync(path.join(DIST, 'index.html')) ? 'found' : 'NOT BUILT'}`)
 })

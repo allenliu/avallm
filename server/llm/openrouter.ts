@@ -126,7 +126,7 @@ export function createOpenRouter(opts: { timeoutMs?: number; quiet?: boolean } =
         headers: {
           Authorization: 'Bearer ' + key,
           'Content-Type': 'application/json',
-          'X-Title': 'avalon',
+          'X-Title': 'AvaLLM',
         },
         body: JSON.stringify({
           model,

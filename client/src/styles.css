@@ -23,7 +23,9 @@ body {
 
 h1 { font-weight: 600; letter-spacing: 0.02em; }
 h1 .vs { color: var(--gold); font-style: italic; font-weight: 400; }
+h1 .llm { color: var(--gold); font-weight: 800; letter-spacing: 0.06em; }
 h1.small { font-size: 1.05rem; }
+.subtitle { color: var(--text); font-size: 1.02rem; margin-bottom: 0.4em; font-style: italic; }
 
 button {
   background: var(--good);

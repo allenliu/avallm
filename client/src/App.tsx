@@ -11,6 +11,8 @@ import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 
+const Brand = () => <>Ava<span className="llm">LLM</span></>
+
 type Screen =
   | { name: 'landing' }
   | { name: 'join'; lobbyId: string }
@@ -160,10 +162,11 @@ export function App() {
   if (screen.name === 'landing') {
     return (
       <div className="landing">
-        <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+        <h1><Brand /></h1>
+        <p className="subtitle">The Resistance: Avalon vs. the LLMs</p>
         <p className="tagline">
-          Hidden roles, open models. Play against LLMs — or invite friends and
-          let the machines fill the empty chairs.
+          Hidden roles, open models. Bluff DeepSeek, out-read Gemini — or invite
+          friends and let the machines fill the empty chairs.
         </p>
         <Launcher onStart={startGame} starting={starting} library={library} onLibraryChange={refreshLibrary} />
         {error && <p className="error">{error}</p>}
@@ -198,7 +201,7 @@ export function App() {
   return (
     <div className="game">
       <header>
-        <h1 className="small">Avalon <span className="vs">vs.</span> the Machines</h1>
+        <h1 className="small"><Brand /></h1>
         <QuestBoard view={view} />
         <span className="header-buttons">
           <button className="secondary" onClick={() => setShowHistory(true)}>📊 History</button>
@@ -277,7 +280,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
   if (missing) {
     return (
       <div className="landing">
-        <h1>Avalon <span className="vs">vs.</span> the Machines</h1>
+        <h1><Brand /></h1>
         <p className="tagline">That lobby doesn't exist (or the server restarted).</p>
         <button onClick={onBack}>Start your own game</button>
       </div>
