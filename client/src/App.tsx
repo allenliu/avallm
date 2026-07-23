@@ -188,7 +188,7 @@ export function App() {
   }
 
   if (screen.name === 'lobby') {
-    return <LobbyScreen lobby={lobby} lobbyId={screen.lobbyId} onBack={backToLanding} />
+    return <LobbyScreen lobby={lobby} lobbyId={screen.lobbyId} token={screen.token} onBack={backToLanding} />
   }
 
   if (!payload) {
@@ -220,6 +220,21 @@ export function App() {
                 <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
               </div></div>
             : <RoleCard view={view} />}
+          {!payload.spectator && !gameOver && (
+            <NameEditor
+              current={view.name}
+              rename={async (name) => {
+                const res = await fetch(`/api/game/${gameId}/rename`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: gameToken, name }),
+                })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok) throw new Error(data.error ?? 'rename failed')
+                localStorage.setItem('avalon-name', data.name)
+              }}
+            />
+          )}
           {payload.degraded > 0 && (
             <div className="degraded-note">{payload.degraded} bot decision{payload.degraded === 1 ? '' : 's'} fell back to autopilot</div>
           )}
@@ -314,9 +329,10 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
   )
 }
 
-function LobbyScreen({ lobby, lobbyId, onBack }: {
+function LobbyScreen({ lobby, lobbyId, token, onBack }: {
   lobby: LobbyPayload | null
   lobbyId: string
+  token: string
   onBack: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -355,8 +371,64 @@ function LobbyScreen({ lobby, lobbyId, onBack }: {
             <p className="roles-preview">{lobby.spectators} spectator{lobby.spectators === 1 ? '' : 's'} watching</p>
           )}
         </div>
+        <NameEditor
+          current={localStorage.getItem('avalon-name') ?? ''}
+          rename={async (name) => {
+            const res = await fetch(`/api/lobby/${lobbyId}/rename`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token, name }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(data.error ?? 'rename failed')
+            localStorage.setItem('avalon-name', data.name)
+          }}
+        />
         <button className="secondary" onClick={onBack}>Leave lobby</button>
       </div>
+    </div>
+  )
+}
+
+function NameEditor({ current, rename }: {
+  current: string
+  rename: (name: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState(current)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  if (!open) {
+    return (
+      <button className="secondary name-edit-toggle" onClick={() => { setName(current); setOpen(true) }}>
+        ✎ Change name
+      </button>
+    )
+  }
+  const submit = async () => {
+    setBusy(true)
+    setErr(null)
+    try {
+      await rename(name)
+      setOpen(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="name-editor">
+      <div className="row">
+        <input
+          value={name} maxLength={24} placeholder="New name" autoFocus
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
+        />
+        <button disabled={busy || !name.trim()} onClick={submit}>Save</button>
+        <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+      {err && <p className="error">{err}</p>}
     </div>
   )
 }

@@ -81,6 +81,8 @@ function renderEvent(ev: GameEvent, name: (s: number) => string): FeedRow | null
       return { key: ev.seq, cls: `system big ${p.winner === 'good' ? 'ok' : 'bad'}`, text: `${String(p.winner).toUpperCase()} WINS (${p.reason})` }
     case 'gameCreated':
       return { key: ev.seq, cls: 'system', text: `The table is set: ${p.playerCount} players. Roles in play: ${(p.rolesInPlay as string[]).join(', ')}.` }
+    case 'rename':
+      return { key: ev.seq, cls: 'system', text: `${p.from} is now known as ${p.to}.` }
     default:
       return null
   }

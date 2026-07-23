@@ -341,6 +341,14 @@ footer { min-height: 3.4rem; }
 .role-align.evil { color: var(--evil); }
 .roles-in-play { color: var(--dim); font-size: 0.78rem; }
 .degraded-note { color: var(--dim); font-size: 0.78rem; padding: 0 0.3rem; }
+.name-edit-toggle { font-size: 0.78rem; }
+.name-editor {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+.name-editor input { min-width: 0; width: 8rem; }
 
 /* ---- action bar ---- */
 .action-bar {

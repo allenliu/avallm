@@ -22,7 +22,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createGame, applyDecision, expectedDecisions } from './engine/game.ts'
+import { createGame, applyDecision, expectedDecisions, renamePlayer } from './engine/game.ts'
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
@@ -381,6 +381,22 @@ const server = http.createServer(async (req, res) => {
         req.on('close', () => lobby.listeners.delete(res))
         return
       }
+      if (req.method === 'POST' && parts[3] === 'rename') {
+        const body = await readBody(req)
+        const token = typeof body.token === 'string' ? body.token : ''
+        const member = lobby.members.find((m) => m.token === token)
+          ?? lobby.spectators.find((sp) => sp.token === token)
+        if (!member) return json(res, 403, { error: 'not in this lobby' })
+        const name = cleanName(body.name, '')
+        if (!name) return json(res, 400, { error: 'name must not be empty' })
+        const taken = [...lobby.members, ...lobby.spectators]
+          .some((m) => m.token !== token && m.name.toLowerCase() === name.toLowerCase())
+        if (taken) return json(res, 409, { error: `the name "${name}" is already taken in this lobby` })
+        member.name = name
+        lobbyBroadcast(lobby)
+        json(res, 200, { ok: true, name })
+        return
+      }
       if (req.method === 'POST' && parts[3] === 'join') {
         const body = await readBody(req)
         const name = cleanName(body.name, 'Player')
@@ -456,6 +472,24 @@ const server = http.createServer(async (req, res) => {
         broadcast(s)
         void pump(s)
         json(res, 200, { ok: true })
+        return
+      }
+      if (req.method === 'POST' && parts[3] === 'rename') {
+        const body = await readBody(req)
+        const who = seatOf(s, typeof body.token === 'string' ? body.token : '')
+        if (who === null || who === 'spectator') {
+          return json(res, 403, { error: 'only seated players can rename' })
+        }
+        if (s.game.phase === 'gameOver') return json(res, 400, { error: 'the game is over' })
+        try {
+          renamePlayer(s.game, who, typeof body.name === 'string' ? body.name : '')
+        } catch (err) {
+          return json(res, 400, { error: err instanceof Error ? err.message : String(err) })
+        }
+        const human = s.humans.get(who)
+        if (human) human.name = s.game.players[who].name
+        broadcast(s)
+        json(res, 200, { ok: true, name: s.game.players[who].name })
         return
       }
       if (req.method === 'GET' && parts[3] === 'reveal') {

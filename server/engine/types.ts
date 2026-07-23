@@ -48,7 +48,7 @@ export type EventType =
   | 'gameCreated' | 'roleDealt' | 'knowledge'
   | 'utterance' | 'proposal' | 'voteCast' | 'voteReveal'
   | 'questCard' | 'questResult' | 'assassination' | 'gameOver'
-  | 'thinking'
+  | 'thinking' | 'rename'
 
 export interface GameEvent {
   seq: number

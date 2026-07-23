@@ -144,6 +144,25 @@ function failQuestCount(game: Game): number {
   return game.quests.filter((q) => q.result === 'fail').length
 }
 
+// Display-name change, announced as a PUBLIC event so every player — human
+// and bot — learns the mapping the same way a table would. All game identity
+// is seat-anchored; the name is presentation, so history re-renders under the
+// new name automatically (views derive names live from players[seat]).
+export function renamePlayer(game: Game, seat: Seat, rawName: string): void {
+  const player = game.players[seat]
+  if (!player) throw new EngineError(`no player at seat ${seat}`)
+  const name = rawName.replace(/\s+/g, ' ').trim().slice(0, 24)
+  if (!name) throw new EngineError('name must not be empty')
+  const from = player.name
+  if (from === name) return
+  if (game.players.some((p) => p.seat !== seat && p.name.toLowerCase() === name.toLowerCase())) {
+    throw new EngineError(`the name "${name}" is already taken at this table`)
+  }
+  player.name = name
+  game.config.names[seat] = name
+  emit(game, 'rename', { seat, from, to: name }, 'public')
+}
+
 // ---- the decision surface ----
 
 export function expectedDecisions(game: Game): DecisionRequest[] {

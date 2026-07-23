@@ -70,15 +70,25 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
     }
   }
 
+  // Renames appear in the transcript stream so bots (whose table knowledge is
+  // the transcript) learn name changes exactly like everyone else.
   const transcript = game.log
-    .filter((ev) => ev.type === 'utterance' &&
-      ((ev.payload.text as string).length > 0 || ev.payload.lean !== undefined))
-    .map((ev) => ({
-      seat: ev.payload.seat as Seat,
-      name: game.players[ev.payload.seat as Seat].name,
-      text: ev.payload.text as string,
-      ...(ev.payload.lean !== undefined ? { lean: ev.payload.lean as any } : {}),
-    }))
+    .filter((ev) =>
+      (ev.type === 'utterance' &&
+        ((ev.payload.text as string).length > 0 || ev.payload.lean !== undefined)) ||
+      ev.type === 'rename')
+    .map((ev) => ev.type === 'rename'
+      ? {
+          seat: ev.payload.seat as Seat,
+          name: game.players[ev.payload.seat as Seat].name,
+          text: `(changed display name from ${ev.payload.from} to ${ev.payload.to})`,
+        }
+      : {
+          seat: ev.payload.seat as Seat,
+          name: game.players[ev.payload.seat as Seat].name,
+          text: ev.payload.text as string,
+          ...(ev.payload.lean !== undefined ? { lean: ev.payload.lean as any } : {}),
+        })
 
   return {
     seat,
