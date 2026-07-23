@@ -39,11 +39,21 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
 function ThinkingTimeline({ reveal, bots }: { reveal: RevealPayload; bots: Record<number, AgentInfo> }) {
   const name = (s: number) => reveal.players.find((p) => p.seat === s)?.name ?? `seat ${s}`
   const rows = reveal.log.filter((ev) =>
-    ev.type === 'thinking' || ev.type === 'questCard' || ev.type === 'proposal' || ev.type === 'questResult')
+    ev.type === 'thinking' || ev.type === 'scratchpad' || ev.type === 'questCard' ||
+    ev.type === 'proposal' || ev.type === 'questResult')
   return (
     <div className="thinking-timeline">
       {rows.map((ev) => {
         const p = ev.payload
+        if (ev.type === 'scratchpad') {
+          return (
+            <div key={ev.seq} className="think-row notes-row">
+              <span className="feed-speaker"><ModelBadge info={bots[p.seat]} />{name(p.seat)}</span>
+              <span className="think-kind">[notes]</span>
+              <em>{p.text}</em>
+            </div>
+          )
+        }
         if (ev.type === 'thinking') {
           return (
             <div key={ev.seq} className="think-row">

@@ -11,7 +11,7 @@ import type { AvalonAgent } from '../server/agents/types.ts'
 import type { Game, PlayerView, Seat } from '../server/engine/types.ts'
 
 const ROLE_WORDS = /merlin|percival|servant|assassin|morgana|mordred|oberon|minion/i
-const PRIVATE_EVENT_TYPES = new Set(['roleDealt', 'knowledge', 'voteCast', 'questCard', 'thinking'])
+const PRIVATE_EVENT_TYPES = new Set(['roleDealt', 'knowledge', 'voteCast', 'questCard', 'thinking', 'scratchpad'])
 
 function assertNoLeaks(g: Game, seat: Seat): void {
   const view = viewFor(g, seat)

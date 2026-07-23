@@ -390,6 +390,12 @@ footer { min-height: 3.4rem; }
 .think-row em { color: var(--dim); }
 .think-kind { color: var(--gold); margin-right: 0.4rem; font-size: 0.75rem; }
 .think-row.marker { color: var(--dim); text-align: center; }
+.think-row.notes-row {
+  background: var(--panel-2);
+  border-left: 3px solid var(--gold);
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+}
 .think-row.card-fail b { color: var(--bad); }
 .think-row.card-success b { color: var(--ok); }
 

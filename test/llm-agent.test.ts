@@ -136,4 +136,20 @@ test('reflect fires after a quest resolves and feeds the next prompt', async () 
   const tags = client.calls.map((c) => c.tag)
   assert.ok(tags.includes('haiku/reflect'), `expected a reflect call, got ${tags}`)
   assert.ok(sawScratchpadInPrompt, 'reflect output should appear in the following prompt')
+
+  // The refreshed pad rides the post-reflect decision so the engine can log
+  // it; a second decision without a new reflect carries no notes.
+  assert.match((d as any).notes, /failed the quest \(80%\)/)
+  const d2 = await agent.decide({ kind: 'vote', seat: 0, round: 2, proposalNum: 1 }, viewFor(g, 0))
+  assert.equal((d2 as any).notes, undefined)
+
+  // Engine side: a decision carrying notes lands as a seat-private
+  // scratchpad event when applied.
+  applyDecision(g, g.leaderSeat, {
+    kind: 'propose', team: [0, 1, 2], notes: 'seat 3: failed the quest (80%)',
+  })
+  const ev = g.log.find((e) => e.type === 'scratchpad')!
+  assert.ok(ev)
+  assert.deepEqual(ev.visibility, { only: [g.leaderSeat] })
+  assert.match(ev.payload.text as string, /failed the quest/)
 })

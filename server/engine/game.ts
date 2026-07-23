@@ -201,6 +201,11 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
       seat, kind: decision.kind, text: decision.thinking.trim().slice(0, 900),
     }, { only: [seat] })
   }
+  if (typeof decision.notes === 'string' && decision.notes.trim()) {
+    emit(game, 'scratchpad', {
+      seat, round: game.round, text: decision.notes.trim().slice(0, 900),
+    }, { only: [seat] })
+  }
 
   switch (decision.kind) {
     case 'discuss': {

@@ -48,7 +48,7 @@ export type EventType =
   | 'gameCreated' | 'roleDealt' | 'knowledge'
   | 'utterance' | 'proposal' | 'voteCast' | 'voteReveal'
   | 'questCard' | 'questResult' | 'assassination' | 'gameOver'
-  | 'thinking' | 'rename'
+  | 'thinking' | 'rename' | 'scratchpad'
 
 export interface GameEvent {
   seq: number
@@ -98,12 +98,14 @@ export interface DecisionRequest {
 // material). `pitch` on propose is public speech attached to the proposal.
 export type Lean = 'approve' | 'reject' | 'unsure'
 
+// `notes` is the agent's refreshed private scratchpad, attached to the first
+// decision after a reflect; the engine records it seat-private like thinking.
 export type Decision =
-  | { kind: 'discuss'; say: string; lean?: Lean; thinking?: string }
-  | { kind: 'propose'; team: Seat[]; pitch?: string; thinking?: string }
-  | { kind: 'vote'; vote: 'approve' | 'reject'; thinking?: string }
-  | { kind: 'quest'; card: 'success' | 'fail'; thinking?: string }
-  | { kind: 'assassinate'; target: Seat; thinking?: string }
+  | { kind: 'discuss'; say: string; lean?: Lean; thinking?: string; notes?: string }
+  | { kind: 'propose'; team: Seat[]; pitch?: string; thinking?: string; notes?: string }
+  | { kind: 'vote'; vote: 'approve' | 'reject'; thinking?: string; notes?: string }
+  | { kind: 'quest'; card: 'success' | 'fail'; thinking?: string; notes?: string }
+  | { kind: 'assassinate'; target: Seat; thinking?: string; notes?: string }
 
 // ---- Views (the hidden-information chokepoint) ----
 

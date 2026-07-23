@@ -30,6 +30,7 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   const overrides = opts.prompts ?? {}
   let scratchpad = ''
   let reflectedQuests = 0
+  let pendingNotes: string | null = null
 
   async function callKind(
     kind: LlmCallKind, view: PlayerView,
@@ -58,7 +59,10 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
     try {
       const content = await callKind('reflect', view)
       const parsed = parseDecision('reflect', content, view)
-      if (!parsed.parseFailed && parsed.scratchpad) scratchpad = parsed.scratchpad
+      if (!parsed.parseFailed && parsed.scratchpad) {
+        scratchpad = parsed.scratchpad
+        pendingNotes = parsed.scratchpad // ride the next decision into the log
+      }
     } catch {
       // Reflection is best-effort; a failed reflect never blocks a decision.
     }
@@ -84,6 +88,10 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
         }
       }
       const decision = parsed.decision!
+      if (pendingNotes) {
+        decision.notes = pendingNotes
+        pendingNotes = null
+      }
       // Commit-then-explain: the team is locked before the pitch is written,
       // so the speech can never contradict the action. Best-effort — a failed
       // pitch call just means a silent proposal.
