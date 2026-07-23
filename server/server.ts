@@ -27,11 +27,11 @@ import { createGame, applyDecision, expectedDecisions, renamePlayer } from './en
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
-import { loadAgentLibrary, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
-import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
+import { loadAgentLibrary, parseTableSeat, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
+import type { AgentDef, AgentPublicInfo, TableSeat } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import { getClient } from './llm/client.ts'
-import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
+import { ROSTER, DEFAULT_TABLE, DEFAULT_MODEL } from './llm/roster.ts'
 import { ROLE_ALIGNMENT, nameIsReserved, validateRoles } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
 import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
@@ -82,7 +82,7 @@ interface Lobby {
   config: {
     playerCount: number
     humanSeats: number
-    table: string[]        // bot agent ids, length playerCount - humanSeats
+    table: TableSeat[]     // bot seats (agent + optional model override), length playerCount - humanSeats
     roles?: Role[]
   }
   members: { token: string; name: string }[]     // members[0] is the host
@@ -105,7 +105,12 @@ function lobbyPayload(l: Lobby) {
     members: l.members.map((m) => m.name),
     spectators: l.spectators.length,
     hostName: l.members[0]?.name ?? '?',
-    table: l.config.table.map((id) => publicInfo(libById(id)).name),
+    // Name + resolved model per bot seat, so invitees see exactly what's
+    // playing (a custom agent's name alone doesn't reveal its model).
+    table: l.config.table.map((t) => {
+      const info = publicInfo(libById(t.agent), t.model)
+      return { name: info.name, model: info.model }
+    }),
   }
 }
 
@@ -133,17 +138,16 @@ function createLobby(body: any): { lobby: Lobby; token: string } {
   }
 
   const botCount = playerCount - humanSeats
-  let table: string[]
+  let table: TableSeat[]
   if (body.table !== undefined) {
-    if (!Array.isArray(body.table) || !body.table.every((t: unknown) => typeof t === 'string')) {
-      throw new Error('table must be an array of agent ids')
-    }
+    if (!Array.isArray(body.table)) throw new Error('table must be an array of agent ids or {agent, model?}')
     if (body.table.length !== botCount) throw new Error(`table must have exactly ${botCount} agents`)
-    body.table.forEach(libById)
-    table = body.table
+    // Validate everything now (unknown agents/models, model on a non-llm
+    // engine) — same fail-early reasoning as roles above.
+    table = body.table.map((t: unknown) => parseTableSeat(t, libById))
   } else {
     const pool = [...DEFAULT_TABLE, ...ROSTER.map((r) => r.id).filter((rid) => !DEFAULT_TABLE.includes(rid))]
-    table = Array.from({ length: botCount }, (_, i) => pool[i % pool.length])
+    table = Array.from({ length: botCount }, (_, i) => ({ agent: pool[i % pool.length] }))
   }
 
   const token = newToken()
@@ -161,8 +165,8 @@ function createLobby(body: any): { lobby: Lobby; token: string } {
 }
 
 function startLobby(l: Lobby): void {
-  const { playerCount } = l.config
-  const defs = l.config.table.map(libById)
+  const { playerCount, table } = l.config
+  const defs = table.map((t) => libById(t.agent))
 
   // Shuffle humans across the whole table (no "host is always seat 0" tell).
   const seats = Array.from({ length: playerCount }, (_, i) => i)
@@ -192,7 +196,9 @@ function startLobby(l: Lobby): void {
   botSeatList.forEach((seat, i) => {
     const def = defs[i]
     names[seat] = reserve(def.name)
-    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
+    // publicInfo gets the seat's model override so the in-game badge shows
+    // the model that actually answers, never just the def's suggestion.
+    botInfo[seat] = { ...publicInfo(def, table[i].model), name: names[seat] }
   })
   const humans = new Map<Seat, { token: string; name: string }>()
   l.members.forEach((m, i) => {
@@ -206,7 +212,7 @@ function startLobby(l: Lobby): void {
     talk: { preProposal: 1, postProposal: 2 },
   })
   botSeatList.forEach((seat, i) => {
-    agents.set(seat, createAgentFromDef(defs[i], { seed, seat }))
+    agents.set(seat, createAgentFromDef(defs[i], { seed, seat }, table[i].model))
   })
 
   const id = newId()
@@ -536,9 +542,12 @@ const server = http.createServer(async (req, res) => {
     // ---- agents / usage ----
     if (req.method === 'GET' && url.pathname === '/api/agents') {
       json(res, 200, {
-        agents: library.map(publicInfo),
+        // Wrap, don't pass publicInfo to .map directly: .map supplies the
+        // index as the 2nd arg, which publicInfo now reads as a model override.
+        agents: library.map((d) => publicInfo(d)),
         models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, slug: r.slug, tier: r.tier })),
         defaultTable: DEFAULT_TABLE,
+        defaultModel: DEFAULT_MODEL,
         baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },
         gated: !!inviteCode(),
       })
@@ -559,9 +568,12 @@ const server = http.createServer(async (req, res) => {
         about: typeof body.about === 'string' ? body.about.slice(0, 300) : undefined,
         engine: {
           type: 'llm',
-          model: body.model,
+          // Optional: a personality-only agent rides the seat/server default.
+          model: body.model || undefined,
           personality: typeof body.personality === 'string' && body.personality.trim()
             ? body.personality.trim() : undefined,
+          roleGuidance: body.roleGuidance,          // validated by validateDef
+          roleGuidanceMode: body.roleGuidanceMode,  // 'replace' (default) | 'append'
         },
       })
       saveCustomDef(def)

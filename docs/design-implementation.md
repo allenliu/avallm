@@ -126,18 +126,27 @@ state.
 
 Above the engine-level interface sits a **config layer**: an agent is an `AgentDef`
 (`server/agents/defs.ts`) — identity (name / version / author / about / badge) plus an engine.
-For `llm` engines the config owns the **model** and the **prompt layers**: an always-on
-`personality` and optional per-role `roleGuidance` overrides. The rules digest, output contracts,
-injection guard, and view rendering are deliberately NOT config-overridable — a custom agent can
-change how it plays, never what it can see or how its output is parsed. That keeps custom agents
-leak-safe and mutually comparable (same harness, different brain).
+For `llm` engines the config owns the **prompt layers** — an always-on `personality` and optional
+per-role `roleGuidance` overrides (`roleGuidanceMode: 'replace'` (default) swaps the baseline for
+that role; `'append'` layers the custom text under it, so the agent keeps riding baseline strategy
+improvements) — and may **suggest** a model, but does not own it. Which model actually plays is a
+seat-time decision: `resolveModel` resolves *lobby seat override > def suggestion > `DEFAULT_MODEL`*
+(the host pays the OpenRouter bill, so the host gets the final say; a personality-only agent with no
+suggested model rides `DEFAULT_MODEL`). The rules digest, output contracts, injection guard, and
+view rendering are deliberately NOT config-overridable — a custom agent can change how it plays,
+never what it can see or how its output is parsed. That keeps custom agents leak-safe and mutually
+comparable (same harness, different brain), and lets one character card be seated across several
+models to compare them.
 
 The library = built-ins (one agent per roster model with baseline prompts, plus **Autopilot**, the
 heuristic player as a first-class pickable agent) + user agents persisted as JSON files in
 `data/agents/` (gitignored). Server API: `GET /api/agents` (browse), `POST /api/agents` (create —
 **llm engines only**; a stdio engine names a command to execute and must never be settable over
-HTTP — stdio defs are file-drop only). Table setup maps each bot seat to a library id (`table:
-[ids]` on game creation; the same agent may play multiple seats, names deduped). The client's
+HTTP — stdio defs are file-drop only). Table setup maps each bot seat to a library id with an
+optional per-seat model override — `table` entries are either a bare agent id (legacy) or
+`{agent, model?}`; the same agent may play multiple seats (on the same or different models), names
+deduped. Bad seats (unknown agent/model, a model override on a non-llm engine) are rejected at
+lobby creation, never at game start. The client's
 setup screen has the library browser + create-agent form, and the in-game Reference panel (Rules /
 Roles in play / The table / Setup) shows each opponent's card including its persona — transparency
 is part of the premise.

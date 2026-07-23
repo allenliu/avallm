@@ -1,9 +1,11 @@
 // Agent definitions — the agent library. An agent is a CONFIG: identity
 // (name/version/author/about/badge) + an engine. For llm engines the config
-// owns the model and prompt LAYERS (personality, per-role strategy
-// overrides); the output contracts, rules digest, injection guard, and view
-// rendering stay engine-owned so a custom agent can't break parsing or leak
-// hidden information.
+// owns the prompt LAYERS (personality, per-role strategy overrides) and may
+// SUGGEST a model; which model actually plays is a seat-time decision
+// (resolveModel: lobby override > def suggestion > DEFAULT_MODEL — the host
+// pays the bill, so the host gets the final say). The output contracts, rules
+// digest, injection guard, and view rendering stay engine-owned so a custom
+// agent can't break parsing or leak hidden information.
 //
 // Built-ins: one agent per roster model (baseline prompts) + Autopilot (the
 // heuristic player). Custom agents are JSON files in data/agents/ — created
@@ -13,14 +15,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ROSTER, rosterById } from '../llm/roster.ts'
+import { DEFAULT_MODEL, ROSTER, rosterById } from '../llm/roster.ts'
+import { ROLE_ALIGNMENT } from '../engine/rules.ts'
 import type { Role } from '../engine/types.ts'
 
 export interface LlmEngine {
   type: 'llm'
-  model: string // roster id
+  model?: string // roster id — a SUGGESTION; seat-time override wins, DEFAULT_MODEL backstops
   personality?: string
   roleGuidance?: Partial<Record<Role, string>>
+  // 'replace' (default) swaps out the baseline guidance for that role;
+  // 'append' layers the custom text under it, so the agent still rides
+  // baseline strategy improvements.
+  roleGuidanceMode?: 'replace' | 'append'
 }
 
 export type AgentEngine =
@@ -51,6 +58,43 @@ export interface AgentPublicInfo {
   monogram: string
   personality?: string   // shown for transparency in the library
   custom: boolean
+}
+
+// One seat at a lobby table: which agent plays it, and (optionally) which
+// model it runs on — a host-side, per-lobby choice that outranks the def's own
+// suggestion. Model resolution order: seat override > def.engine.model >
+// DEFAULT_MODEL.
+export interface TableSeat {
+  agent: string
+  model?: string // roster id
+}
+
+export function resolveModel(def: AgentDef, override?: string): string {
+  if (def.engine.type !== 'llm') throw new Error(`agent ${def.id} has no model (${def.engine.type} engine)`)
+  return override ?? def.engine.model ?? DEFAULT_MODEL
+}
+
+// Wire format for lobby tables: a bare agent id (legacy) or {agent, model?}.
+// Throws on unknown agents/models and on model overrides for non-llm engines,
+// so a bad table is rejected at lobby creation, never at game start.
+export function parseTableSeat(raw: unknown, agentById: (id: string) => AgentDef): TableSeat {
+  if (typeof raw === 'string') {
+    agentById(raw) // throws on unknown agent
+    return { agent: raw }
+  }
+  const t = raw as Partial<TableSeat>
+  if (!t || typeof t !== 'object' || typeof t.agent !== 'string') {
+    throw new Error('table entry must be an agent id or {agent, model?}')
+  }
+  const def = agentById(t.agent)
+  if (t.model !== undefined) {
+    if (typeof t.model !== 'string') throw new Error('seat model must be a roster id')
+    rosterById(t.model) // throws on unknown model
+    if (def.engine.type !== 'llm') {
+      throw new Error(`agent ${def.id} is ${def.engine.type} — it does not take a model`)
+    }
+  }
+  return { agent: t.agent, model: t.model }
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -103,16 +147,23 @@ export function validateDef(raw: unknown): AgentDef {
   const e = d.engine as AgentEngine | undefined
   if (!e || typeof e !== 'object') throw new Error('agent engine required')
   if (e.type === 'llm') {
-    rosterById(e.model) // throws on unknown model
+    if (e.model !== undefined) rosterById(e.model) // optional suggestion; throws on unknown model
     if (e.personality !== undefined && (typeof e.personality !== 'string' || e.personality.length > 2000)) {
       throw new Error('personality must be a string (max 2000 chars)')
     }
     if (e.roleGuidance !== undefined) {
+      if (!e.roleGuidance || typeof e.roleGuidance !== 'object' || Array.isArray(e.roleGuidance)) {
+        throw new Error('roleGuidance must be an object of role -> text')
+      }
       for (const [role, text] of Object.entries(e.roleGuidance)) {
+        if (!(role in ROLE_ALIGNMENT)) throw new Error(`roleGuidance: unknown role "${role}"`)
         if (typeof text !== 'string' || text.length > 2000) {
           throw new Error(`roleGuidance.${role} must be a string (max 2000 chars)`)
         }
       }
+    }
+    if (e.roleGuidanceMode !== undefined && e.roleGuidanceMode !== 'replace' && e.roleGuidanceMode !== 'append') {
+      throw new Error(`roleGuidanceMode must be "replace" or "append"`)
     }
   } else if (e.type === 'stdio') {
     if (typeof e.cmd !== 'string' || !Array.isArray(e.args)) {
@@ -147,11 +198,13 @@ export function saveCustomDef(def: AgentDef): void {
   fs.writeFileSync(path.join(USER_AGENTS_DIR, `${def.id}.json`), JSON.stringify(def, null, 2))
 }
 
-export function publicInfo(def: AgentDef): AgentPublicInfo {
+export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicInfo {
   // The OpenRouter slug, not a marketing name — "deepseek/deepseek-v4-flash"
-  // tells you exactly what you're playing against.
+  // tells you exactly what you're playing against. Always the RESOLVED model
+  // (seat override > def suggestion > default), so the badge never lies about
+  // which model is actually answering.
   const model = def.engine.type === 'llm'
-    ? rosterById(def.engine.model).slug
+    ? rosterById(resolveModel(def, modelOverride)).slug
     : def.engine.type === 'heuristic' ? 'rule-based' : 'external'
   return {
     id: def.id,

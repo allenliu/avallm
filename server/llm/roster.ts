@@ -59,6 +59,12 @@ export const ROSTER: RosterEntry[] = [
 // Default 6-bot table (7p game with one human), family-diverse on purpose.
 export const DEFAULT_TABLE = ['deepseek', 'gemini', 'haiku', 'kimi', 'glm', 'gpt-oss']
 
+// What a personality-only agent (no model in its def) plays on when the seat
+// doesn't override. Provisional: deepseek is just the cheap starting point —
+// the real pick is whatever balances cost, interesting table talk, and good
+// play once we've measured that.
+export const DEFAULT_MODEL = 'deepseek'
+
 export function rosterById(id: string): RosterEntry {
   const entry = ROSTER.find((r) => r.id === id)
   if (!entry) throw new Error(`unknown roster model id: ${id}`)

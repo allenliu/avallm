@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPayload } from './types.ts'
+import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPayload, TableSeat } from './types.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
@@ -143,7 +143,7 @@ export function App() {
   }, [])
 
   const startGame = useCallback(async (opts: {
-    players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string
+    players: number; humanSeats: number; table: TableSeat[]; roles: Role[] | null; humanName: string
     invite?: string
   }) => {
     setStarting(true)
@@ -376,7 +376,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
       <h1><Brand /></h1>
       <p className="tagline">
         <b>{preview.hostName}</b> has a table for {preview.playerCount}: {preview.members.length}/{preview.humanSeats} humans
-        {preview.table.length > 0 && <> + {preview.table.join(', ')}</>}.
+        {preview.table.length > 0 && <> + {preview.table.map((t) => t.name).join(', ')}</>}.
         {started ? ' The game is underway.' : preview.openSeats > 0 ? ` ${preview.openSeats} seat${preview.openSeats === 1 ? '' : 's'} open.` : ' All seats taken.'}
       </p>
       <div className="launcher">
@@ -434,7 +434,9 @@ function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
             <p className="roles-preview">Waiting for {waitingFor} more player{waitingFor === 1 ? '' : 's'}…</p>
           )}
           {lobby.table.length > 0 && (
-            <p className="roles-preview">Bots at this table: {lobby.table.join(', ')}</p>
+            <p className="roles-preview">
+              Bots at this table: {lobby.table.map((t) => `${t.name} (${t.model})`).join(', ')}
+            </p>
           )}
           {lobby.spectators > 0 && (
             <p className="roles-preview">{lobby.spectators} spectator{lobby.spectators === 1 ? '' : 's'} watching</p>
@@ -502,7 +504,7 @@ function NameEditor({ current, rename }: {
   )
 }
 
-function defaultTable(library: Library | null, count: number): string[] {
+function defaultTable(library: Library | null, count: number): TableSeat[] {
   // The server's canonical default order (DEFAULT_TABLE) — the same one used
   // when no table is sent — so every path seats the same roster.
   const pool = (library?.defaultTable ?? [])
@@ -510,18 +512,18 @@ function defaultTable(library: Library | null, count: number): string[] {
   if (pool.length === 0) {
     const llmAgents = library?.agents.filter((a) => a.model !== 'rule-based' && a.model !== 'external' && !a.custom) ?? []
     return Array.from({ length: count }, (_, i) =>
-      llmAgents.length ? llmAgents[i % llmAgents.length].id : 'autopilot')
+      ({ agent: llmAgents.length ? llmAgents[i % llmAgents.length].id : 'autopilot' }))
   }
   const extras = library!.agents
     .filter((a) => !pool.includes(a.id) && a.model !== 'rule-based' && a.model !== 'external' && !a.custom)
     .map((a) => a.id)
   const full = [...pool, ...extras]
-  return Array.from({ length: count }, (_, i) => full[i % full.length])
+  return Array.from({ length: count }, (_, i) => ({ agent: full[i % full.length] }))
 }
 
 function Launcher({ onStart, starting, library, onLibraryChange }: {
   onStart: (opts: {
-    players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string
+    players: number; humanSeats: number; table: TableSeat[]; roles: Role[] | null; humanName: string
     invite?: string
   }) => void
   starting: boolean
@@ -530,7 +532,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
 }) {
   const [players, setPlayers] = useState(7)
   const [humanSeats, setHumanSeats] = useState(1)
-  const [table, setTable] = useState<string[]>([])
+  const [table, setTable] = useState<TableSeat[]>([])
   const [humanName, setHumanName] = useState(() => localStorage.getItem('avalon-name') ?? '')
   const [invite, setInvite] = useState(() => localStorage.getItem('avalon-invite') ?? '')
   const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
@@ -543,7 +545,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   useEffect(() => {
     if (!library) return
     setTable((t) => {
-      const valid = t.filter((id) => library.agents.some((a) => a.id === id))
+      const valid = t.filter((s) => library.agents.some((a) => a.id === s.agent))
       if (valid.length === botCount && t.length === botCount) return t
       if (valid.length === 0) return defaultTable(library, botCount)
       return Array.from({ length: botCount }, (_, i) => valid[i % Math.max(valid.length, 1)])
@@ -632,7 +634,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
           onChange={setTable}
           onFill={(mode) => setTable(mode === 'models'
             ? defaultTable(library, botCount)
-            : Array.from({ length: botCount }, () => 'autopilot'))}
+            : Array.from({ length: botCount }, () => ({ agent: 'autopilot' })))}
         />
       )}
       <AddAgentForm library={library} onAdded={onLibraryChange} />
@@ -687,15 +689,15 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
 
 function TablePicker({ library, table, onChange, onFill }: {
   library: Library | null
-  table: string[]
-  onChange: (t: string[]) => void
+  table: TableSeat[]
+  onChange: (t: TableSeat[]) => void
   onFill: (mode: 'models' | 'autopilot') => void
 }) {
   if (!library) return <p className="roles-preview">Loading agent library…</p>
   const agentById = (id: string) => library.agents.find((a) => a.id === id)
-  const setSeat = (i: number, id: string) => {
+  const setSeat = (i: number, seat: TableSeat) => {
     const next = table.slice()
-    next[i] = id
+    next[i] = seat
     onChange(next)
   }
   return (
@@ -708,18 +710,31 @@ function TablePicker({ library, table, onChange, onFill }: {
           <button className="secondary" onClick={() => onFill('autopilot')}>Autopilot (free)</button>
         </span>
       </div>
-      {table.map((id, i) => {
-        const info = agentById(id)
+      {table.map((seat, i) => {
+        const info = agentById(seat.agent)
+        const isLlm = info && info.model !== 'rule-based' && info.model !== 'external'
         return (
           <div key={i} className="table-picker-row">
             <ModelBadge info={info} />
-            <select value={id} onChange={(e) => setSeat(i, e.target.value)}>
+            {/* Switching agents drops any model override — the new agent's own default applies. */}
+            <select value={seat.agent} onChange={(e) => setSeat(i, { agent: e.target.value })}>
               {library.agents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} ({a.model}){a.custom ? ' — custom' : ''}
                 </option>
               ))}
             </select>
+            {isLlm && (
+              <select
+                value={seat.model ?? ''}
+                onChange={(e) => setSeat(i, { agent: seat.agent, model: e.target.value || undefined })}
+              >
+                <option value="">default — {info.model}</option>
+                {library.models.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
+                ))}
+              </select>
+            )}
             <span className="role-toggle-desc">{info?.about ?? ''}</span>
           </div>
         )
@@ -746,7 +761,7 @@ function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name,
-          model: model || library.models[0]?.id,
+          model: model || undefined, // omitted = ride the seat/server default
           about: about || undefined,
           personality: personality || undefined,
           invite: localStorage.getItem('avalon-invite') || undefined,
@@ -770,7 +785,8 @@ function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: 
     <div className="add-agent">
       <div className="row">
         <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
-        <select value={model || library.models[0]?.id} onChange={(e) => setModel(e.target.value)}>
+        <select value={model} onChange={(e) => setModel(e.target.value)}>
+          <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
           {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
         </select>
       </div>

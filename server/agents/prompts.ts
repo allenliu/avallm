@@ -172,13 +172,25 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
 export interface PromptOverrides {
   personality?: string
   roleGuidance?: Partial<Record<string, string>>
+  // 'replace' (default): custom guidance swaps out the baseline for that role.
+  // 'append': custom guidance layers UNDER the baseline, so the agent keeps
+  // riding baseline strategy improvements.
+  roleGuidanceMode?: 'replace' | 'append'
+}
+
+function roleGuidanceFor(role: string, overrides: PromptOverrides): string {
+  const base = ROLE_GUIDANCE[role] ?? ''
+  const custom = overrides.roleGuidance?.[role]
+  if (custom === undefined) return base
+  if (overrides.roleGuidanceMode === 'append') return [base, custom].filter(Boolean).join('\n')
+  return custom
 }
 
 export function buildMessages(
   kind: LlmCallKind, view: PlayerView, scratchpad: string,
   overrides: PromptOverrides = {}, extra?: AskExtra,
 ): Msg[] {
-  const guidance = overrides.roleGuidance?.[view.role] ?? ROLE_GUIDANCE[view.role] ?? ''
+  const guidance = roleGuidanceFor(view.role, overrides)
   const system = [
     RULES_DIGEST,
     ``,

@@ -75,12 +75,20 @@ export interface AgentInfo {
   custom: boolean
 }
 
+// One bot seat sent to the server: which agent, and optionally which model
+// it runs on (overrides the agent's own suggestion; server default backstops).
+export interface TableSeat {
+  agent: string
+  model?: string
+}
+
 export interface Library {
   agents: AgentInfo[]
   models: { id: string; name: string; slug: string; tier: string }[]
   baseline?: { rulesDigest: string; roleGuidance: Record<string, string> }
   gated?: boolean
   defaultTable?: string[]
+  defaultModel?: string
 }
 
 export interface ServerPayload {
@@ -104,7 +112,7 @@ export interface LobbyPayload {
   members: string[]
   spectators: number
   hostName: string
-  table: string[]
+  table: { name: string; model: string }[]
 }
 
 export interface RevealPlayer {
