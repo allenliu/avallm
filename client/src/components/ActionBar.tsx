@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { DecisionRequest, PlayerView, Seat } from '../types.ts'
+import { latestLeans } from '../leans.ts'
 
 export function ActionBar({ view, ask, onDecide, waitingOn }: {
   view: PlayerView
@@ -28,13 +29,15 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
 
 function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const [say, setSay] = useState('')
-  const [lean, setLean] = useState<string | null>(null)
+  // Seed the picker from the lean you last signalled on this proposal so it
+  // stays sticky across speaking turns (and survives a refresh) — re-choose
+  // only to change it. A fresh proposal has no prior utterances, so this is null.
+  const [lean, setLean] = useState<string | null>(() => latestLeans(view).get(view.seat) ?? null)
   const teamPending = !!view.currentTeam
   const round = view.discussionRound ?? 1
   const submit = (text: string) => {
     onDecide({ kind: 'discuss', say: text, lean: lean ?? undefined })
     setSay('')
-    setLean(null)
   }
   return (
     <div className="action-bar">

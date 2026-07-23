@@ -1,4 +1,5 @@
 import type { AgentInfo, PlayerView, Seat } from '../types.ts'
+import { latestLeans } from '../leans.ts'
 
 export function ModelBadge({ info }: { info: AgentInfo | undefined }) {
   if (!info) return null
@@ -16,16 +17,7 @@ export function TableSeats({ view, bots, acting }: {
 }) {
   const lastVoted = [...view.proposals].reverse().find((p) => p.votes)
   const votesVisible = view.phase !== 'vote' && lastVoted
-  // Latest stated lean per seat for the proposal currently on the table.
-  const leans = new Map<Seat, string>()
-  if (view.currentTeam) {
-    const lastProposalSeq = [...view.events].reverse().find((e) => e.type === 'proposal')?.seq ?? -1
-    for (const ev of view.events) {
-      if (ev.type === 'utterance' && ev.seq > lastProposalSeq && ev.payload.lean) {
-        leans.set(ev.payload.seat, ev.payload.lean)
-      }
-    }
-  }
+  const leans = latestLeans(view)
   return (
     <div className="table-seats">
       {view.players.map((p) => {
