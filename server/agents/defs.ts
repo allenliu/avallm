@@ -105,6 +105,29 @@ export function resolveModel(def: AgentDef, override?: string): string {
   return override ?? def.engine.model ?? DEFAULT_MODEL
 }
 
+// The one place that maps an llm engine config to the prompt layers
+// buildMessages consumes. Every path that renders a def's prompt — live play
+// (registry.ts), the editor preview (server.ts), and eval bank replay
+// (server/eval/bank.ts) — MUST go through this, or a new prompt layer added
+// to LlmEngine silently reaches some paths and not others (bank replay would
+// then exercise a different prompt than the live game, invalidating its
+// verdicts). Adding a layer here updates all callers at once.
+export function promptOverridesOf(engine: LlmEngine): {
+  personality?: string
+  strategy?: string
+  roleGuidance?: Partial<Record<Role, string>>
+  roleGuidanceMode?: 'replace' | 'append'
+  kindGuidance?: Partial<Record<LlmCallKind, string>>
+} {
+  return {
+    personality: engine.personality,
+    strategy: engine.strategy,
+    roleGuidance: engine.roleGuidance,
+    roleGuidanceMode: engine.roleGuidanceMode,
+    kindGuidance: engine.kindGuidance,
+  }
+}
+
 // Wire format for lobby tables: a bare agent id (legacy) or {agent, model?}.
 // Throws on unknown agents/models and on model overrides for non-llm engines,
 // so a bad table is rejected at lobby creation, never at game start.

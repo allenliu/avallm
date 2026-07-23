@@ -64,13 +64,19 @@ export async function runBench(opts: BenchOpts): Promise<GameArtifact[]> {
 
   for (let i = 0; i < opts.games; i++) {
     const seed = `${opts.seedBase}-${i}`
+    // The table (models + names) depends only on (table, playerCount): building
+    // it once per pair, above the variant loop, makes "identical across
+    // variants" structural rather than a coincidence a later edit could break.
+    const seatInfo = Array.from({ length: playerCount }, (_, s) => tableSeat(table, s))
     for (const variant of ['baseline', 'candidate'] as const) {
       const def = variant === 'candidate' ? opts.candidate : opts.baseline
-      // Names come from the table only — identical across variants, so paired
-      // transcripts stay comparable and no name betrays which run this is.
-      const seatInfo = Array.from({ length: playerCount }, (_, s) => tableSeat(table, s))
+      // Distinct id per variant: both variants share a seed (the whole point),
+      // so the default id `game-${seed}` would collide — and the situation
+      // bank dedupes incidents by `${artifactId}:${seq}`, which would then
+      // conflate the baseline's and candidate's incidents at the same seq.
       const game = createGame({
         seed, playerCount, talk: opts.talk,
+        id: `game-${seed}-${variant}`,
         names: table === 'llm' ? seatInfo.map((s) => s.name!) : undefined,
       })
       const roleSeat = game.players.find((p) => p.role === opts.role)!.seat
@@ -129,7 +135,7 @@ async function main(): Promise<void> {
     console.error('--candidate <agent id> is required (see the agent library, e.g. data/agents/)')
     process.exit(1)
   }
-  const library = loadAgentLibrary()
+  const { agents: library } = loadAgentLibrary()
   const byId = (id: string): AgentDef => {
     const def = library.find((d) => d.id === id)
     if (!def) {

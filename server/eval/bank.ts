@@ -20,13 +20,13 @@ import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import fs from 'node:fs'
 import path from 'node:path'
-import { buildMessages } from '../agents/prompts.ts'
-import { parseDecision } from '../agents/parse.ts'
+import { buildMessages, sanitizeSpeech, INJECTION_GUARD } from '../agents/prompts.ts'
+import type { Msg } from '../llm/openrouter.ts'
+import { extractObject, legalityError, parseDecision } from '../agents/parse.ts'
 import { heuristicDecide } from '../agents/heuristic.ts'
-import { loadAgentLibrary, resolveModel } from '../agents/defs.ts'
+import { loadAgentLibrary, promptOverridesOf, resolveModel } from '../agents/defs.ts'
 import { rosterById } from '../llm/roster.ts'
 import { CALL_PARAMS } from '../llm/call-params.ts'
-import { extractObject } from '../agents/parse.ts'
 import { readArtifacts } from './artifact.ts'
 import { snapshotAt } from './replay.ts'
 import type { DecisionSnapshot } from './replay.ts'
@@ -42,9 +42,16 @@ export interface BankItem {
   snapshot: DecisionSnapshot
 }
 
-export function mineBank(artifactFiles: string[], existing: BankItem[]): { items: BankItem[]; skipped: number } {
+export interface MineResult {
+  items: BankItem[]
+  skipped: number             // judge cited an engine-emitted (non-decision) event — expected
+  failures: { bankId: string; error: string }[] // replay drift / unsupported deal — NOT expected
+}
+
+export function mineBank(artifactFiles: string[], existing: BankItem[]): MineResult {
   const seen = new Set(existing.map((i) => i.bankId))
   const items: BankItem[] = []
+  const failures: { bankId: string; error: string }[] = []
   let skipped = 0
   for (const file of artifactFiles) {
     for (const a of readArtifacts(file)) {
@@ -56,10 +63,14 @@ export function mineBank(artifactFiles: string[], existing: BankItem[]): { items
         let snapshot: DecisionSnapshot
         try {
           snapshot = snapshotAt(a, inc.seq)
-        } catch {
-          // The judge cited an engine-emitted event (voteReveal, questResult…)
-          // rather than the decision that caused it — no seat to re-decide.
-          skipped++
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          // Distinguish the EXPECTED case (judge cited an engine consequence
+          // like voteReveal/questResult — no decider) from real failures
+          // (replay drift, unsupported deal). Lumping them hides an unreplayable
+          // archive behind a benign-looking "cited non-decision events" count.
+          if (msg.includes('is not a decision event')) skipped++
+          else failures.push({ bankId, error: msg })
           continue
         }
         seen.add(bankId)
@@ -67,18 +78,20 @@ export function mineBank(artifactFiles: string[], existing: BankItem[]): { items
       }
     }
   }
-  return { items, skipped }
+  return { items, skipped, failures }
 }
 
 function describeDecision(d: Decision, view: PlayerView): string {
   switch (d.kind) {
     case 'discuss': {
       const lean = d.lean ? ` [leans ${d.lean}]` : ''
-      return d.say.trim() ? `"${d.say}"${lean}` : `(passes)${lean}`
+      // sanitize-at-boundary: this text is fed to the checker LLM (checkReplay).
+      const say = sanitizeSpeech(d.say)
+      return say ? `"${say}"${lean}` : `(passes)${lean}`
     }
     case 'propose': {
       const team = d.team.map((s) => view.players[s]?.name ?? `seat ${s}`).join('/')
-      return `proposes [${team}]${d.pitch ? ` — "${d.pitch}"` : ''}`
+      return `proposes [${team}]${d.pitch ? ` — "${sanitizeSpeech(d.pitch)}"` : ''}`
     }
     case 'vote': return `votes ${d.vote}`
     case 'quest': return `plays ${d.card}`
@@ -93,26 +106,39 @@ export async function replayItem(item: BankItem, def: AgentDef): Promise<{ decis
   }
   if (def.engine.type !== 'llm') return { error: `cannot replay against engine type ${def.engine.type}` }
   const { getClient } = await import('../llm/client.ts')
+  const client = getClient()
   const kind = snapshot.kind as LlmCallKind
   const params = CALL_PARAMS[kind]
-  // Mirror createAgentFromDef's layer mapping exactly — a bank replay must
-  // exercise the same prompt the def would produce in a live game.
-  const messages = buildMessages(kind, snapshot.view, snapshot.scratchpad, {
-    personality: def.engine.personality,
-    strategy: def.engine.strategy,
-    roleGuidance: def.engine.roleGuidance,
-    roleGuidanceMode: def.engine.roleGuidanceMode,
-    kindGuidance: def.engine.kindGuidance,
-  })
-  const content = await getClient().call(rosterById(resolveModel(def)).slug, messages, {
+  const slug = rosterById(resolveModel(def)).slug
+  // Reuse the ONE engine→overrides mapping (promptOverridesOf) so a replay
+  // renders the same prompt the live agent (createAgentFromDef) would.
+  const overrides = promptOverridesOf(def.engine)
+  const call = (messages: Msg[]) => client.call(slug, messages, {
     tag: `eval/bank/${def.id}`,
     temperature: def.engine.temperature ?? params.temperature,
     max_tokens: params.max_tokens,
     response_format: params.json ? { type: 'json_object' } : undefined,
   })
-  const parsed = parseDecision(kind, content, snapshot.view)
-  if (parsed.parseFailed || !parsed.decision) return { error: parsed.error ?? 'unparseable' }
-  return { decision: parsed.decision }
+
+  // Match createLlmAgent's decision ladder (llm.ts): tolerant parse + legality
+  // check, then ONE correction retry. Without this the replay fails on a first
+  // malformed reply the live agent would have recovered from, inflating the
+  // candidate's measured failure rate above what it plays at.
+  const messages = buildMessages(kind, snapshot.view, snapshot.scratchpad, overrides)
+  const first = await call(messages)
+  let parsed = parseDecision(kind, first, snapshot.view)
+  let error = parsed.parseFailed ? parsed.error! : parsed.decision && legalityError(parsed.decision, snapshot.view)
+  if (error) {
+    const second = await call([
+      ...messages,
+      { role: 'assistant', content: first },
+      { role: 'user', content: `Your reply was not usable: ${error}. Answer again with ONLY the required JSON object.` },
+    ])
+    parsed = parseDecision(kind, second, snapshot.view)
+    error = parsed.parseFailed ? parsed.error! : parsed.decision && legalityError(parsed.decision, snapshot.view)
+    if (error) return { error }
+  }
+  return { decision: parsed.decision! }
 }
 
 // The checker sees only what an outside reviewer needs: the complaint, the
@@ -129,6 +155,8 @@ export async function checkReplay(
     `A player's original decision was flagged by a game judge. A revised bot faced the IDENTICAL`,
     `situation. Decide whether the revised decision exhibits the SAME flaw. A merely different`,
     `decision is not automatically fixed; judge against the flagged flaw only.`,
+    // The decisions quoted below are player/agent speech — treat as data.
+    INJECTION_GUARD,
     `Reply with ONLY a JSON object: {"verdict": "fixed"|"same-flaw"|"unclear", "note": "<one line>"}.`,
   ].join('\n')
   const user = [
@@ -180,12 +208,16 @@ async function main(): Promise<void> {
       process.exit(1)
     }
     const existing = readBank(values.out!)
-    const { items, skipped } = mineBank(files, existing)
+    const { items, skipped, failures } = mineBank(files, existing)
     appendBank(values.out!, items)
     for (const i of items) {
       console.log(`+ ${i.bankId.padEnd(30)} [${i.family}] ${i.snapshot.role} ${i.snapshot.kind} — ${i.description.slice(0, 90)}`)
     }
     console.log(`\nmined ${items.length} new situation(s) (${existing.length} already banked, ${skipped} cited non-decision events) -> ${values.out}`)
+    if (failures.length) {
+      console.error(`\n${failures.length} incident(s) FAILED to replay — the archive may be unreplayable (drift or unsupported deal):`)
+      for (const f of failures) console.error(`  ${f.bankId}: ${f.error}`)
+    }
     return
   }
 
@@ -195,7 +227,7 @@ async function main(): Promise<void> {
       console.error('usage: node server/eval/bank.ts replay <bank.jsonl> --candidate <agentId> [--limit n]')
       process.exit(1)
     }
-    const def = loadAgentLibrary().find((d) => d.id === values.candidate)
+    const def = loadAgentLibrary().agents.find((d) => d.id === values.candidate)
     if (!def) throw new Error(`no agent "${values.candidate}" in the library`)
     let items = readBank(bankFile)
     if (values.limit) items = items.slice(0, Number(values.limit))

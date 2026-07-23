@@ -27,7 +27,7 @@ import { createGame, applyDecision, expectedDecisions, renamePlayer } from './en
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
-import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, publicInfo, saveCustomDef, useDataDir, validateDef } from './agents/defs.ts'
+import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, promptOverridesOf, publicInfo, saveCustomDef, useDataDir, validateDef } from './agents/defs.ts'
 import { loadEnv } from './llm/env.ts'
 import type { AgentDef, AgentPublicInfo, LibraryProblem, LlmEngine, TableSeat } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE, TABLE_TALK_NORMS, OUTPUT_CONTRACTS, buildMessages } from './agents/prompts.ts'
@@ -751,13 +751,7 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         return json(res, 400, { error: err instanceof Error ? err.message : String(err) })
       }
-      const messages = buildMessages(kind, viewFor(game, player.seat), FIXTURE_SCRATCHPAD, {
-        personality: engine.personality,
-        strategy: engine.strategy,
-        roleGuidance: engine.roleGuidance,
-        roleGuidanceMode: engine.roleGuidanceMode,
-        kindGuidance: engine.kindGuidance,
-      })
+      const messages = buildMessages(kind, viewFor(game, player.seat), FIXTURE_SCRATCHPAD, promptOverridesOf(engine))
       const chars = messages.reduce((n, m) => n + m.content.length, 0)
       json(res, 200, { messages, rolesInPlay, kinds: Object.keys(CALL_PARAMS), tokenEstimate: Math.round(chars / 4) })
       return

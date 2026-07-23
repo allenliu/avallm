@@ -156,6 +156,11 @@ export function replayGame(a: GameArtifact, untilSeq?: number): Game {
   const game = createGame({
     seed: a.seed,
     playerCount: a.playerCount,
+    // Pass the persisted config-order roles so the seeded shuffle reproduces the
+    // exact deal — this is what makes custom-role games replayable. Pre-v2
+    // artifacts lack `roles`; omitting it falls back to the default set, which
+    // is what those games used, and the check below still guards against drift.
+    ...(a.roles ? { roles: a.roles.slice() } : {}),
     names: (created.payload.names as string[]).slice(),
     talk: a.talk,
     id: a.id,
@@ -163,8 +168,8 @@ export function replayGame(a: GameArtifact, untilSeq?: number): Game {
   for (const p of game.players) {
     if (p.role !== a.players[p.seat].role) {
       throw new Error(
-        `replay deal mismatch at seat ${p.seat}: dealt ${p.role}, archived ${a.players[p.seat].role} — `
-        + `replay currently supports only the default role set for the player count`,
+        `replay deal mismatch at seat ${p.seat}: dealt ${p.role}, archived ${a.players[p.seat].role}`
+        + (a.roles ? '' : ' — pre-v2 artifact with no stored roles and a non-default deal'),
       )
     }
   }
@@ -202,24 +207,30 @@ export function snapshotAt(a: GameArtifact, seq: number): DecisionSnapshot {
   if (!step || step.action.kind === 'rename') {
     throw new Error(`seq ${seq} is not a decision event in game ${a.id}`)
   }
+  const original = step.action
   const game = replayGame(a, step.firstSeq)
-  const scratchpadEv = [...a.log]
-    .filter((ev) => ev.type === 'scratchpad' && ev.payload.seat === step.seat && ev.seq < step.firstSeq)
-    .at(-1)
+  // The scratchpad the live prompt saw: when a reflect ran this turn, the new
+  // notes ride THIS decision (original.notes) and were emitted in its own
+  // preamble (seq >= firstSeq) — so a prior-only lookup would return the STALE
+  // pad. Prefer the decision's own notes, else the last scratchpad emitted
+  // before this step. (These are the exact runtime semantics in llm.ts.)
+  const priorPad = a.log.findLast(
+    (ev) => ev.type === 'scratchpad' && ev.payload.seat === step.seat && ev.seq < step.firstSeq,
+  )
   return {
     artifactId: a.id,
     seed: a.seed,
     seq: step.actionSeq,
     firstSeq: step.firstSeq,
     seat: step.seat,
-    kind: step.action.kind,
+    kind: original.kind,
     role: a.players[step.seat].role,
     req: {
-      kind: step.action.kind, seat: step.seat,
+      kind: original.kind, seat: step.seat,
       round: game.round, proposalNum: game.proposalNum,
     },
     view: viewFor(game, step.seat),
-    scratchpad: (scratchpadEv?.payload.text as string | undefined) ?? '',
-    original: step.action,
+    scratchpad: original.notes ?? (priorPad?.payload.text as string | undefined) ?? '',
+    original,
   }
 }

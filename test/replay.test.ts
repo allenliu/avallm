@@ -114,9 +114,10 @@ test('bank: judged incidents mine into replayable snapshots; non-decision seqs a
   const file = path.join(dir, 'a.jsonl')
   fs.writeFileSync(file, JSON.stringify(artifact) + '\n')
 
-  const { items, skipped } = mineBank([file], [])
+  const { items, skipped, failures } = mineBank([file], [])
   assert.equal(items.length, 1)
-  assert.equal(skipped, 1)
+  assert.equal(skipped, 1)          // the voteReveal incident: a non-decision event
+  assert.equal(failures.length, 0)  // no real replay failures
   const item = items[0]
   assert.equal(item.family, 'commitment-failure')
   assert.equal(item.snapshot.kind, 'discuss')

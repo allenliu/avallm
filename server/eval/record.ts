@@ -5,6 +5,7 @@
 // the judge's full-transparency input. Lines carry [seq N] tags so callers
 // can cite exact moments.
 
+import { sanitizeSpeech } from '../agents/prompts.ts'
 import type { GameArtifact } from './artifact.ts'
 import type { GameEvent, Seat } from '../engine/types.ts'
 
@@ -23,12 +24,15 @@ function eventLine(a: GameArtifact, ev: GameEvent, full: boolean): string | null
     case 'leadChange':
       return `${tag} — quest ${p.round as number}, proposal ${p.proposalNum as number}: ${nameOf(a, p.seat as Seat)} leads —`
     case 'utterance': {
-      const text = (p.text as string) ?? ''
+      // sanitize-at-boundary: player/agent free text is untrusted and enters an
+      // LLM prompt here (probe/judge), so strip injection markup exactly like
+      // the live prompt path does (server/agents/prompts.ts).
+      const text = sanitizeSpeech((p.text as string) ?? '')
       const lean = p.lean ? ` [leans ${p.lean as string}]` : ''
-      return `${tag} ${nameOf(a, p.seat as Seat)}: ${text.trim() ? `"${text}"` : '(passes)'}${lean}`
+      return `${tag} ${nameOf(a, p.seat as Seat)}: ${text ? `"${text}"` : '(passes)'}${lean}`
     }
     case 'proposal': {
-      const pitch = typeof p.pitch === 'string' ? ` — pitch: "${p.pitch}"` : ''
+      const pitch = typeof p.pitch === 'string' ? ` — pitch: "${sanitizeSpeech(p.pitch)}"` : ''
       return `${tag} ${nameOf(a, p.leader as Seat)} proposes [${teamText(a, p.team as Seat[])}]${pitch}`
     }
     case 'voteReveal': {
@@ -47,9 +51,9 @@ function eventLine(a: GameArtifact, ev: GameEvent, full: boolean): string | null
       return `${tag} (${p.from as string} changed name to ${p.to as string})`
     // ---- private events: full record only ----
     case 'thinking':
-      return full ? `${tag} [private thinking, ${nameOf(a, p.seat as Seat)} on ${p.kind as string}]: ${p.text as string}` : null
+      return full ? `${tag} [private thinking, ${nameOf(a, p.seat as Seat)} on ${p.kind as string}]: ${sanitizeSpeech(p.text as string)}` : null
     case 'scratchpad':
-      return full ? `${tag} [private notes, ${nameOf(a, p.seat as Seat)}]: ${p.text as string}` : null
+      return full ? `${tag} [private notes, ${nameOf(a, p.seat as Seat)}]: ${sanitizeSpeech(p.text as string)}` : null
     case 'voteCast':
       return full ? `${tag} [private] ${nameOf(a, p.seat as Seat)} votes ${p.vote as string}` : null
     case 'questCard':

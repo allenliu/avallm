@@ -5,7 +5,7 @@ import { createLlmAgent } from './llm.ts'
 import { createRandomAgent } from './random.ts'
 import { createStdioAgent } from './stdio.ts'
 import { getClient } from '../llm/client.ts'
-import { resolveModel } from './defs.ts'
+import { promptOverridesOf, resolveModel } from './defs.ts'
 import type { AgentDef } from './defs.ts'
 import type { AgentContext, AgentSpec, AvalonAgent } from './types.ts'
 
@@ -31,13 +31,7 @@ export function createAgentFromDef(def: AgentDef, ctx: AgentContext, modelOverri
         client: getClient(),
         agentId: def.id,
         label: `${def.name}${def.version ? ` v${def.version}` : ''}`,
-        prompts: {
-          personality: def.engine.personality,
-          strategy: def.engine.strategy,
-          roleGuidance: def.engine.roleGuidance,
-          roleGuidanceMode: def.engine.roleGuidanceMode,
-          kindGuidance: def.engine.kindGuidance,
-        },
+        prompts: promptOverridesOf(def.engine),
         temperature: def.engine.temperature,
       })
   }

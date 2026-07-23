@@ -144,9 +144,15 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
   const m = seats.find((s) => s.role === 'merlin')
   if (m) {
     const good = seats.filter((s) => s.alignment === 'good')
-    const rank = m.voteScore === null
-      ? null
-      : 1 + good.filter((s) => s.voteScore !== null && s.voteScore > m.voteScore!).length
+    // Midrank, so ties don't read as unique conspicuousness: with small-
+    // denominator vote fractions, several good players often tie Merlin's
+    // score. Strict-greater ranking would put a 3-way top tie at rank 1
+    // ("most conspicuous") for all three; averaging over the tie gives rank 2,
+    // correctly showing Merlin is NOT uniquely the most truth-aligned.
+    const scored = good.filter((s) => s.voteScore !== null)
+    const above = scored.filter((s) => s.voteScore! > m.voteScore!).length
+    const tied = scored.filter((s) => s.voteScore === m.voteScore).length // includes Merlin
+    const rank = m.voteScore === null ? null : above + (tied + 1) / 2
     merlin = {
       seat: m.seat,
       agent: m.agent,

@@ -15,6 +15,7 @@ import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { extractObject } from '../agents/parse.ts'
 import { rosterById } from '../llm/roster.ts'
+import { INJECTION_GUARD } from '../agents/prompts.ts'
 import { publicRecord, fullRecord } from './record.ts'
 import { readArtifacts, writeArtifacts } from './artifact.ts'
 import type { GameArtifact, JudgeIncident, JudgeResult, JudgeScorecard } from './artifact.ts'
@@ -52,23 +53,19 @@ export async function judgeGame(a: GameArtifact, opts: JudgeOpts): Promise<Judge
       response_format: { type: 'json_object' },
     })
 
+  const actualEvil = new Set(a.players.filter((p) => p.alignment === 'evil').map((p) => p.seat))
+  const evilCount = actualEvil.size
+  const merlinSeat = a.players.find((p) => p.role === 'merlin')?.seat
+
   // ---- pass 1: blinded ----
-  const evilCount = a.players.filter((p) => p.alignment === 'evil').length
   const blindSystem = [
     `You are an expert analyst of The Resistance: Avalon reviewing a completed game from the`,
     `PUBLIC record only (no roles revealed). Infer hidden roles from votes, teams, fails, and talk.`,
     `Exactly ${evilCount} of the ${a.playerCount} players are evil.`,
+    INJECTION_GUARD,
     `Reply with ONLY a JSON object:`,
     `{"thinking": "<brief>", "evil": [<${evilCount} seat numbers>], "merlin": <seat number>, "confidence": <0-100>}`,
   ].join('\n')
-  const blindContent = await call(blindSystem, publicRecord(a, { excludeOutcome: true }), 600)
-  const blind = extractObject(blindContent)
-  const evilGuess = (Array.isArray(blind?.evil) ? blind.evil : [])
-    .filter((s): s is number => Number.isInteger(s) && s >= 0 && s < a.playerCount)
-  const merlinGuess = Number.isInteger(blind?.merlin) ? (blind!.merlin as number) : null
-  const actualEvil = new Set(a.players.filter((p) => p.alignment === 'evil').map((p) => p.seat))
-  const merlinSeat = a.players.find((p) => p.role === 'merlin')?.seat
-
   // ---- pass 2: revealed ----
   const revealSystem = [
     `You are an expert judge of The Resistance: Avalon play quality, reviewing a completed game`,
@@ -88,13 +85,32 @@ export async function judgeGame(a: GameArtifact, opts: JudgeOpts): Promise<Judge
     `commitment-failure means: silence or evasion where the player's own public record demanded`,
     `a reaction (e.g. their endorsed team failed and they said nothing).`,
     ``,
+    INJECTION_GUARD,
+    ``,
     `Reply with ONLY a JSON object:`,
     `{"scorecards": [{"seat": <n>, "concealment": <0-10|null>, "deduction": <0-10|null>,`,
     ` "influence": <0-10|null>, "tableTalk": <0-10|null>, "note": "<one line>"}, ...one per seat],`,
     ` "incidents": [{"seat": <n>, "seq": <event seq>, "family": "<family>",`,
     ` "description": "<what happened and why it matters, citing evidence>"}, ...]}`,
   ].join('\n')
-  const revealContent = await call(revealSystem, fullRecord(a), 3000)
+
+  // The two passes are independent (pass 2 uses the full record, not pass 1's
+  // guess), so fire them together — halves per-game judge latency.
+  const [blindContent, revealContent] = await Promise.all([
+    call(blindSystem, publicRecord(a, { excludeOutcome: true }), 600),
+    call(revealSystem, fullRecord(a), 3000),
+  ])
+
+  const blind = extractObject(blindContent)
+  // Dedup and cap at evilCount: a model reply with duplicate or extra seats
+  // would otherwise inflate evilCorrect above the true count (e.g. [3,3] scoring
+  // 2/2 off one correct seat), corrupting the detectability trend line.
+  const evilGuess = [...new Set(
+    (Array.isArray(blind?.evil) ? blind.evil : [])
+      .filter((s): s is number => Number.isInteger(s) && s >= 0 && s < a.playerCount),
+  )].slice(0, evilCount)
+  const merlinGuess = Number.isInteger(blind?.merlin) ? (blind!.merlin as number) : null
+
   const reveal = extractObject(revealContent)
 
   const scorecards: JudgeScorecard[] = (Array.isArray(reveal?.scorecards) ? reveal.scorecards : [])
@@ -160,6 +176,10 @@ async function main(): Promise<void> {
       if (a.judge && !values.force) continue
       a.judge = await judgeGame(a, { client, model: values.model })
       ran++; budget--
+      // Persist after each judged game (atomic): judging is PAID, and the
+      // reveal pass is the most expensive call in the pipeline — a mid-file
+      // crash must not discard everything judged so far.
+      writeArtifacts(file, artifacts)
       const j = a.judge
       console.log(
         `${a.id.padEnd(28)} blinded: evil ${j.blinded.evilCorrect}/${a.players.filter((p) => p.alignment === 'evil').length}`
@@ -167,7 +187,6 @@ async function main(): Promise<void> {
         + `  incidents: ${j.incidents.map((i) => i.family).join(', ') || 'none'}`,
       )
     }
-    if (ran) writeArtifacts(file, artifacts)
     console.log(`${file}: judged ${ran} game(s)`)
   }
   console.log(`spend: $${client.getTotalCost().toFixed(4)}`)

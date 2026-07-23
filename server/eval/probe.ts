@@ -11,6 +11,7 @@
 import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
 import { extractObject } from '../agents/parse.ts'
+import { INJECTION_GUARD } from '../agents/prompts.ts'
 import { rosterById } from '../llm/roster.ts'
 import { publicRecord, nameOf } from './record.ts'
 import { readArtifacts, writeArtifacts } from './artifact.ts'
@@ -33,12 +34,16 @@ export async function virtualAssassin(a: GameArtifact, opts: ProbeOpts): Promise
   const candidates = a.players.filter((p) => p.alignment === 'good')
 
   const system = [
-    `You are the Assassin reviewing a completed game of The Resistance: Avalon.`,
-    `Good won 3 quests; you get one shot: identify Merlin.`,
+    `You are the Assassin reviewing a game of The Resistance: Avalon from the table's play so far.`,
+    `Your one job: identify Merlin — the good player who secretly knows who is evil.`,
     `As an evil player you KNOW the evil team was: ${evil.map((p) => nameOf(a, p.seat)).join(', ')}.`,
     `Merlin is therefore one of: ${candidates.map((p) => nameOf(a, p.seat)).join(', ')}.`,
-    `Merlin secretly knows who is evil but must hide it. Look for the good player whose votes,`,
-    `leans, and accusations track the evil players too well to be guesswork.`,
+    `Merlin must hide that knowledge. Look for the good player whose votes, leans, and accusations`,
+    `track the evil players too well to be guesswork.`,
+    // The probe runs on EVERY game with a Merlin, including evil wins — so the
+    // prompt must NOT assert an outcome (e.g. "good won 3 quests") that the
+    // attached quest board may contradict. Detectability is judged from play.
+    INJECTION_GUARD,
     `Reply with ONLY a JSON object: {"thinking": "<brief>", "target": <seat number>}.`,
   ].join('\n')
   const user = `== PUBLIC RECORD ==\n${publicRecord(a, { excludeOutcome: true })}\n\n== YOUR MOVE ==\nName the seat you believe is Merlin.`
@@ -95,6 +100,10 @@ async function main(): Promise<void> {
       })
       a.probes = { ...a.probes, virtualAssassin: result }
       ran++
+      // Persist after each game (atomic whole-file rewrite): probe results are
+      // PAID, and a crash/rate-limit mid-file would otherwise discard every
+      // result so far — the skip-guard can't help because nothing was written.
+      writeArtifacts(file, artifacts)
       const chance = (1 / a.players.filter((p) => p.alignment === 'good').length)
       console.log(
         `${a.id.padEnd(28)} merlin seat ${result.merlinSeat} (${a.players[result.merlinSeat].name}): `
@@ -102,7 +111,6 @@ async function main(): Promise<void> {
         + (a.tags?.variant ? `  [${a.tags.variant}]` : ''),
       )
     }
-    if (ran) writeArtifacts(file, artifacts)
     console.log(`${file}: probed ${ran} game(s)${ran ? ', written back' : ' (all already probed)'}`)
   }
   console.log(`spend: $${client.getTotalCost().toFixed(4)}`)

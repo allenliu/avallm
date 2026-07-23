@@ -107,8 +107,8 @@ test('ledger: a clean success contradicts rejectors but never triggers silence f
 function syntheticArtifact(log: GameEvent[]): GameArtifact {
   const roles = ['merlin', 'percival', 'servant', 'morgana', 'assassin'] as const
   return {
-    schema: 1, id: 'g', seed: 's', createdAt: new Date().toISOString(),
-    playerCount: 5, talk: { preProposal: 1, postProposal: 0 },
+    schema: 2, id: 'g', seed: 's', createdAt: new Date().toISOString(),
+    playerCount: 5, roles: [...roles], talk: { preProposal: 1, postProposal: 0 },
     players: roles.map((role, seat) => ({
       seat, name: `P${seat}`, role,
       alignment: role === 'morgana' || role === 'assassin' ? 'evil' : 'good',
@@ -132,6 +132,19 @@ test('conspicuousness: a Merlin whose votes track ground truth ranks #1 among go
   assert.equal(m.merlin!.assassinated, null) // never reached assassination
   const servant = m.seats.find((s) => s.role === 'servant')!
   assert.equal(servant.voteScore, 0)
+})
+
+test('conspicuousness: a Merlin tied at the top is NOT scored uniquely most-conspicuous', () => {
+  // Merlin (0) and servant (2) BOTH vote perfectly; percival (1) is wrong.
+  // Midrank must place the 2-way top tie at 1.5, not 1 — a Merlin that blends
+  // into a tied pack should not read the same as one uniquely topping the table.
+  const log = mkLog([
+    voteReveal([3, 4], { 0: 'reject', 1: 'approve', 2: 'reject', 3: 'approve', 4: 'approve' }, false),
+    voteReveal([0, 1], { 0: 'approve', 1: 'reject', 2: 'approve', 3: 'reject', 4: 'reject' }, false, 1, 2),
+  ])
+  const m = computeMetrics(syntheticArtifact(log))
+  assert.equal(m.merlin!.voteScore, 1)
+  assert.equal(m.merlin!.conspicuousnessRank, 1.5)
 })
 
 test('metrics: leans count only while a team is on the table', () => {
