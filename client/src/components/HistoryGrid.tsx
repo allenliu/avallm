@@ -87,7 +87,7 @@ export function HistoryGrid({ view, bots, onClose }: {
           </div>
         )}
         <p className="hg-legend">
-          ♛ leader · shaded = on the proposed team · ✓ approved · ✗ rejected · 🔨 hammer (5th proposal)
+          ♛ leader · shaded = on the proposed team · ✓ approved · ✗ rejected · 🔨 hammer (5th proposal — locked in automatically, no vote)
         </p>
       </div>
     </div>

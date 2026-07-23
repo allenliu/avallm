@@ -1,6 +1,7 @@
 // Rules reference tables — transcribed from docs/research-rules-and-visuals.md §3.
-// Official rules: strict-majority approval (tie = reject); 5th rejected proposal
-// in a round = evil wins immediately.
+// Voting: strict-majority approval (tie = reject). House rule (deviation from
+// the official "5th rejection = evil wins"): the 5th proposal in a round is
+// approved automatically without a vote, so only 4 proposals can be rejected.
 
 import type { Alignment, Player, PrivateInfo, Role, Seat } from './types.ts'
 

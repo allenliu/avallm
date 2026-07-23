@@ -67,6 +67,7 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
       const rec = proposals[proposals.length - 1]
       rec.votes = (ev.payload.votes as ProposalRecord['votes'])!.map((v) => ({ ...v }))
       rec.approved = ev.payload.approved as boolean
+      if (ev.payload.auto === true) rec.auto = true
     }
   }
 

@@ -158,7 +158,8 @@ Phases per the rules doc ([research-rules-and-visuals.md](research-rules-and-vis
 setup ─→ reveal ─→ ┌─────────────── round loop (per proposal) ──────────────┐
                    │ discussion → proposal → discussion → vote ──approved──→ quest │──→ next round
                    │                                  └─rejected─→ (leader rotates; │
-                   │                                     5th reject = evil wins)    │
+                   │                                     5th proposal skips talk +  │
+                   │                                     vote: auto-approved)       │
                    └────────────────────────────────────────────────────────┘
    3 quest successes → assassination → gameOver
    3 quest failures  → gameOver (evil)

@@ -45,7 +45,7 @@ export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc
 
 export const RULES_SUMMARY = [
   'Good wins by succeeding 3 of 5 quests. Evil wins by failing 3 quests — or by assassinating Merlin after good wins.',
-  'Each round the leader proposes a quest team and EVERYONE votes. Strict majority approves; a tie rejects. If 5 proposals in a row are rejected, evil wins instantly — never reject the 5th ("hammer") proposal as good.',
+  'Each round the leader proposes a quest team and EVERYONE votes. Strict majority approves; a tie rejects. Only 4 proposals per round can be rejected — the 5th ("hammer") proposal is locked in automatically, with no vote.',
   'Approved teams play quest cards in secret: good must play Success, evil may play Fail. Only the number of Fail cards is revealed.',
   'Roles are secret, but some players know things (see role list). Discussion is free — anyone may lie. The public vote record is the best evidence in the game.',
   'When a team is proposed, you can signal a non-binding lean (👍/👎/🤔) during discussion before votes are cast.',

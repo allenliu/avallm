@@ -21,6 +21,7 @@ export interface ProposalRecord {
   pitch?: string
   votes?: { seat: Seat; vote: 'approve' | 'reject' }[]
   approved?: boolean
+  auto?: boolean   // 5th ("hammer") proposal: approved automatically, no vote
 }
 
 export interface GameEvent {

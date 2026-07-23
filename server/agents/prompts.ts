@@ -11,8 +11,8 @@ import type { LlmCallKind } from '../llm/call-params.ts'
 
 export const RULES_DIGEST = `You are playing The Resistance: Avalon.
 Good (loyal servants of Arthur, Merlin, Percival) wins by succeeding 3 of 5 quests.
-Evil (minions of Mordred: Assassin, Morgana, Mordred, Oberon, Minions) wins by failing 3 quests, or by rejecting 5 team proposals in one round, or — if good succeeds 3 quests — by the Assassin correctly identifying Merlin at the end.
-Each round: the leader proposes a team of the required size, everyone votes approve/reject (strict majority approves; a tie rejects; NEVER let a 5th proposal be rejected if you are good — that instantly loses the game). Approved teams play quest cards in secret: good players MUST play Success; evil players may play Success or Fail. The number of Fail cards is revealed, not who played them.
+Evil (minions of Mordred: Assassin, Morgana, Mordred, Oberon, Minions) wins by failing 3 quests, or — if good succeeds 3 quests — by the Assassin correctly identifying Merlin at the end.
+Each round: the leader proposes a team of the required size, everyone votes approve/reject (strict majority approves; a tie rejects). Only 4 proposals per round can be rejected: the 5th ("hammer") proposal is approved automatically with NO vote, so whoever leads the 5th proposal single-handedly picks that quest team. Approved teams play quest cards in secret: good players MUST play Success; evil players may play Success or Fail. The number of Fail cards is revealed, not who played them.
 Merlin knows who is evil (except Mordred) but must hide it: if evil identifies Merlin at the end, evil wins. Percival sees Merlin and Morgana but not which is which. Evil players (except Oberon) know each other.
 Votes are public once revealed. Watch the vote history — it is the main evidence in this game.`
 
@@ -78,7 +78,7 @@ export function publicStateText(view: PlayerView): string {
     return `Q${q.num}(size ${q.teamSize}${need}): ${tag}${team}`
   })
   lines.push(`Quest board: ${board.join(' | ')}.`)
-  lines.push(`Now: quest ${view.round}, proposal ${view.proposalNum} of ${MAX_PROPOSALS}${view.proposalNum === MAX_PROPOSALS ? ' (THE HAMMER — a rejection now ends the game for evil)' : ''}. Leader: ${nameOf(view, view.leaderSeat)}.`)
+  lines.push(`Now: quest ${view.round}, proposal ${view.proposalNum} of ${MAX_PROPOSALS}${view.proposalNum === MAX_PROPOSALS ? ' (THE HAMMER — the leader\'s team is locked in automatically, no vote)' : ''}. Leader: ${nameOf(view, view.leaderSeat)}.`)
   if (view.currentTeam?.length) {
     const pending = view.proposals.at(-1)
     const pitch = pending?.pitch ? ` Leader's pitch: "${sanitizeSpeech(pending.pitch)}"` : ''
@@ -87,9 +87,11 @@ export function publicStateText(view: PlayerView): string {
   const votedProposals = view.proposals.filter((p) => p.votes)
   if (votedProposals.length) {
     const hist = votedProposals.map((p) => {
-      const votes = p.votes!.map((v) => `${view.players[v.seat].name}:${v.vote === 'approve' ? 'Y' : 'N'}`).join(' ')
       const pitch = p.pitch ? ` pitch: "${sanitizeSpeech(p.pitch).slice(0, 120)}"` : ''
-      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}] -> ${p.approved ? 'APPROVED' : 'rejected'} (${votes})${pitch}`
+      const outcome = p.auto
+        ? 'AUTO-APPROVED (hammer, no vote)'
+        : `${p.approved ? 'APPROVED' : 'rejected'} (${p.votes!.map((v) => `${view.players[v.seat].name}:${v.vote === 'approve' ? 'Y' : 'N'}`).join(' ')})`
+      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}] -> ${outcome}${pitch}`
     })
     lines.push(`Vote record:\n${hist.join('\n')}`)
   }

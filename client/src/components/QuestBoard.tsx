@@ -13,7 +13,7 @@ export function QuestBoard({ view }: { view: PlayerView }) {
           {q.failsRequired === 2 && <span className="disc-star">*</span>}
         </div>
       ))}
-      <div className="vote-track" title="Rejected proposals this round — 5 rejections and evil wins">
+      <div className="vote-track" title="Proposals this round — after 4 rejections the 5th (gold) team is locked in automatically, no vote">
         {[1, 2, 3, 4, 5].map((n) => (
           <span key={n} className={`track-dot${n < view.proposalNum ? ' burnt' : ''}${n === 5 ? ' hammer' : ''}`} />
         ))}

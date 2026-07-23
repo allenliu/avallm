@@ -1,6 +1,6 @@
 // Scripted-game tests for the rules that are easy to get wrong:
-// strict-majority voting, the five-rejection loss, quest-card coercion,
-// the double-fail quest, and the assassination phase.
+// strict-majority voting, the auto-approved hammer proposal, quest-card
+// coercion, the double-fail quest, and the assassination phase.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { applyDecision, createGame, expectedDecisions } from '../server/engine/game.ts'
@@ -51,21 +51,33 @@ test('a strict majority approves', () => {
   assert.equal(g.phase, 'quest')
 })
 
-test('the 5th rejected proposal ends the game for evil, leader rotating each time', () => {
+test('the 5th proposal is auto-approved with no vote, leader rotating after each rejection', () => {
   const g = mk(7, 'hammer')
   const leaders: Seat[] = []
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 4; i++) {
     assert.equal(g.proposalNum, i)
     leaders.push(g.leaderSeat)
     propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 7])
     voteAll(g, () => 'reject')
   }
-  assert.equal(g.phase, 'gameOver')
-  assert.equal(g.winner, 'evil')
-  assert.equal(g.winReason, 'fiveRejections')
   for (let i = 1; i < leaders.length; i++) {
     assert.equal(leaders[i], (leaders[i - 1] + 1) % 7, 'leader rotates after each rejection')
   }
+
+  // The hammer: the 5th proposal skips post-talk and the vote entirely.
+  assert.equal(g.proposalNum, 5)
+  const team = [g.leaderSeat, (g.leaderSeat + 1) % 7].sort((a, b) => a - b)
+  propose(g, team)
+  assert.equal(g.phase, 'quest')
+  assert.deepEqual(g.quests[0].team, team)
+  assert.ok(expectedDecisions(g).every((r) => r.kind === 'quest'), 'only quest cards are owed')
+
+  // The auto-approval is on the public record as a votes-free voteReveal.
+  const auto = g.log.find((ev) => ev.type === 'voteReveal' && ev.payload.auto === true)
+  assert.ok(auto, 'auto-approval emitted')
+  assert.equal(auto!.visibility, 'public')
+  assert.equal(auto!.payload.approved, true)
+  assert.deepEqual(auto!.payload.votes, [])
 })
 
 test('good quest cards are coerced to success', () => {

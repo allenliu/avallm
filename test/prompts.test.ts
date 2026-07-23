@@ -66,7 +66,7 @@ test('prompts carry the contract, state, and sanitized transcript', () => {
   assert.ok(!user.content.includes('[INST]'), 'markup stripped')
 })
 
-test('public state includes the vote record and hammer warning', () => {
+test('public state includes the vote record and hammer note', () => {
   const g = createGame({ seed: 'ph', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
   for (let i = 0; i < 4; i++) {
     applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
@@ -75,8 +75,15 @@ test('public state includes the vote record and hammer warning', () => {
   const view = viewFor(g, 0)
   const text = publicStateText(view)
   assert.match(text, /THE HAMMER/)
+  assert.match(text, /locked in automatically, no vote/)
   assert.match(text, /Vote record:/)
   assert.match(text, /rejected/)
+
+  // The hammer proposal itself resolves without a vote and shows as auto-approved.
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  assert.equal(g.phase, 'quest')
+  const after = publicStateText(viewFor(g, 0))
+  assert.match(after, /AUTO-APPROVED \(hammer, no vote\)/)
 })
 
 test('discuss prompts carry table-talk norms and flag direct addresses', () => {

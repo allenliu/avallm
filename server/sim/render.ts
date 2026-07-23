@@ -17,6 +17,7 @@ export function renderEvent(ev: GameEvent, game: Game): string | null {
     case 'proposal':
       return `\n[Q${p.round}.${p.proposalNum}] ${name(game, p.leader)} proposes: ${(p.team as Seat[]).map((s) => name(game, s)).join(', ')}`
     case 'voteReveal': {
+      if (p.auto) return `  hammer: AUTO-APPROVED (no vote)`
       const votes = (p.votes as { seat: Seat; vote: string }[])
         .map((v) => `${name(game, v.seat)}:${v.vote === 'approve' ? 'Y' : 'N'}`).join(' ')
       return `  votes: ${votes} -> ${p.approved ? 'APPROVED' : 'rejected'}`

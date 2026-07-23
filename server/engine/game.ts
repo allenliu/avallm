@@ -116,9 +116,29 @@ function enterProposalCycle(game: Game): void {
 }
 
 function afterProposal(game: Game): void {
+  if (game.proposalNum >= MAX_PROPOSALS) {
+    // House rule: the 5th ("hammer") proposal is approved automatically — no
+    // post-proposal talk, no vote. Under the official rule a 5th rejection
+    // ends the game for evil, so a rational table always approves it anyway;
+    // auto-approving removes the pure-blunder loss. Recorded as a public
+    // voteReveal (votes: [], auto: true) so the proposal record, history UI,
+    // and bot prompts all see the outcome through the usual event.
+    emit(game, 'voteReveal', {
+      round: game.round, proposalNum: game.proposalNum,
+      team: game.currentTeam, votes: [], approved: true, auto: true,
+    }, 'public')
+    startQuest(game)
+    return
+  }
   if (!startDiscussion(game, 'post', game.config.talk.postProposal)) {
     game.phase = 'vote'
   }
+}
+
+function startQuest(game: Game): void {
+  game.quests[game.round - 1].team = game.currentTeam!.slice()
+  game.pendingCards = {}
+  game.phase = 'quest'
 }
 
 function rotateLeader(game: Game): void {
@@ -281,13 +301,10 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
         }, 'public')
         game.pendingVotes = {}
         if (approved) {
-          game.quests[game.round - 1].team = game.currentTeam!.slice()
-          game.pendingCards = {}
-          game.phase = 'quest'
-        } else if (game.proposalNum >= MAX_PROPOSALS) {
-          // Official rule: the 5th rejected proposal in a round ends the game.
-          endGame(game, 'evil', 'fiveRejections')
+          startQuest(game)
         } else {
+          // Only proposals 1-4 are ever voted on — the 5th is auto-approved
+          // in afterProposal — so a rejection always has a next proposal.
           game.proposalNum += 1
           rotateLeader(game)
           enterProposalCycle(game)

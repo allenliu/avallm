@@ -7,7 +7,7 @@
 
 import { makeRng, fnv1a } from '../engine/prng.ts'
 import type { Rng } from '../engine/prng.ts'
-import { MAX_PROPOSALS, QUESTS_TO_WIN } from '../engine/rules.ts'
+import { QUESTS_TO_WIN } from '../engine/rules.ts'
 import type { Decision, DecisionRequest, PlayerView, Seat } from '../engine/types.ts'
 import type { AgentContext, AvalonAgent } from './types.ts'
 
@@ -91,26 +91,21 @@ function decidePropose(view: PlayerView, rng: Rng): Decision {
   return { kind: 'propose', team: rng.shuffle(team) }
 }
 
+// Only proposals 1-4 are ever voted on: the 5th ("hammer") proposal is
+// auto-approved by the engine, so no hammer logic is needed here.
 function decideVote(view: PlayerView, rng: Rng): Decision {
   const team = view.currentTeam ?? []
-  const isHammer = view.proposalNum >= MAX_PROPOSALS
   const evil = knownEvilSeats(view)
   const teamHasKnownEvil = team.some((s) => evil.has(s) && s !== view.seat)
   const selfOnTeam = team.includes(view.seat)
 
   if (view.alignment === 'evil') {
     const teamHasAnyEvil = team.some((s) => evil.has(s))
-    if (isHammer) {
-      // Rejecting the hammer wins for evil — but only take the obvious win
-      // when the team is clean; an evil-carrying team is a safer route.
-      return { kind: 'vote', vote: teamHasAnyEvil ? 'approve' : 'reject' }
-    }
     if (teamHasAnyEvil) return { kind: 'vote', vote: 'approve' }
     return { kind: 'vote', vote: rng.chance(0.2) ? 'approve' : 'reject' }
   }
 
-  // Good. Never reject the hammer — 5th rejection is an instant loss.
-  if (isHammer) return { kind: 'vote', vote: 'approve' }
+  // Good.
   if (teamHasKnownEvil) {
     // Merlin caps its accuracy: sometimes lets a bad team through as cover
     // (near-perfect voting is the assassin's #1 tell, strategy doc §3).

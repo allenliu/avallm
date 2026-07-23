@@ -62,6 +62,9 @@ function renderEvent(ev: GameEvent, name: (s: number) => string): FeedRow | null
       return { key: ev.seq, cls: 'system', seat: p.leader, text: `proposes [${team}] for quest ${p.round} (proposal ${p.proposalNum}/5)${pitch}` }
     }
     case 'voteReveal': {
+      if (p.auto) {
+        return { key: ev.seq, cls: 'system ok', text: 'The hammer falls — the 5th proposal is locked in automatically, no vote.' }
+      }
       const votes = (p.votes as { seat: number; vote: string }[])
         .map((v) => `${name(v.seat)} ${v.vote === 'approve' ? '✓' : '✗'}`).join('  ')
       return { key: ev.seq, cls: p.approved ? 'system ok' : 'system bad', text: `Votes: ${votes} → ${p.approved ? 'APPROVED' : 'rejected'}` }

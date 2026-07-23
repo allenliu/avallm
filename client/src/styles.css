@@ -362,7 +362,6 @@ footer { min-height: 3.4rem; }
 .action-bar.waiting { color: var(--dim); font-style: italic; }
 .action-label { font-weight: 600; }
 .action-bar input { flex: 1; min-width: 12rem; }
-.hammer-warn { color: var(--gold); }
 .row { display: flex; gap: 0.6rem; align-items: center; }
 .seat-picker { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 .pick { background: var(--panel-2); color: var(--text); }

@@ -96,13 +96,14 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   )
 }
 
+// Votes only happen on proposals 1-4 — the 5th ("hammer") proposal is
+// approved automatically by the engine, so no hammer warning is needed here.
 function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const team = (view.currentTeam ?? []).map((s) => view.players[s].name).join(', ')
-  const hammer = view.proposalNum === 5
   return (
     <div className="action-bar">
       <span className="action-label">
-        Vote on [{team}]{hammer && <b className="hammer-warn"> — THE HAMMER: a rejection ends the game for evil</b>}
+        Vote on [{team}]
       </span>
       <button onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>Approve</button>
       <button className="danger" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>Reject</button>
