@@ -28,7 +28,7 @@ The launcher offers LLM opponents (a few cents per game, ~$0.12 measured at 5 pl
 Headless tools:
 
 ```
-npm test                                   # 44 tests, no API needed
+npm test                                   # full suite, no API needed
 npm run sim -- --players 7 --seed 42       # one heuristic game, full transcript
 npm run sim -- --games 200 --talk 0,0      # aggregate win-rate stats
 npm run sim -- --agents llm --players 5    # full LLM game headless + cost breakdown
@@ -42,6 +42,7 @@ Design docs in `docs/`:
 - `docs/research-rules-and-visuals.md` — Avalon rules reference and visual design research
 - `docs/research-strategy.md` — gameplay strategy compendium (feeds bot prompts)
 - `docs/design-implementation.md` — architecture and implementation design
+- `docs/design-evaluation.md` — bot evaluation & self-improvement framework (paired-seed benches, LLM judge, situation bank)
 
 ## Deploying (Railway)
 
@@ -67,6 +68,35 @@ URL is deliberately ungated. Caveats: games live in memory (a redeploy or restar
 games — snapshot persistence is on the roadmap), and custom agents persist to the container
 filesystem (ephemeral on Railway unless you attach a volume at `/app/data`).
 
-## Prior art
+## Research & prior art
+
+Bot design draws on the published literature for LLMs playing Avalon and related social-deduction
+games — distilled into an embeddable playbook in [`docs/research-strategy.md`](docs/research-strategy.md)
+§4–5, which feeds the default prompts and the evaluation framework
+([`docs/design-evaluation.md`](docs/design-evaluation.md)). Recurring findings we build against:
+LLMs are weak at deduction in free text and worse at *acting* on their own deductions
+(the "deduction–action gap"), they self-incriminate and over-disclose, and out-of-the-box they
+still lose to simple rule-based baselines — so the engineering leans on computing signals in code
+and feeding them as structured facts, hard guards on provably-losing moves, and a second-order
+"what does this reveal about me?" check before speech.
+
+Key sources:
+
+- **AvalonBench** — Light et al., *Evaluating LLMs Playing the Game of Avalon* (2023): the baseline
+  benchmark and failure taxonomy. [paper](https://arxiv.org/abs/2310.05036) ·
+  [Avalon-LLM + the Strategist agent](https://github.com/jonathanmli/Avalon-LLM) (MCTS + LLM
+  self-improvement) — the intended external calibration opponents (a difficulty floor and a boss
+  ceiling) via the planned stdio bridge.
+- **ReCon** — Wang et al., *Recursive Contemplation* (2023): two-pass draft→refine with first/second-
+  order perspective-taking to resist deception. [paper](https://arxiv.org/abs/2310.01320)
+- **LLM Agent Society** — *Language Agents with Reinforcement Learning for Strategic Play in the
+  Werewolf/Avalon setting* (arXiv 2310.14985): a modular agent whose role-inference and
+  strategy-memory modules mattered most in ablation.
+- **DeepRole** (MIT/Harvard, CFR + deductive belief updating) and the **Assassin classifier**
+  (Chuchro, 2022) — non-LLM agents showing Merlin-detection is largely a mechanical vote-signal task.
+- Recent extensions: *Beyond Survival: Evaluating LLMs in Social Deduction Games with Human-Aligned
+  Strategies* ([arXiv 2510.11389](https://arxiv.org/abs/2510.11389)) and *Trust, Lies, and Long
+  Memories* ([arXiv 2604.20582](https://arxiv.org/abs/2604.20582)) on multi-round reputation and
+  cross-game memory.
 
 LLM integration patterns (OpenRouter client, prompt structure) draw on the sibling `datingsim` project.
