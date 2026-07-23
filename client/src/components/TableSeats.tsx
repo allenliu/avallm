@@ -37,7 +37,7 @@ export function TableSeats({ view, bots, acting }: {
     ? ((view.leaderSeat + 1) % view.players.length) as Seat
     : undefined
   return (
-    <div className="farseats">
+    <div className={`farseats${others.length >= 7 ? ' crowded' : ''}`}>
       {others.map((p, i) => {
         const isLeader = p.seat === view.leaderSeat
         const onTeam = view.currentTeam?.includes(p.seat)

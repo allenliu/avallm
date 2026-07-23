@@ -121,10 +121,27 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
 
 ### Lower priority
 
-- [ ] Lobby / join screens in the language (currently plain `.landing` reuse).
-- [ ] Custom-agent form styling; spectator chrome.
-- [ ] Vote tally as a row of played cards in the feed (specimen "usage" note).
-- [ ] Degraded-bot note, error states, reconnect banner styling.
+- [ ] Lobby / join screens in the language (tokens only so far — hero/panel layout pass
+  still open).
+- [x] Custom-agent form styling (panelized, "Inscribe your own agent"); spectator chrome
+  (◎ chip at the near edge).
+- [x] Vote tally as a row of played cards in the feed — per-player aye/nay chips with the
+  result stamp.
+- [x] Degraded-bot note, error/reconnect banner styling (mono, oxblood rule, in the edge
+  rail).
+- [x] Feedback pass (2026-07-23, Allen): transcript rebuilt to match the mock
+  (model-colored speaker names + slug, block layout, bordered lean chips); legibility
+  pass on the table zone (labels up 1–2px, `--faint`→`--dim`, blur shadows removed);
+  8–9 player tables get a `crowded` seat tier verified at 9 players both viewports.
+
+### Open design question — the table surface
+
+Allen: the felt-and-lacquer ellipse "reads almost like a poker table." Three alternatives
+that keep the arcana and change only the furniture, shown at the 9-player worst case:
+[artifact](https://claude.ai/code/artifact/75f9f772-8a0e-4e5d-87d8-0152615faa66) —
+**A · The Dais** (terraced stone council chamber), **B · The Constellation** (no furniture;
+seats hang on a golden orbit line — best crowding behavior, most "arcane"),
+**C · The High Table** (straight banquet rail). Current ellipse stays until a pick.
 
 ### Exploratory / future (design for compatibility, don't build yet)
 

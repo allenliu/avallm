@@ -321,14 +321,14 @@ input::placeholder { color: var(--faint); }
 .seat .sigil {
   width: 30px; height: 30px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font: 700 0.66rem var(--mono); color: var(--text);
+  font: 700 0.7rem var(--mono); color: #f2ecdc;
   background: radial-gradient(circle at 33% 28%, color-mix(in srgb, var(--mc, var(--gold)) 60%, #110e24), #110e24);
   border: 1.5px solid var(--mc, var(--gold));
 }
 .seat .seat-nm {
-  font-weight: 700; font-size: 0.72rem; line-height: 1.1; max-width: 62px;
+  font-weight: 700; font-size: 0.8rem; line-height: 1.15; max-width: 88px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.9);
+  color: #f2ecdc; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .seat.onquest .seat-card {
   box-shadow:
@@ -357,12 +357,18 @@ input::placeholder { color: var(--faint); }
 .votechip.reject { color: #e6a49a; border-color: var(--evil); }
 .seat-under { min-height: 0.9rem; }
 .seat .seat-md, .seat .next-tag {
-  font: 500 0.55rem var(--mono); color: var(--faint); letter-spacing: 0.04em;
+  font: 500 0.62rem var(--mono); color: var(--dim); letter-spacing: 0.03em;
   max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;
 }
 .seat .next-tag { letter-spacing: 0.1em; text-transform: uppercase; }
 .thinking-dots { color: var(--gold); animation: pulse 1.2s infinite; font-size: 0.5rem; letter-spacing: 0.15em; }
 @keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+/* 8-9 player tables: tighter cards so the arc never collides */
+.farseats.crowded .seat { width: 78px; }
+.farseats.crowded .seat-card { width: 56px; height: 76px; }
+.farseats.crowded .sigil { width: 26px; height: 26px; font-size: 0.6rem; }
+.farseats.crowded .seat-nm { font-size: 0.72rem; max-width: 74px; }
+.farseats.crowded .seat-md { display: none; }
 
 /* the quest spread lying on the felt */
 .spread {
@@ -378,8 +384,8 @@ input::placeholder { color: var(--faint); }
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 .qcard .qn {
-  position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
-  font: 600 0.5rem var(--mono); letter-spacing: 0.14em; color: var(--faint); white-space: nowrap;
+  position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+  font: 600 0.58rem var(--mono); letter-spacing: 0.1em; color: var(--dim); white-space: nowrap;
 }
 .qcard.back {
   background:
@@ -392,7 +398,7 @@ input::placeholder { color: var(--faint); }
   width: 25px; height: 25px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid var(--gold-deep); color: var(--gold);
-  font: 700 0.78rem var(--serif);
+  font: 700 0.9rem var(--serif);
   background: var(--night-2);
 }
 .qcard.current {
@@ -418,13 +424,13 @@ input::placeholder { color: var(--faint); }
   box-shadow: inset 0 0 0 2.5px #4a2220, inset 0 0 0 3.5px var(--evil), 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 .qcard .qem { width: 25px; height: 25px; }
-.qcard .word { font: 700 0.41rem var(--mono); letter-spacing: 0.12em; margin-top: 1px; }
+.qcard .word { font: 700 0.5rem var(--mono); letter-spacing: 0.08em; margin-top: 2px; }
 .qcard .twofail {
-  position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
-  font: 600 0.48rem var(--mono); color: var(--evil); white-space: nowrap;
+  position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%);
+  font: 600 0.55rem var(--mono); color: #d8867c; white-space: nowrap;
 }
 .spread .prop { display: flex; flex-direction: column; gap: 4px; padding-bottom: 5px; }
-.prop-lbl { font: 600 0.55rem var(--mono); letter-spacing: 0.14em; color: var(--faint); text-transform: uppercase; }
+.prop-lbl { font: 600 0.62rem var(--mono); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
 .pips { display: flex; gap: 5px; }
 .pip { width: 9px; height: 9px; transform: rotate(45deg); background: var(--panel); border: 1px solid var(--line); }
 .pip.used { background: var(--evil); border-color: var(--evil); opacity: 0.75; }
@@ -446,11 +452,47 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   display: flex; flex-direction: column; gap: 0.45rem;
 }
 .feed-row { line-height: 1.45; font-size: 0.94rem; overflow-wrap: anywhere; }
-.feed-row.talk .feed-text::before { content: "“"; color: var(--gold); }
-.feed-row.talk .feed-text::after { content: "”"; color: var(--gold); }
+.feed-row.talk { padding: 3px 0 2px; }
+.say-who {
+  display: flex; align-items: baseline; gap: 7px;
+  font-weight: 700; font-size: 0.88rem;
+  color: var(--mc, var(--gold));
+}
+.say-who small { font: 500 0.62rem var(--mono); color: var(--faint); letter-spacing: 0.03em; }
+.say-text { color: var(--text); max-width: 64ch; margin-top: 1px; }
+.leanmark {
+  font: 600 0.58rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 6px; border: 1px solid; border-radius: 2px; margin-left: 8px; vertical-align: 1px;
+}
+.leanmark.a { color: #9cd0a4; border-color: rgba(111, 143, 217, 0.55); }
+.leanmark.r { color: #e6a49a; border-color: rgba(194, 94, 84, 0.55); }
+.leanmark.u { color: var(--dim); border-color: var(--line); }
 .feed-speaker { font-weight: 700; margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; }
 .feed-row.pass { color: var(--faint); font-style: italic; font-size: 0.85rem; }
 .feed-row.pass .feed-speaker { font-weight: 600; }
+/* the vote tally: everyone's played card laid in a row */
+.feed-row.votes {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  border-left: 2px solid var(--gold-deep);
+  background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 3px 3px 0;
+  padding: 0.35rem 0.6rem 0.35rem 0.7rem;
+  margin: 0.2rem 0;
+}
+.votes-lbl { font: 600 0.58rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-right: 2px; }
+.vcard {
+  font: 600 0.68rem var(--mono);
+  padding: 3px 7px; border-radius: 3px; border: 1px solid;
+  display: inline-flex; gap: 5px; align-items: baseline;
+}
+.vcard.approve { color: #c9d9f2; border-color: rgba(111, 143, 217, 0.6); background: rgba(111, 143, 217, 0.13); }
+.vcard.reject { color: #f0cdc7; border-color: rgba(194, 94, 84, 0.6); background: rgba(194, 94, 84, 0.13); }
+.vcard b { font-weight: 700; }
+.vcard.approve b { color: #9cd0a4; }
+.vcard.reject b { color: #e6a49a; }
+.votes-result { font: 700 0.72rem var(--mono); letter-spacing: 0.12em; margin-left: 4px; }
+.votes-result.ok { color: #9cd0a4; }
+.votes-result.bad { color: #e6a49a; }
 .feed-row.record {
   font: 500 0.76rem var(--mono);
   color: var(--dim);
@@ -581,6 +623,12 @@ footer.endstage {
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.07), transparent), var(--night-2);
   max-height: 62vh; overflow-y: auto;
 }
+footer .error {
+  margin: 0.55rem auto 0; max-width: 1080px;
+  font: 500 0.78rem var(--mono); color: #f0cdc7;
+  border-left: 2px solid var(--evil); background: rgba(194, 94, 84, 0.12);
+  border-radius: 0 3px 3px 0; padding: 0.4rem 0.7rem;
+}
 .edge-inner { display: flex; align-items: center; gap: 1rem; }
 .youchip { display: flex; align-items: center; gap: 0.6rem; flex-shrink: 0; }
 .you-sigil {
@@ -593,8 +641,8 @@ footer.endstage {
 .you-meta { display: flex; flex-direction: column; line-height: 1.25; }
 .you-name { font-weight: 700; font-size: 0.9rem; color: #f0e8d5; }
 .you-role {
-  font: 500 0.55rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
-  color: rgba(240, 232, 213, 0.6);
+  font: 500 0.6rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(240, 232, 213, 0.72);
 }
 
 /* ---- action bar ---- */
@@ -606,7 +654,7 @@ footer.endstage {
 .action-bar.column { flex-direction: column; align-items: stretch; }
 .action-bar.waiting { color: rgba(240, 232, 213, 0.55); font-style: italic; font-size: 0.9rem; }
 .turn-tag {
-  font: 600 0.56rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase;
+  font: 600 0.62rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--gold); white-space: nowrap;
 }
 .action-label { font-weight: 600; color: #f0e8d5; }
@@ -955,9 +1003,15 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .seat { width: 74px; }
   .seat-card { width: 50px; height: 68px; }
   .seat .sigil { width: 24px; height: 24px; font-size: 0.56rem; }
-  .seat .seat-nm { font-size: 0.58rem; max-width: 70px; }
+  .seat .seat-nm { font-size: 0.62rem; max-width: 72px; }
   .seat .seat-md { display: none; }
   .seat .crown { top: -17px; font-size: 0.75rem; }
+  .farseats.crowded .seat { width: 46px; }
+  .farseats.crowded .seat-card { width: 36px; height: 50px; }
+  .farseats.crowded .sigil { width: 18px; height: 18px; font-size: 0.48rem; }
+  .farseats.crowded .seat-nm { display: none; }
+  .farseats.crowded .gem { width: 9px; height: 9px; bottom: -4px; }
+  .farseats.crowded .votechip { width: 14px; height: 14px; font-size: 0.5rem; }
   .spread { gap: 10px; bottom: 8px; }
   .qcard { width: 36px; height: 52px; }
   .qcard .qn, .qcard .twofail { display: none; }

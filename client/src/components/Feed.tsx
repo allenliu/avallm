@@ -16,29 +16,62 @@ export function Feed({ view, bots, degradedSeqs }: {
   // see) is never a pronoun, so this label lives only in the client.
   const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
   const degraded = new Set(degradedSeqs ?? [])
+  const shortModel = (s: number) =>
+    s === view.seat ? 'you' : bots[s] ? (bots[s].model.includes('/') ? bots[s].model.split('/')[1] : bots[s].model) : 'human'
 
   const rows = view.events.map((ev) => renderEvent(ev, name, view.seat)).filter(Boolean) as FeedRow[]
 
   return (
     <div className="feed" ref={ref}>
-      {rows.map((row) => (
-        <div key={row.key} className={`feed-row ${row.cls}`}>
-          {row.seat !== undefined && (
-            <span className="feed-speaker">
-              <ModelBadge info={bots[row.seat]} />
-              {name(row.seat)}
-            </span>
-          )}
-          <span className="feed-text">{row.text}</span>
-          {row.sub && <span className="feed-sub">{row.sub}</span>}
-          {degraded.has(row.key) && (
-            <span
-              className="chip autopilot-chip"
-              title="This decision fell back to the rule-based autopilot — the model's reply was unusable"
-            >autopilot</span>
-          )}
-        </div>
-      ))}
+      {rows.map((row) => {
+        const autopilot = degraded.has(row.key) && (
+          <span
+            className="chip autopilot-chip"
+            title="This decision fell back to the rule-based autopilot — the model's reply was unusable"
+          >autopilot</span>
+        )
+        if (row.cls === 'talk') {
+          return (
+            <div key={row.key} className="feed-row talk"
+              style={{ ['--mc' as string]: row.seat === view.seat ? 'var(--gold)' : bots[row.seat!]?.color ?? 'var(--gold)' }}>
+              <div className="say-who">{name(row.seat!)}<small>{shortModel(row.seat!)}</small></div>
+              <div className="say-text">
+                {row.text}
+                {row.lean && <span className={`leanmark ${row.lean === 'approve' ? 'a' : row.lean === 'reject' ? 'r' : 'u'}`}>
+                  {row.lean === 'approve' ? 'Aye' : row.lean === 'reject' ? 'Nay' : 'Unsure'}
+                </span>}
+                {autopilot}
+              </div>
+            </div>
+          )
+        }
+        if (row.votes) {
+          return (
+            <div key={row.key} className={`feed-row votes ${row.cls}`}>
+              <span className="votes-lbl">Votes</span>
+              {row.votes.map((v) => (
+                <span key={v.seat} className={`vcard ${v.vote}`} title={`${name(v.seat)} voted ${v.vote}`}>
+                  {name(v.seat)} <b>{v.vote === 'approve' ? '✓' : '✕'}</b>
+                </span>
+              ))}
+              <span className={`votes-result ${row.cls.includes('ok') ? 'ok' : 'bad'}`}>{row.text}</span>
+            </div>
+          )
+        }
+        return (
+          <div key={row.key} className={`feed-row ${row.cls}`}>
+            {row.seat !== undefined && (
+              <span className="feed-speaker">
+                <ModelBadge info={bots[row.seat]} />
+                {name(row.seat)}
+              </span>
+            )}
+            <span className="feed-text">{row.text}</span>
+            {row.sub && <span className="feed-sub">{row.sub}</span>}
+            {autopilot}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -49,6 +82,8 @@ interface FeedRow {
   seat?: number
   text: string
   sub?: string
+  lean?: string
+  votes?: { seat: number; vote: string }[]
 }
 
 function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: number): FeedRow | null {
@@ -60,8 +95,7 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: numbe
       return { key: ev.seq, cls: 'record lead', text: `♛ ${name(seat)} ${you ? 'are' : 'is'} now the leader — quest ${p.round}` }
     }
     case 'utterance': {
-      const lean = p.lean ? ` ${p.lean === 'approve' ? '〔aye〕' : p.lean === 'reject' ? '〔nay〕' : '〔unsure〕'}` : ''
-      if (p.text) return { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text + lean }
+      if (p.text) return { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text, lean: p.lean }
       if (p.lean) return { key: ev.seq, cls: 'system pass', seat: p.seat, text: `signals ${p.lean}` }
       // Silence is information too.
       return { key: ev.seq, cls: 'system pass', seat: p.seat, text: 'passes' }
@@ -75,9 +109,12 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: numbe
       if (p.auto) {
         return { key: ev.seq, cls: 'record hammer', text: '🔨 The hammer falls — the 5th proposal is locked in automatically, no vote.' }
       }
-      const votes = (p.votes as { seat: number; vote: string }[])
-        .map((v) => `${name(v.seat)} ${v.vote === 'approve' ? '✓' : '✕'}`).join('  ')
-      return { key: ev.seq, cls: p.approved ? 'record ok' : 'record bad', text: `Votes: ${votes} → ${p.approved ? 'APPROVED' : 'REJECTED'}` }
+      return {
+        key: ev.seq,
+        cls: p.approved ? 'ok' : 'bad',
+        votes: p.votes as { seat: number; vote: string }[],
+        text: p.approved ? 'APPROVED' : 'REJECTED',
+      }
     }
     case 'questResult': {
       const won = p.result === 'success'
