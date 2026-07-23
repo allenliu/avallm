@@ -87,9 +87,19 @@ function ownPositions(view: PlayerView): string[] {
   return out
 }
 
+// Eval-only A/B switch: the dossier lives in the engine-owned facts layer, so
+// it can't be toggled per agent-def — AVALON_NO_DOSSIER=1 suppresses it
+// globally so a paired sim can measure default vs. default-plus-dossier on the
+// same seeds. Default (unset) = on. Not for production; a measurement lever.
+// Read at call time so a harness can set it per process and tests can flip it.
+export function dossierEnabled(): boolean {
+  return process.env.AVALON_NO_DOSSIER !== '1'
+}
+
 // Returns '' when there is nothing derived to report yet (early game), so the
 // prompt doesn't carry an empty section.
 export function factsDossier(view: PlayerView): string {
+  if (!dossierEnabled()) return ''
   const rec = computeRecords(view)
   const anyResolved = view.quests.some((q) => q.result !== undefined)
   if (!anyResolved) return ''

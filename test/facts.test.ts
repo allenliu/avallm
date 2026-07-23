@@ -32,6 +32,19 @@ test('dossier is empty before anything resolves', () => {
   assert.equal(factsDossier(view({ quests: [quest(1, 2, {}), quest(2, 3, {})] })), '')
 })
 
+test('AVALON_NO_DOSSIER=1 suppresses the dossier (the eval A/B lever)', () => {
+  const withData = view({ quests: [quest(1, 2, { team: [0, 1], result: 'fail', failCount: 1 })] })
+  assert.notEqual(factsDossier(withData), '') // on by default
+  const prev = process.env.AVALON_NO_DOSSIER
+  process.env.AVALON_NO_DOSSIER = '1'
+  try {
+    assert.equal(factsDossier(withData), '')
+  } finally {
+    if (prev === undefined) delete process.env.AVALON_NO_DOSSIER
+    else process.env.AVALON_NO_DOSSIER = prev
+  }
+})
+
 test('dossier reports fail exposure and never-on-quest from resolved quests', () => {
   const d = factsDossier(view({
     quests: [
