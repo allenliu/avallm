@@ -14,9 +14,13 @@ export const ARCANA: Record<Role, { numeral: string; title: string; emblem: Embl
   minion: { numeral: 'V', title: 'The Sworn', emblem: 'swords' },
 }
 
+// Spectators are dealt the unnumbered card — the Fool's position in the
+// classical deck: present at the table, bound to none of it.
+export const SPECTATOR_ARCANA = { numeral: '0', title: 'The Witness', emblem: 'book' as EmblemId }
+
 export type EmblemId =
   | 'eye' | 'shield' | 'chalice' | 'dagger' | 'moons' | 'veil' | 'lantern' | 'swords'
-  | 'sun' | 'tower' | 'laurel' | 'crown'
+  | 'sun' | 'tower' | 'laurel' | 'crown' | 'book'
 
 export function Emblem({ id, className }: { id: EmblemId; className?: string }) {
   return (
@@ -100,6 +104,13 @@ export function ArcanaDefs() {
           <path d="M16 40 L19 24 L27 32 L30 18 L33 32 L41 24 L44 40 Z" />
           <path d="M16 46 H44" />
           <circle cx="30" cy="12" r="2" opacity="0.7" />
+        </g>
+        <g id="em-book" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M30 16 C25 11 17 11 12 14 V44 C17 41 25 41 30 46 C35 41 43 41 48 44 V14 C43 11 35 11 30 16 Z" />
+          <path d="M30 16 V46" />
+          <path d="M17 21 Q23 19 26 21 M17 27 Q23 25 26 27 M17 33 Q23 31 26 33" opacity="0.6" />
+          <path d="M34 21 Q40 19 43 21 M34 27 Q40 25 43 27 M34 33 Q40 31 43 33" opacity="0.6" />
+          <path d="M30 4 l1.3 2.8 2.8 0.4 -2 2 0.5 2.9 -2.6 -1.4 -2.6 1.4 0.5 -2.9 -2 -2 2.8 -0.4 Z" fill="currentColor" stroke="none" opacity="0.8" />
         </g>
       </defs>
     </svg>

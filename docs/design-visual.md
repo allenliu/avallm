@@ -62,6 +62,7 @@ cartouche, engraved emblem in an oval frame, title plate, corner stars. Emblems 
 | Oberon — **The Stranger** | IX | lantern | The Hermit is IX |
 | Quest success — **The Sun** | XIX | sun | quest card flips to this |
 | Quest fail — **The Tower** | XVI | struck tower | fail count on title plate |
+| Spectator — **The Witness** | 0 | open book | unaligned; the Fool's position |
 | Vote approve | AYE | laurel | also good's forced Success card |
 | Vote reject | NAY | dagger | |
 | Leader marker | ♛ | crown | passes clockwise |
@@ -134,6 +135,16 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
   pass on the table zone (labels up 1–2px, `--faint`→`--dim`, blur shadows removed);
   8–9 player tables get a `crowded` seat tier verified at 9 players both viewports.
 
+### Screenshot gallery (tooling)
+
+`node tools/screenshots.mjs` (after a client build) spawns its own server and captures
+every hard-to-reach state — setup variants, all game phases, Record/Codex sheets, the
+reveal, lobby host / join / in-game spectator — at desktop 1280×800 and mobile 390×844
+into **`docs/screens/`** (committed). Regenerate on demand before/after design commits,
+not per commit. Games are unseeded on purpose: a client-chosen seed would determine the
+hidden role deal, so pixel-stable runs would need an engine-side gated seed path (future).
+TODO: an error/reconnect-banner capture.
+
 ### Open design question — the table surface
 
 Allen: the felt-and-lacquer ellipse "reads almost like a poker table." Three alternatives
@@ -142,6 +153,10 @@ that keep the arcana and change only the furniture, shown at the 9-player worst 
 **A · The Dais** (terraced stone council chamber), **B · The Constellation** (no furniture;
 seats hang on a golden orbit line — best crowding behavior, most "arcane"),
 **C · The High Table** (straight banquet rail). Current ellipse stays until a pick.
+Allen likes the Constellation; deeper exploration with three sub-variants (Pendants /
+Orrery / Zodiac) and the motion language (ambient bob + halo + orbit mote; event
+lift/ripple, gem drop, flip + comet, your-turn sweep) is live-animated at
+https://claude.ai/code/artifact/4d60cb73-268b-4a5e-9006-acaa3ff32980.
 
 ### Exploratory / future (design for compatibility, don't build yet)
 

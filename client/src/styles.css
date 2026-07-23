@@ -587,6 +587,16 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 }
 .rc-em { width: 52px; height: 52px; color: var(--good); margin-top: 0.2rem; }
 .role-card.evil .rc-em { color: var(--evil); }
+.role-card.spectator {
+  background:
+    linear-gradient(160deg, rgba(201, 168, 76, 0.1), transparent 45%),
+    linear-gradient(175deg, var(--panel), var(--night-2));
+  border-color: var(--gold-deep);
+  box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold-deep), 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+.role-card.spectator .rc-num { color: var(--gold); border-color: rgba(201, 168, 76, 0.5); background: rgba(201, 168, 76, 0.07); }
+.role-card.spectator .rc-em { color: var(--gold); }
+.role-align.spectator { color: var(--gold); }
 .role-name { font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; font-size: 1.05rem; }
 .role-align { font: 600 0.55rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase; }
 .role-align.good { color: var(--good); }

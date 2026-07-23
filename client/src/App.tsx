@@ -3,7 +3,7 @@ import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPaylo
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, TEAM_SIZES, buildRoles, twoFailQuest } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
-import { ARCANA } from './components/Arcana.tsx'
+import { ARCANA, Emblem, SPECTATOR_ARCANA } from './components/Arcana.tsx'
 import { Feed } from './components/Feed.tsx'
 import { HistoryGrid } from './components/HistoryGrid.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
@@ -265,7 +265,7 @@ export function App() {
   const myAsk: DecisionRequest | undefined = ask[0]
 
   const roleTitle = payload.spectator
-    ? 'Spectator'
+    ? SPECTATOR_ARCANA.title
     : `${ARCANA[view.role as Role]?.title ?? view.role} · ${view.alignment}`
 
   return (
@@ -295,10 +295,16 @@ export function App() {
         <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
         <aside>
           {payload.spectator
-            ? <div className="role-card"><div className="role-body">
-                <div className="role-name">Spectator</div>
-                <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
-              </div></div>
+            ? <div className="role-card spectator">
+                <div className="rc-head"><span>Your card</span></div>
+                <div className="role-body">
+                  <div className="rc-num">{SPECTATOR_ARCANA.numeral}</div>
+                  <Emblem id={SPECTATOR_ARCANA.emblem} className="rc-em" />
+                  <div className="role-name">{SPECTATOR_ARCANA.title}</div>
+                  <div className="role-align spectator">Spectator · unaligned</div>
+                  <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
+                </div>
+              </div>
             : <RoleCard view={view} />}
           {!payload.spectator && !gameOver && (
             <NameEditor
@@ -328,7 +334,7 @@ export function App() {
             <span className="you-sigil">{payload.spectator ? '◎' : view.name.slice(0, 2).toUpperCase()}</span>
           <span className="you-meta">
               <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
-              <span className="you-role">{roleTitle} · your seat</span>
+              <span className="you-role">{payload.spectator ? 'public information only' : `${roleTitle} · your seat`}</span>
             </span>
           </div>
           {payload.spectator
