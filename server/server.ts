@@ -15,6 +15,7 @@
 //   GET  /api/game/:id/events?token=  (SSE: that seat's view; spectators get public-only)
 //   POST /api/game/:id/decide         {token, decision}
 //   GET  /api/game/:id/reveal         (gameOver only)
+//   GET  /api/game/:id/transcript?token=&raw=  (copyable debug transcript; full reveal when final or solo-vs-bots, else scoped to the seat)
 //   GET/POST /api/agents, GET /api/usage
 // Static: client/dist
 
@@ -37,7 +38,8 @@ import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE, DEFAULT_MODEL } from './llm/roster.ts'
 import { ROLE_ALIGNMENT, nameIsReserved, validateRoles } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
-import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
+import type { Decision, DecisionRequest, Game, GameEvent, Role, Seat } from './engine/types.ts'
+import { renderTranscript, type TranscriptSeat } from './transcript.ts'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST = path.join(__dirname, '..', 'client', 'dist')
@@ -654,6 +656,52 @@ const server = http.createServer(async (req, res) => {
             Object.entries(s.agentDefs).map(([seat, snap]) => [seat, publicInfo(snap.def, snap.model)]),
           ),
         })
+        return
+      }
+      // ---- copyable debug transcript (mid-game or final) ----
+      // Fidelity honors the hidden-information invariant: a FULL reveal (roles +
+      // every bot's private reasoning) is only produced once the game is over
+      // (public anyway, like /reveal) OR when a lone human is playing against
+      // bots — nobody else can be cheated in a solo table, and that is the
+      // debugging case. Any other mid-game request is SCOPED to the requester's
+      // own view (public events + their own private events), so no bot roles or
+      // reasoning ever leak into a multi-human game.
+      if (req.method === 'GET' && parts[3] === 'transcript') {
+        const token = url.searchParams.get('token') ?? ''
+        const who = seatOf(s, token)
+        const over = s.game.phase === 'gameOver'
+        // Mid-game, require a participant (seat or spectator), mirroring /events;
+        // /reveal-equivalent openness applies only once the game is finished.
+        if (!over && who === null) return json(res, 403, { error: 'not a player or spectator in this game' })
+        const full = over || (s.humans.size === 1 && typeof who === 'number')
+        const log: GameEvent[] = full
+          ? s.game.log
+          : typeof who === 'number'
+            ? viewFor(s.game, who).events
+            : viewForSpectator(s.game).events
+        const seats: TranscriptSeat[] = s.game.players.map((p) => ({
+          seat: p.seat,
+          name: p.name,
+          agent: s.humans.has(p.seat) ? 'human' : (s.botInfo[p.seat]?.model ?? 'bot'),
+          ...(full ? { role: p.role, alignment: p.alignment } : {}),
+        }))
+        const text = renderTranscript({
+          id: s.game.id, seed: s.game.seed, playerCount: s.game.config.playerCount,
+          phase: s.game.phase, round: s.game.round, proposalNum: s.game.proposalNum,
+          leaderSeat: s.game.leaderSeat, quests: s.game.quests, seats, log,
+          // Only a full reveal carries the per-seat degraded entries (seat/kind/
+          // raw error text). A scoped transcript omits them — payloadFor hands a
+          // live client only a bare count — so a co-player in a multi-human game
+          // gets no bot error detail the UI otherwise withholds.
+          degraded: full ? s.degraded : undefined,
+          winner: s.game.winner, winReason: s.game.winReason,
+          revealed: full,
+          scopedTo: full ? undefined : (typeof who === 'number' ? who : 'spectator'),
+          capturedAt: new Date().toISOString(),
+          includeRaw: url.searchParams.get('raw') !== '0',
+        })
+        res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' })
+        res.end(text)
         return
       }
     }

@@ -8,11 +8,13 @@ import { ARCANA, Emblem } from './Arcana.tsx'
 
 // The reveal takes over the stage: every identity dealt face-down in seat
 // order, then flipped one by one. The flip is the arcana's core animation.
-export function Reveal({ view, reveal, bots, onNewGame }: {
+export function Reveal({ view, reveal, bots, onNewGame, onCopyLog, copyLabel }: {
   view: PlayerView
   reveal: RevealPayload | null
   bots: Record<number, AgentInfo>
   onNewGame: () => void
+  onCopyLog: () => void
+  copyLabel: string
 }) {
   const [showThinking, setShowThinking] = useState(false)
   const winnerCls = view.winner === 'good' ? 'ok' : 'bad'
@@ -52,6 +54,7 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
         <button onClick={() => setShowThinking(!showThinking)}>
           {showThinking ? 'Hide' : 'Show'} what they were really thinking
         </button>
+        <button className="secondary" onClick={onCopyLog} title="Copy a full debug transcript of this game to the clipboard">{copyLabel}</button>
         <button className="secondary" onClick={onNewGame}>New game</button>
       </div>
       {showThinking && reveal && <ThinkingTimeline reveal={reveal} bots={bots} />}

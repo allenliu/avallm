@@ -52,6 +52,7 @@ export function App() {
   const [library, setLibrary] = useState<Library | null>(null)
   const [showRef, setShowRef] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [copyState, setCopyState] = useState<'idle' | 'ok' | 'err'>('idle')
   const esRef = useRef<EventSource | null>(null)
   const lobbyEsRef = useRef<EventSource | null>(null)
 
@@ -212,6 +213,28 @@ export function App() {
     }
   }, [gameId, gameToken])
 
+  // Copy a debug transcript of the current game to the clipboard. The server
+  // decides fidelity (full reveal when the game is over or you're solo-vs-bots,
+  // else scoped to your own view) — see GET /api/game/:id/transcript.
+  const copyLog = useCallback(async () => {
+    if (!gameId) return
+    try {
+      const res = await fetch(`/api/game/${gameId}/transcript?token=${encodeURIComponent(gameToken ?? '')}`)
+      if (!res.ok) throw new Error('transcript unavailable')
+      await navigator.clipboard.writeText(await res.text())
+      setCopyState('ok')
+      setTimeout(() => setCopyState('idle'), 1500)
+    } catch (e) {
+      // The button label carries the failure too, since the footer's error line
+      // is hidden on the end-game Reveal screen.
+      setCopyState('err')
+      setTimeout(() => setCopyState('idle'), 2500)
+      setError(e instanceof Error ? e.message : 'could not copy transcript')
+    }
+  }, [gameId, gameToken])
+
+  const copyLabel = copyState === 'ok' ? 'Copied!' : copyState === 'err' ? 'Copy failed' : 'Copy log'
+
   const backToLanding = useCallback(() => {
     esRef.current?.close()
     lobbyEsRef.current?.close()
@@ -277,6 +300,7 @@ export function App() {
         <span className="header-buttons">
           <button className="ghost" onClick={() => setShowHistory(true)}>Record</button>
           <button className="ghost" onClick={() => setShowRef(true)}>Codex</button>
+          <button className="ghost" onClick={copyLog} title="Copy a debug transcript of this game to the clipboard">{copyLabel}</button>
         </span>
       </header>
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
@@ -294,7 +318,7 @@ export function App() {
       </div>
       {gameOver ? (
         <main className="reveal-main">
-          <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} />
+          <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} onCopyLog={copyLog} copyLabel={copyLabel} />
         </main>
       ) : (
       <main>
