@@ -71,6 +71,18 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   return {
     async decide(req: DecisionRequest, view: PlayerView): Promise<Decision> {
       await maybeReflect(view)
+      // Good's quest card is forced (the engine coerces fail -> success), so
+      // a call would buy nothing. Skipping it is unobservable at the table:
+      // bot decisions resolve as a batch behind one broadcast, so per-seat
+      // latency never shows.
+      if (req.kind === 'quest' && view.alignment === 'good') {
+        const decision: Decision = { kind: 'quest', card: 'success' }
+        if (pendingNotes) {
+          decision.notes = pendingNotes
+          pendingNotes = null
+        }
+        return decision
+      }
       const kind = req.kind as LlmCallKind
       const first = await callKind(kind, view)
       let parsed = parseDecision(kind, first, view)

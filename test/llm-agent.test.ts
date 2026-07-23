@@ -35,6 +35,26 @@ test('clean decision carries thinking into the Decision', async () => {
   assert.equal(client.calls[0].tag, 'deepseek/vote')
 })
 
+test('good quest cards skip the LLM call entirely; evil still decides', async () => {
+  const client = fakeClient(() => '{"thinking": "one fail is enough", "card": "fail"}')
+  const good = game.players.find((p) => p.alignment === 'good')!
+  const goodAgent = createLlmAgent({ modelId: 'deepseek', client })
+  const d = await goodAgent.decide(
+    { kind: 'quest', seat: good.seat, round: 1, proposalNum: 1 }, viewFor(game, good.seat),
+  )
+  assert.deepEqual(d, { kind: 'quest', card: 'success' })
+  assert.equal(client.calls.length, 0, 'a forced decision must not burn a call')
+
+  const evil = game.players.find((p) => p.alignment === 'evil')!
+  const evilAgent = createLlmAgent({ modelId: 'deepseek', client })
+  const d2 = await evilAgent.decide(
+    { kind: 'quest', seat: evil.seat, round: 1, proposalNum: 1 }, viewFor(game, evil.seat),
+  )
+  assert.equal((d2 as any).card, 'fail')
+  assert.equal(client.calls.length, 1)
+  assert.equal(client.calls[0].tag, 'deepseek/quest')
+})
+
 test('one malformed reply triggers exactly one correction retry', async () => {
   let n = 0
   const client = fakeClient((_opts, messages) => {
