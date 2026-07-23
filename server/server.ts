@@ -378,7 +378,8 @@ const server = http.createServer(async (req, res) => {
         sse(res)
         res.write(`data: ${JSON.stringify(lobbyPayload(lobby))}\n\n`)
         lobby.listeners.add(res)
-        req.on('close', () => lobby.listeners.delete(res))
+        const hb = setInterval(() => res.write(': hb\n\n'), 25_000)
+        req.on('close', () => { clearInterval(hb); lobby.listeners.delete(res) })
         return
       }
       if (req.method === 'POST' && parts[3] === 'rename') {
@@ -451,7 +452,10 @@ const server = http.createServer(async (req, res) => {
         res.write(`data: ${JSON.stringify(payloadFor(s, token))}\n\n`)
         const listener = { res, token }
         s.listeners.add(listener)
-        req.on('close', () => s.listeners.delete(listener))
+        // Heartbeat comments keep idle streams alive through proxies (Railway
+        // edge culls quiet connections — mail-chess games idle for hours).
+        const hb = setInterval(() => res.write(': hb\n\n'), 25_000)
+        req.on('close', () => { clearInterval(hb); s.listeners.delete(listener) })
         return
       }
       if (req.method === 'POST' && parts[3] === 'decide') {
@@ -508,6 +512,7 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, {
         agents: library.map(publicInfo),
         models: ROSTER.map((r) => ({ id: r.id, name: r.displayName, slug: r.slug, tier: r.tier })),
+        defaultTable: DEFAULT_TABLE,
         baseline: { rulesDigest: RULES_DIGEST, roleGuidance: ROLE_GUIDANCE },
         gated: !!inviteCode(),
       })

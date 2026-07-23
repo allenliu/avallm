@@ -57,8 +57,11 @@ export function App() {
     setPayload(null)
     setScreen({ name: 'game', id, token })
     const es = new EventSource(`/api/game/${id}/events?token=${token}`)
-    es.onmessage = (ev) => setPayload(JSON.parse(ev.data))
-    es.onerror = () => setError('lost connection to the server')
+    es.onmessage = (ev) => {
+      setError(null) // EventSource auto-reconnects; a fresh payload means we're back
+      setPayload(JSON.parse(ev.data))
+    }
+    es.onerror = () => setError('connection lost — reconnecting…')
     esRef.current = es
   }, [])
 
@@ -434,9 +437,20 @@ function NameEditor({ current, rename }: {
 }
 
 function defaultTable(library: Library | null, count: number): string[] {
-  const llmAgents = library?.agents.filter((a) => a.model !== 'rule-based' && a.model !== 'external' && !a.custom) ?? []
-  return Array.from({ length: count }, (_, i) =>
-    llmAgents.length ? llmAgents[i % llmAgents.length].id : 'autopilot')
+  // The server's canonical default order (DEFAULT_TABLE) — the same one used
+  // when no table is sent — so every path seats the same roster.
+  const pool = (library?.defaultTable ?? [])
+    .filter((id) => library?.agents.some((a) => a.id === id))
+  if (pool.length === 0) {
+    const llmAgents = library?.agents.filter((a) => a.model !== 'rule-based' && a.model !== 'external' && !a.custom) ?? []
+    return Array.from({ length: count }, (_, i) =>
+      llmAgents.length ? llmAgents[i % llmAgents.length].id : 'autopilot')
+  }
+  const extras = library!.agents
+    .filter((a) => !pool.includes(a.id) && a.model !== 'rule-based' && a.model !== 'external' && !a.custom)
+    .map((a) => a.id)
+  const full = [...pool, ...extras]
+  return Array.from({ length: count }, (_, i) => full[i % full.length])
 }
 
 function Launcher({ onStart, starting, library, onLibraryChange }: {
