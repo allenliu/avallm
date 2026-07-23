@@ -22,7 +22,9 @@ during M1→MP1 plus what deployment newly unblocks, in rough priority order.
 4. **Custom agents on deployments** (explicitly deferred): attach a volume at `/app/data`; add
    gated `DELETE /api/agents/:id`; surface (rather than silently skip) custom agents whose roster
    model id disappeared. Optional third tier: checked-in `agents/*.json` — curated agents that
-   version with the repo and appear on every deployment.
+   version with the repo and appear on every deployment. **Design fleshed out (including
+   author-controlled system prompts for smarter agents) in
+   [design-custom-agents.md](design-custom-agents.md).**
 
 ## Next — gameplay quality (the M3 core)
 
