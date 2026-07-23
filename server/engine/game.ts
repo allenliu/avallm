@@ -110,6 +110,15 @@ function endDiscussion(game: Game): void {
 function enterProposalCycle(game: Game): void {
   game.currentTeam = undefined
   game.pendingVotes = {}
+  // Public marker for whose turn it is to lead. The leader is otherwise only
+  // implicit in the eventual proposal event, so the human feed and the
+  // bot-visible log had no explicit "X now leads" beat — easy to lose track of,
+  // and easy for the leader to forget it is on them to open the discussion.
+  // Emitted at every cycle (initial deal, post-rejection, post-quest), which is
+  // exactly where the leader is (re)established.
+  emit(game, 'leadChange', {
+    seat: game.leaderSeat, round: game.round, proposalNum: game.proposalNum,
+  }, 'public')
   if (!startDiscussion(game, 'pre', game.config.talk.preProposal)) {
     game.phase = 'proposal'
   }

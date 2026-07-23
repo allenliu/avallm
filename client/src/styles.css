@@ -325,6 +325,7 @@ footer { min-height: 3.4rem; }
 .feed-row.system.ok { color: var(--ok); }
 .feed-row.system.bad { color: var(--bad); }
 .feed-row.big { font-weight: 700; font-size: 1.02rem; }
+.feed-row.system.lead { color: var(--gold); font-weight: 600; }
 
 /* ---- role card ---- */
 .role-card {
@@ -361,6 +362,7 @@ footer { min-height: 3.4rem; }
 .action-bar.column { flex-direction: column; align-items: stretch; }
 .action-bar.waiting { color: var(--dim); font-style: italic; }
 .action-label { font-weight: 600; }
+.action-hint { flex-basis: 100%; color: var(--gold); font-size: 0.85rem; line-height: 1.4; }
 .action-bar input { flex: 1; min-width: 12rem; }
 .row { display: flex; gap: 0.6rem; align-items: center; }
 .seat-picker { display: flex; gap: 0.45rem; flex-wrap: wrap; }

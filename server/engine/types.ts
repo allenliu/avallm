@@ -45,7 +45,7 @@ export interface Quest {
 export type Visibility = 'public' | { only: Seat[] }
 
 export type EventType =
-  | 'gameCreated' | 'roleDealt' | 'knowledge'
+  | 'gameCreated' | 'roleDealt' | 'knowledge' | 'leadChange'
   | 'utterance' | 'proposal' | 'voteCast' | 'voteReveal'
   | 'questCard' | 'questResult' | 'assassination' | 'gameOver'
   | 'thinking' | 'rename' | 'scratchpad'

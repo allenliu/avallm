@@ -35,12 +35,20 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   const [lean, setLean] = useState<string | null>(() => latestLeans(view).get(view.seat) ?? null)
   const teamPending = !!view.currentTeam
   const round = view.discussionRound ?? 1
+  // You lead this quest and the pre-proposal talk has just opened on you: the
+  // table has nothing to react to yet, so passing here tends to stall everyone.
+  const leadOpening = view.leaderSeat === view.seat && view.discussionSlot === 'pre' && !teamPending
   const submit = (text: string) => {
     onDecide({ kind: 'discuss', say: text, lean: lean ?? undefined })
     setSay('')
   }
   return (
     <div className="action-bar">
+      {leadOpening && (
+        <span className="action-hint">
+          👑 You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
+        </span>
+      )}
       <span className="action-label">
         Your turn to speak{round > 1 ? ` (round ${round})` : ''}
       </span>

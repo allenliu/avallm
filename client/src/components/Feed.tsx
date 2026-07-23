@@ -16,7 +16,7 @@ export function Feed({ view, bots, degradedSeqs }: {
   const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
   const degraded = new Set(degradedSeqs ?? [])
 
-  const rows = view.events.map((ev) => renderEvent(ev, name)).filter(Boolean) as FeedRow[]
+  const rows = view.events.map((ev) => renderEvent(ev, name, view.seat)).filter(Boolean) as FeedRow[]
 
   return (
     <div className="feed" ref={ref}>
@@ -48,9 +48,14 @@ interface FeedRow {
   text: string
 }
 
-function renderEvent(ev: GameEvent, name: (s: number) => string): FeedRow | null {
+function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: number): FeedRow | null {
   const p = ev.payload
   switch (ev.type) {
+    case 'leadChange': {
+      const seat = p.seat as number
+      const you = seat === viewSeat
+      return { key: ev.seq, cls: 'system lead', text: `👑 ${name(seat)} ${you ? 'are' : 'is'} now the leader — quest ${p.round}` }
+    }
     case 'utterance': {
       const lean = p.lean ? ` ${p.lean === 'approve' ? '👍' : p.lean === 'reject' ? '👎' : '🤔'}` : ''
       if (p.text) return { key: ev.seq, cls: 'talk', seat: p.seat, text: p.text + lean }

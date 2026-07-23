@@ -240,3 +240,31 @@ test('discussion turns walk the table from the leader', () => {
   }
   assert.equal(g.phase, 'vote')
 })
+
+test('a public leadChange marks the leader at the start of every proposal cycle', () => {
+  const g = mk(7, 'leadmarker')
+  const leadChanges = () => g.log.filter((e) => e.type === 'leadChange')
+
+  // The initial deal announces the first leader.
+  let marks = leadChanges()
+  assert.equal(marks.length, 1)
+  assert.equal(marks[0].visibility, 'public')
+  assert.deepEqual(marks[0].payload, { seat: g.leaderSeat, round: 1, proposalNum: 1 })
+
+  // A rejection opens a fresh cycle under the rotated leader — new marker.
+  const firstLeader = g.leaderSeat
+  propose(g, [0, 1])
+  voteAll(g, () => 'reject')
+  marks = leadChanges()
+  assert.equal(marks.length, 2)
+  assert.deepEqual(marks[1].payload, { seat: (firstLeader + 1) % 7, round: 1, proposalNum: 2 })
+
+  // A completed quest advances the round under the next leader — new marker.
+  const before = leadChanges().length
+  runRound(g, [g.leaderSeat, (g.leaderSeat + 1) % 7], [])
+  const latest = leadChanges().at(-1)!
+  assert.equal(leadChanges().length, before + 1)
+  assert.equal(latest.payload.round, 2)
+  assert.equal(latest.payload.proposalNum, 1)
+  assert.equal(latest.payload.seat, g.leaderSeat)
+})
