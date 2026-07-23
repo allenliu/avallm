@@ -31,6 +31,13 @@ Everything else in the strategy region of the prompt becomes author territory. A
 with an unhinged strategy just plays badly, and playing badly is allowed (semantic leaks are
 measured, not prevented — roadmap #7).
 
+> **Layer mapping** ([design-evaluation.md](design-evaluation.md) §1.2): the locked set above is
+> that doc's *integrity layer*; the author fields in §2 are its *policy layer*. The third layer
+> there — a *facts dossier* of engine-computed, strictly neutral social facts (who addressed
+> you, your own public commitments, hammer proximity) — is future work, as is making
+> `TABLE_TALK_NORMS`/ask-embedded norms overridable like `roleGuidance` (they are policy, not
+> harness). The eval framework measures whether such changes actually help before they ship.
+
 ## 2. The authoring surface: structured layers
 
 The `LlmEngine` config grows from two prompt fields to four, all optional, all layered into the

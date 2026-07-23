@@ -23,7 +23,7 @@ import path from 'node:path'
 import { buildMessages } from '../agents/prompts.ts'
 import { parseDecision } from '../agents/parse.ts'
 import { heuristicDecide } from '../agents/heuristic.ts'
-import { loadAgentLibrary } from '../agents/defs.ts'
+import { loadAgentLibrary, resolveModel } from '../agents/defs.ts'
 import { rosterById } from '../llm/roster.ts'
 import { CALL_PARAMS } from '../llm/call-params.ts'
 import { extractObject } from '../agents/parse.ts'
@@ -95,13 +95,18 @@ export async function replayItem(item: BankItem, def: AgentDef): Promise<{ decis
   const { getClient } = await import('../llm/client.ts')
   const kind = snapshot.kind as LlmCallKind
   const params = CALL_PARAMS[kind]
+  // Mirror createAgentFromDef's layer mapping exactly — a bank replay must
+  // exercise the same prompt the def would produce in a live game.
   const messages = buildMessages(kind, snapshot.view, snapshot.scratchpad, {
     personality: def.engine.personality,
+    strategy: def.engine.strategy,
     roleGuidance: def.engine.roleGuidance,
+    roleGuidanceMode: def.engine.roleGuidanceMode,
+    kindGuidance: def.engine.kindGuidance,
   })
-  const content = await getClient().call(rosterById(def.engine.model).slug, messages, {
+  const content = await getClient().call(rosterById(resolveModel(def)).slug, messages, {
     tag: `eval/bank/${def.id}`,
-    temperature: params.temperature,
+    temperature: def.engine.temperature ?? params.temperature,
     max_tokens: params.max_tokens,
     response_format: params.json ? { type: 'json_object' } : undefined,
   })

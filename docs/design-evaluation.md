@@ -15,13 +15,18 @@ transparency into roles and private thinking.
 
 ## 1. Principles
 
-### 1.1 The unit under test is an `AgentDef`
+### 1.1 The unit under test is an `AgentDef` + a pinned model
 
-An agent is already a config: model + prompt layers (`server/agents/defs.ts`). Once §2's layering
-lands, an `AgentDef` is the **complete behavioral genome** — everything that distinguishes one bot
-version from another lives in it. Version them, archive them, evolve them. The engine, facts
-rendering, and output contracts are constant infrastructure underneath and are NOT part of the
-genome.
+An agent is already a config: prompt layers plus a model *suggestion*
+(`server/agents/defs.ts`; see [design-custom-agents.md](design-custom-agents.md) — custom agents
+v2 made the layers rich: `strategy`, `roleGuidance`+mode, `kindGuidance`, `personality`,
+`temperature`). An `AgentDef` is the **behavioral genome** — everything that distinguishes one
+bot version from another lives in it — with one caveat from the model/config split: the def only
+*suggests* its model (`resolveModel`: seat override > suggestion > default), so an eval run must
+**pin the resolved model into its artifacts** (the bench tags `agentModel`) or its results are
+not reproducible. Version defs (PUT already increments `version`), archive them, evolve them.
+The engine, facts rendering, and output contracts are constant infrastructure underneath and are
+NOT part of the genome.
 
 ### 1.2 Code computes facts, prompts decide policy
 
@@ -39,7 +44,7 @@ The facts layer is not "hardcoding intelligence" — it compensates for what LLM
 handing a chess player an accurate board isn't whispering moves. It can grow forever without
 prescribing behavior, because facts don't prescribe.
 
-This implies three prompt layers (today there are two):
+This implies three prompt layers:
 
 1. **Integrity layer** — engine-owned, non-overridable: rules digest, output contracts,
    injection guard, view rendering. About not breaking parsing and not leaking hidden info.
@@ -54,10 +59,28 @@ This implies three prompt layers (today there are two):
    bot's opinion*, not platform law. A custom agent that wants a taciturn, cryptic persona may
    replace it wholesale.
 
-Known blurred spots to fix: the directive half of the `directAddresses` note ("respond to it
-now") is policy inside engine text; `TABLE_TALK_NORMS` is pure policy but not overridable; the
-discuss ask mixes turn mechanics (fact) with pass-encouragement ("most players pass by round 2" —
-policy, and it actively taught the DeepSeek silence).
+**Reconciled with custom agents v2** ([design-custom-agents.md](design-custom-agents.md), landed
+on master 2026-07-23) — the two designs agree and divide the work:
+
+- v2's locked set (view rendering, output contracts, injection guard, footer placement, §1
+  there) **is** the integrity layer. Same list, same rationale. ✓
+- v2's author surface (`strategy`, `roleGuidance` with replace/append, `kindGuidance`,
+  `personality`, `temperature`) delivers most of the **policy layer**: role and per-decision
+  strategy are now genuinely author-owned, and `roleGuidanceMode: 'append'` is exactly the
+  "defaults are opinions you can build on" semantics this doc wanted.
+- What v2 does NOT yet do — this doc's remaining agenda:
+  - **The facts dossier isn't a named layer.** Derived social facts still live inside
+    engine-owned ask/view text, and the commitment ledger (§4) has no prompt-side home yet.
+  - **`TABLE_TALK_NORMS` stays engine-owned** in v2's composition even though it is pure
+    policy; likewise the `directAddresses` directive and the discuss ask's pass-encouragement
+    ("most players pass by round 2" — which actively taught the DeepSeek silence). An author
+    can *stack* contrary guidance via `kindGuidance.discuss`, but cannot remove the baseline
+    text it fights against. Moving these into the overridable default set (or a
+    `norms`/`talkNorms` field with replace/append like roleGuidance) is the follow-up to
+    propose once the eval can measure the effect of loosening them.
+
+The eval treats v2's fields as the genome (§1.1) either way, so nothing here blocks on that
+follow-up.
 
 ### 1.3 Opinions are enforced by selection, not mandates
 

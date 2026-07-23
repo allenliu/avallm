@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url'
 import { createGame } from '../engine/game.ts'
 import { DEFAULT_ROLES } from '../engine/rules.ts'
 import { createAgent, createAgentFromDef } from '../agents/registry.ts'
-import { loadAgentLibrary } from '../agents/defs.ts'
+import { loadAgentLibrary, resolveModel } from '../agents/defs.ts'
 import { ROSTER } from '../llm/roster.ts'
 import { runGame } from '../sim/runner.ts'
 import { appendArtifact, toArtifact } from './artifact.ts'
@@ -87,11 +87,15 @@ export async function runBench(opts: BenchOpts): Promise<GameArtifact[]> {
         }
       }
       const result = await runGame({ game, agents })
+      // A def only SUGGESTS its model (resolveModel: override > suggestion >
+      // default), so pin the model that actually played into the tags — an
+      // eval result without the resolved model is not reproducible.
+      const resolved = def.engine.type === 'llm' ? resolveModel(def) : def.engine.type
       const artifact = toArtifact(game, {
         agents: descriptors,
         degraded: result.degraded,
         steps: result.steps,
-        tags: { bench: opts.role, variant, pairSeed: seed, agentId: def.id },
+        tags: { bench: opts.role, variant, pairSeed: seed, agentId: def.id, agentModel: resolved },
       })
       if (opts.out) appendArtifact(opts.out, artifact)
       artifacts.push(artifact)
