@@ -39,7 +39,7 @@ export function TableSeats({ view, bots, acting }: {
             <div className="seat-top">
               {isLeader && <span className="crown" title="Leader">♛</span>}
               <ModelBadge info={bots[p.seat]} />
-              <span className="seat-name">{p.name}</span>
+              <span className="seat-name">{p.seat === view.seat ? 'You' : p.name}</span>
             </div>
             <div className="seat-bottom">
               {onTeam && <span className="chip team-chip" title="Proposed for the current quest (says nothing about loyalty)">on quest</span>}

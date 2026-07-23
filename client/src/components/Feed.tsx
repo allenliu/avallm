@@ -11,7 +11,9 @@ export function Feed({ view, bots, degradedSeqs }: {
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
   }, [view.events.length])
-  const name = (s: number) => view.players[s]?.name ?? `seat ${s}`
+  // The viewer sees "You" for their own seat; the canonical name (what bots
+  // see) is never a pronoun, so this label lives only in the client.
+  const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
   const degraded = new Set(degradedSeqs ?? [])
 
   const rows = view.events.map((ev) => renderEvent(ev, name)).filter(Boolean) as FeedRow[]

@@ -62,6 +62,39 @@ export function validateRoles(playerCount: number, roles: Role[]): void {
   }
 }
 
+// ---- name policy ----
+// A display name is injected verbatim into every OTHER player's LLM prompt
+// (and echoed in their speech), so it must be an unambiguous identity token.
+// A first/second-person pronoun ("You", "Me", "I") is read by the model as
+// referring to itself — a human named "You" makes every bot think it is the
+// leader, on the team, etc. Game terms ("leader") and system words collide
+// with the prompt's own structure. These are rejected at the boundary; the
+// human's own view renders "You" client-side instead of storing it as a name.
+export const RESERVED_NAMES: ReadonlySet<string> = new Set([
+  'you', 'u', 'me', 'i', 'myself', 'self', 'we', 'us',
+  'system', 'assistant', 'narrator', 'leader',
+])
+
+export function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+export function nameIsReserved(name: string): boolean {
+  return RESERVED_NAMES.has(normalizeName(name))
+}
+
+// Seat numbers are handed to models ONLY so they can fill the team/vote/target
+// JSON fields; the table UI shows names, not seats. Models nonetheless leak
+// "seat 3" / "player 3" into their spoken text, where it is noise to humans and
+// other bots alike. Rewrite any such reference to the name at that seat as the
+// utterance/pitch enters the log (the single source both UI and prompts read).
+export function stripSeatRefs(text: string, players: Player[]): string {
+  return text.replace(/\b(?:seats?|players?)\s*#?\s*(\d+)\b/gi, (m, d) => {
+    const n = Number(d)
+    return n >= 0 && n < players.length ? players[n].name : m
+  })
+}
+
 // The knowledge matrix (research doc §3.3). The ONLY producer of night-phase
 // knowledge — deal, viewFor, and tests all share it.
 export function computeKnowledge(players: Player[], seat: Seat): PrivateInfo {

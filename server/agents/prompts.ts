@@ -24,6 +24,7 @@ const TABLE_TALK_NORMS = `Table talk is a live conversation, not a series of ann
 - If someone asks you something or accuses you, deal with it. You may answer, deflect, or turn it around — but visibly engaging is mandatory: silently ignoring a direct question is the worst move, because the table reads it as evasion.
 - Every sentence is a move: probe someone, build trust, cast doubt, defend yourself, or commit to a position. Calling out inconsistencies (a player whose words and votes disagree) is strong play.
 - Keep it short and natural — one or two spoken sentences, like a person, not an essay.
+- Refer to players by NAME when you speak — never by seat number. The table shows names, not seats; a spoken "seat 3" means nothing to anyone. Seat numbers exist only for your private team/vote/target fields.
 - Passing is fine when you genuinely have nothing to add — but never when you have been put on the spot.`
 
 export const ROLE_GUIDANCE: Record<string, string> = {

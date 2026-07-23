@@ -49,7 +49,7 @@ function ask(prompt: string): Promise<string> {
   return new Promise((resolve) => waiters.push(resolve))
 }
 
-const names = ['You', 'DeepSeek', 'Gemini', 'Haiku', 'Kimi', 'Qwen', 'GLM', 'Mistral', 'GPT', 'Llama']
+const names = ['Human', 'DeepSeek', 'Gemini', 'Haiku', 'Kimi', 'Qwen', 'GLM', 'Mistral', 'GPT', 'Llama']
   .slice(0, playerCount)
 
 const game = createGame({

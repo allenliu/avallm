@@ -31,7 +31,7 @@ import type { AgentDef, AgentPublicInfo } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE } from './agents/prompts.ts'
 import { getClient } from './llm/client.ts'
 import { ROSTER, DEFAULT_TABLE } from './llm/roster.ts'
-import { ROLE_ALIGNMENT, validateRoles } from './engine/rules.ts'
+import { ROLE_ALIGNMENT, nameIsReserved, validateRoles } from './engine/rules.ts'
 import type { AvalonAgent } from './agents/types.ts'
 import type { Decision, DecisionRequest, Game, Role, Seat } from './engine/types.ts'
 
@@ -58,12 +58,20 @@ const libById = (id: string): AgentDef => {
 const newToken = () => crypto.randomBytes(16).toString('hex')
 const newId = () => crypto.randomBytes(5).toString('hex')
 
-function cleanName(raw: unknown, fallback: string): string {
+// Structural cleanup only — strips prompt-injection markup and clamps length.
+function sanitizeName(raw: unknown): string {
   return (typeof raw === 'string' ? raw : '')
     .replace(/[<>{}[\]|\\]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, 24) || fallback
+    .slice(0, 24)
+}
+
+// A safe canonical name, or the fallback when empty or a reserved word (a
+// pronoun/game term that would poison other players' prompts — see rules.ts).
+function cleanName(raw: unknown, fallback: string): string {
+  const name = sanitizeName(raw)
+  return name && !nameIsReserved(name) ? name : fallback
 }
 
 // ---------- lobbies ----------
@@ -164,7 +172,8 @@ function startLobby(l: Lobby): void {
   const humanSeatList = seats.slice(0, l.members.length).sort((a, b) => a - b)
   const botSeatList = seats.slice(l.members.length).sort((a, b) => a - b)
 
-  // Names, seat-indexed; human names reserved first, then bots deduped.
+  // Names, seat-indexed; bot names reserved first, then humans deduped around
+  // them (so a name collision suffixes the human, protecting the bot's identity).
   const names = new Array<string>(playerCount)
   const nameCount = new Map<string, number>()
   const reserve = (want: string): string => {
@@ -172,19 +181,23 @@ function startLobby(l: Lobby): void {
     nameCount.set(want, n)
     return n === 1 ? want : `${want} ${n}`
   }
+  const botInfo: Record<number, AgentPublicInfo> = {}
+  const agents = new Map<Seat, AvalonAgent>()
+  const seed = `web-${newId()}`
+  // Reserve bot (roster) names FIRST, so a human who picks an in-play bot's
+  // name is the one demoted to "<name> 2" — never the bot. Names are injected
+  // verbatim into every player's prompt, so an unsuffixed impostor could
+  // otherwise pose as the model to the humans and the other bots alike.
+  botSeatList.forEach((seat, i) => {
+    const def = defs[i]
+    names[seat] = reserve(def.name)
+    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
+  })
   const humans = new Map<Seat, { token: string; name: string }>()
   l.members.forEach((m, i) => {
     const seat = humanSeatList[i]
     names[seat] = reserve(m.name)
     humans.set(seat, { token: m.token, name: names[seat] })
-  })
-  const botInfo: Record<number, AgentPublicInfo> = {}
-  const agents = new Map<Seat, AvalonAgent>()
-  const seed = `web-${newId()}`
-  botSeatList.forEach((seat, i) => {
-    const def = defs[i]
-    names[seat] = reserve(def.name)
-    botInfo[seat] = { ...publicInfo(def), name: names[seat] }
   })
 
   const game = createGame({
@@ -388,8 +401,9 @@ const server = http.createServer(async (req, res) => {
         const member = lobby.members.find((m) => m.token === token)
           ?? lobby.spectators.find((sp) => sp.token === token)
         if (!member) return json(res, 403, { error: 'not in this lobby' })
-        const name = cleanName(body.name, '')
+        const name = sanitizeName(body.name)
         if (!name) return json(res, 400, { error: 'name must not be empty' })
+        if (nameIsReserved(name)) return json(res, 400, { error: `"${name}" can't be used as a name — it's a reserved word` })
         const taken = [...lobby.members, ...lobby.spectators]
           .some((m) => m.token !== token && m.name.toLowerCase() === name.toLowerCase())
         if (taken) return json(res, 409, { error: `the name "${name}" is already taken in this lobby` })
@@ -430,9 +444,12 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const { lobby, token } = createLobby({
-        // Solo default is 'You', not the lobby path's 'Host' — there is no
-        // lobby to host when playing alone with an empty name field.
-        name: cleanName(body.humanName, 'You'),
+        // Solo default is 'Human' (a plain, non-pronoun identity), not the
+        // lobby path's 'Host'. It must never be 'You': that pronoun, injected
+        // into the bots' prompts, reads as second-person and makes every bot
+        // think it is the leader. The human's own view renders "You" for their
+        // seat client-side, so the on-screen label is unchanged.
+        name: cleanName(body.humanName, 'Human'),
         playerCount: body.playerCount, humanSeats: 1,
         table: body.table, roles: body.roles,
       })

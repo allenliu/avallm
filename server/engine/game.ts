@@ -6,7 +6,7 @@
 import {
   DEFAULT_ROLES, EVIL_COUNT, MAX_PLAYERS, MAX_PROPOSALS, MIN_PLAYERS,
   QUESTS_PER_GAME, QUESTS_TO_WIN, ROLE_ALIGNMENT, TEAM_SIZES,
-  computeKnowledge, failsRequired, validateRoles,
+  computeKnowledge, failsRequired, nameIsReserved, stripSeatRefs, validateRoles,
 } from './rules.ts'
 import { makeRng } from './prng.ts'
 import type {
@@ -173,6 +173,7 @@ export function renamePlayer(game: Game, seat: Seat, rawName: string): void {
   if (!player) throw new EngineError(`no player at seat ${seat}`)
   const name = rawName.replace(/\s+/g, ' ').trim().slice(0, 24)
   if (!name) throw new EngineError('name must not be empty')
+  if (nameIsReserved(name)) throw new EngineError(`"${name}" is a reserved word — pick another name`)
   const from = player.name
   if (from === name) return
   if (game.players.some((p) => p.seat !== seat && p.name.toLowerCase() === name.toLowerCase())) {
@@ -234,7 +235,7 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
       if (lean !== undefined && lean !== 'approve' && lean !== 'reject' && lean !== 'unsure') {
         throw new EngineError(`invalid lean: ${String(lean)}`)
       }
-      const say = decision.say.slice(0, 600)
+      const say = stripSeatRefs(decision.say, game.players).slice(0, 600)
       const d = game.discussion!
       // A lean is a public signal about the team on the table — only
       // meaningful while a proposal is pending.
@@ -277,7 +278,7 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
         round: game.round, proposalNum: game.proposalNum,
         leader: seat, team: game.currentTeam,
         ...(typeof decision.pitch === 'string' && decision.pitch.trim()
-          ? { pitch: decision.pitch.trim().slice(0, 400) }
+          ? { pitch: stripSeatRefs(decision.pitch.trim(), game.players).slice(0, 400) }
           : {}),
       }, 'public')
       afterProposal(game)
