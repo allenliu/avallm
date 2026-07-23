@@ -1509,3 +1509,14 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .tm-em { width: 36px; height: 36px; }
   .reveal-main { padding: 0.6rem 0.7rem; }
 }
+
+/* Component gallery (gallery.html) — a fixture stage, not part of the app. */
+.gallery-stage { padding: 20px; height: auto; min-height: 100dvh; justify-content: flex-end; }
+.gallery-main { flex: 0 0 auto; }
+.gallery-hint { color: var(--dim); font-family: var(--mono); padding: 24px; }
+.gallery-hint a { color: var(--gold); margin-right: 0.9rem; display: inline-block; }
+/* Tooltip variants crop the whole stage: the seat/quest tooltips are placed to the
+   side / above their anchor and would be clipped by the table zone's overflow, so
+   drop that clip here and give the stage headroom to frame the open tooltip. */
+.gallery-stage[data-variant^="tip-"] { min-height: 0; justify-content: center; padding: 78px 20px; }
+.gallery-stage[data-variant^="tip-"] .fartable { overflow: visible; }

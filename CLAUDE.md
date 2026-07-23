@@ -29,19 +29,34 @@ node server/server.ts                      # serve at http://localhost:8787
 
 ## Screenshot gallery (UI before/after)
 
-`docs/screens/` holds committed screenshots of hard-to-reach UI states — setup variants,
-every game phase, the Record/Codex sheets, the reveal, lobby host, join screen, and an
-in-game spectator, at desktop 1280×800 and mobile 390×844. Expectations:
+`docs/screens/` holds committed screenshots of hard-to-reach UI states. Two sets:
+
+- **`desktop/` + `mobile/`** — a live autopilot playthrough (setup variants, every game
+  phase, Record/Codex sheets, reveal, lobby host, join screen, in-game spectator) at
+  desktop 1280×800 and mobile 390×844.
+- **`components/`** — a fixture-driven gallery (`client/src/gallery.tsx`, served at
+  `/gallery.html`) for states a live deal reaches only by luck or by interaction: each
+  role card (Merlin/Percival/Servant/Minion/Oberon/spectator), the leader/quest/assassin
+  action bars, the expanded name editor, and the hover-only seat/quest tooltips. These are
+  deterministic, so they're captured from hand-built fixtures rather than a real game.
+
+Expectations:
 
 - **Regenerate when a commit visibly changes the client UI** (styles, layout, component
   markup), and include the refreshed images in that commit so reviewers get a before/after
   diff. Don't regenerate for non-visual changes — image churn drowns the signal.
-- Command: `npm --prefix client run build && node tools/screenshots.mjs` (~3–4 min; spawns
-  its own server on port 18917; Chrome at the default Windows path or `CHROME` env).
+- Command: `npm --prefix client run build && node tools/screenshots.mjs` (~4–5 min; spawns
+  its own server on port 18917; Chrome at the default Windows path or `CHROME` env). The run
+  writes `docs/screens/manifest.json` and **exits non-zero if a required shot is missing**;
+  luck-of-the-deal misses (propose/quest-card/assassinate) are logged as a note, not a
+  failure. What's required vs. optional lives in `tools/screens-expected.mjs`.
+- `test/screens.test.ts` (part of `npm test`) is the cheap drift guard: it asserts every
+  required shot exists and is non-empty (no Chrome, no pixels) — so a partial run or a lost
+  image reddens the suite. It skips entirely if the gallery was never generated in a checkout.
 - Runs are **intentionally unseeded**: the seed determines the hidden role deal, so a
   client-chosen seed would be an information leak. Treat the gallery as a layout/design
-  diff, not a pixel test — role names, chatter, and which optional states get captured
-  (vote vs. propose) vary run to run.
+  diff, not a pixel test — role names, chatter, and which optional states get captured vary
+  run to run. (The `components/` fixtures are stable, since they don't depend on a deal.)
 - Puppeteer-core lives in `client/` devDependencies (the server stays zero-dependency).
 - Known gap: no error/reconnect-banner capture yet.
 

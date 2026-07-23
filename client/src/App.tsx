@@ -4,13 +4,15 @@ import { tokenEstimate as tokenEst } from './agentConfig.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
-import { ARCANA, Emblem, HUMAN_CELESTIAL, SPECTATOR_ARCANA } from './components/Arcana.tsx'
+import { ARCANA, HUMAN_CELESTIAL, SPECTATOR_ARCANA } from './components/Arcana.tsx'
 import { Feed } from './components/Feed.tsx'
 import { HistoryGrid } from './components/HistoryGrid.tsx'
+import { NameEditor } from './components/NameEditor.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
 import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
+import { SpectatorCard } from './components/SpectatorCard.tsx'
 import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 
 const Brand = () => <>Ava<span className="llm">LLM</span></>
@@ -333,18 +335,7 @@ export function App() {
       <main>
         <Feed view={view} bots={bots} acting={acting} waitingOn={payload.waitingOn} degradedSeqs={payload.degradedSeqs} />
         <aside>
-          {payload.spectator
-            ? <div className="role-card spectator">
-                <div className="rc-head"><span>Your card</span></div>
-                <div className="role-body">
-                  <div className="rc-num">{SPECTATOR_ARCANA.numeral}</div>
-                  <Emblem id={SPECTATOR_ARCANA.emblem} className="rc-em" />
-                  <div className="role-name">{SPECTATOR_ARCANA.title}</div>
-                  <div className="role-align spectator">Spectator · unaligned</div>
-                  <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
-                </div>
-              </div>
-            : <RoleCard view={view} />}
+          {payload.spectator ? <SpectatorCard /> : <RoleCard view={view} />}
           {!payload.spectator && !gameOver && (
             <NameEditor
               current={view.name}
@@ -529,49 +520,6 @@ function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
         />
         <button className="secondary" onClick={onBack}>Leave lobby</button>
       </div>
-    </div>
-  )
-}
-
-function NameEditor({ current, rename }: {
-  current: string
-  rename: (name: string) => Promise<void>
-}) {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState(current)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  if (!open) {
-    return (
-      <button className="secondary name-edit-toggle" onClick={() => { setName(current); setOpen(true) }}>
-        Change name
-      </button>
-    )
-  }
-  const submit = async () => {
-    setBusy(true)
-    setErr(null)
-    try {
-      await rename(name)
-      setOpen(false)
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <div className="name-editor">
-      <div className="row">
-        <input
-          value={name} maxLength={24} placeholder="New name" autoFocus
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') submit() }}
-        />
-        <button disabled={busy || !name.trim()} onClick={submit}>Save</button>
-        <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
-      </div>
-      {err && <p className="error">{err}</p>}
     </div>
   )
 }

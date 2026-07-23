@@ -139,12 +139,17 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
 ### Screenshot gallery (tooling)
 
 `node tools/screenshots.mjs` (after a client build) spawns its own server and captures
-every hard-to-reach state — setup variants, all game phases, Record/Codex sheets, the
-reveal, lobby host / join / in-game spectator — at desktop 1280×800 and mobile 390×844
-into **`docs/screens/`** (committed). Regenerate on demand before/after design commits,
-not per commit. Games are unseeded on purpose: a client-chosen seed would determine the
-hidden role deal, so pixel-stable runs would need an engine-side gated seed path (future).
-TODO: an error/reconnect-banner capture.
+every hard-to-reach state into **`docs/screens/`** (committed). Two sets: a live unseeded
+playthrough into `desktop/` + `mobile/` (setup variants, all game phases, Record/Codex
+sheets, reveal, lobby host / join / spectator; 1280×800 and 390×844), and a fixture gallery
+into `components/` (`client/src/gallery.tsx`, served at `/gallery.html`) for deal- or
+hover-dependent states: each role card, the leader/quest/assassin action bars, the expanded
+name editor, and the hover-only seat/quest tooltips. Regenerate on demand before/after
+design commits, not per commit. The playthrough is unseeded on purpose — a client-chosen
+seed would determine the hidden role deal — so those pixels vary run to run; the fixtures
+are stable. The run writes `manifest.json` and exits non-zero on a missing *required* shot
+(`tools/screens-expected.mjs` classifies required vs. luck-of-the-deal); `test/screens.test.ts`
+guards the committed set under `npm test` without Chrome. TODO: an error/reconnect-banner capture.
 
 ### Table surface — DECIDED: The Constellation (ambient scene)
 
