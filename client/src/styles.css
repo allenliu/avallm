@@ -995,7 +995,8 @@ footer .error::before {
 }
 .action-label { font-weight: 600; color: #f0e8d5; }
 .action-label .team-gold { color: var(--gold-lt); }
-.action-hint { flex-basis: 100%; color: var(--gold-lt); font-size: 0.85rem; line-height: 1.4; }
+/* only ever rendered inside the column-flex discuss bar, so it's full-width already (no row-break basis needed) */
+.action-hint { color: var(--gold-lt); font-size: 0.85rem; line-height: 1.4; }
 .bar-spacer { flex: 1; }
 .action-bar input { flex: 1; min-width: 10rem; }
 .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
@@ -1009,22 +1010,32 @@ footer .error::before {
   background: linear-gradient(180deg, #8f4038, #6c302a);
   border-color: var(--evil); color: #fbeeec;
 }
-.lean-picker {
-  display: inline-flex; gap: 0.3rem; align-items: center;
-  padding: 0.3rem 0.5rem 0.3rem 0.65rem;
-  border: 1px solid rgba(54, 48, 87, 0.7); border-radius: 5px;
-  background: rgba(20, 17, 42, 0.5);
+/* two-tier discuss bar (A2): context reads on top, controls sit below.
+   Column layout comes from the shared .column class; discuss2 only tightens the gap. */
+.action-bar.discuss2 { gap: 0.5rem; }
+.discuss-top { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.discuss-bottom { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.discuss-bottom input { flex: 1; min-width: 8rem; }
+
+/* lean is a fixed-width segmented control seated left of the input, so
+   toggling it only recolors a cell — it never reflows the input or buttons */
+.lean-lbl { font: 600 0.52rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); }
+.lean-seg {
+  display: inline-flex; align-items: stretch; flex-shrink: 0;
+  border: 1px solid var(--line); border-radius: 5px; overflow: hidden;
+  background: rgba(20, 17, 42, 0.4);
 }
-.lean-lbl { font: 600 0.52rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
-.lean-btn {
-  min-width: 2.3rem; padding: 0.45em 0.5em;
-  background: transparent; border: 1px solid var(--line); color: var(--faint);
-  font: 700 0.56rem var(--mono); letter-spacing: 0.1em; border-radius: 3px;
+.lean-seg .lean-lbl { display: flex; align-items: center; padding: 0 0.55rem; border-right: 1px solid var(--line); }
+.lean-seg-btn {
+  min-width: 2.6rem; padding: 0.5em 0.6em; border: 0; border-right: 1px solid var(--line);
+  background: transparent; color: var(--faint);
+  font: 700 0.58rem var(--mono); letter-spacing: 0.1em; border-radius: 0;
 }
-.lean-btn:hover { filter: none; color: var(--dim); border-color: var(--faint); }
-.lean-btn.approve.active { color: #9cd0a4; border-color: rgba(111, 143, 217, 0.65); background: rgba(111, 143, 217, 0.16); }
-.lean-btn.reject.active { color: #e6a49a; border-color: rgba(194, 94, 84, 0.65); background: rgba(194, 94, 84, 0.16); }
-.lean-btn.unsure.active { color: var(--gold-lt); border-color: var(--gold); background: rgba(201, 168, 76, 0.14); }
+.lean-seg-btn:last-child { border-right: 0; }
+.lean-seg-btn:hover { filter: none; color: var(--dim); }
+.lean-seg-btn.approve.active { color: #9cd0a4; background: rgba(111, 143, 217, 0.18); }
+.lean-seg-btn.reject.active { color: #e6a49a; background: rgba(194, 94, 84, 0.18); }
+.lean-seg-btn.unsure.active { color: var(--gold-lt); background: rgba(201, 168, 76, 0.16); }
 .say-btn {
   font: 700 0.82rem var(--serif); letter-spacing: 0.1em; text-transform: uppercase;
   color: #241c0e; border: 1px solid var(--gold-lt); border-radius: 4px;
@@ -1033,7 +1044,8 @@ footer .error::before {
   box-shadow: 0 2px 10px rgba(201, 168, 76, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 .say-btn:hover { filter: brightness(1.07); }
-.pass-btn { align-self: center; }
+/* reserve the widest label ("Signal only") so switching to it never reflows the row */
+.pass-btn { align-self: center; min-width: 7rem; text-align: center; }
 
 /* play cards — votes and quest cards are played, not clicked */
 .playcards { display: flex; gap: 0.8rem; }
@@ -1066,6 +1078,10 @@ footer .error::before {
   width: 100%; text-align: center; padding-top: 5px; border-top: 1px solid;
 }
 .play .ps { font: 400 0.48rem var(--mono); letter-spacing: 0.08em; opacity: 0.8; text-transform: none; margin-top: 2px; }
+/* vote cards name the arcanum on desktop (smaller, so the longer name fits the plate),
+   and fall back to the plain verdict on mobile where the numeral + subtitle are hidden */
+.play .pt.vote-title { font-size: 0.62rem; letter-spacing: 0.05em; line-height: 1.2; }
+.ptx-plain { display: none; }
 .play.approve {
   color: #e6ecfa; border-color: var(--good);
   background:
@@ -1464,6 +1480,10 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .play .pem-frame::before { display: none; }
   .play .pt { width: auto; border-top: none; padding-top: 0; }
   .play .pnum, .play .ps, .play .pc-star { display: none; }
+  /* mobile hides the numeral + subtitle, so the vote card shows the plain verdict at full size */
+  .play .pt.vote-title { font-size: 0.74rem; letter-spacing: 0.12em; }
+  .ptx-arc { display: none; }
+  .ptx-plain { display: inline; }
   .landing { margin: 6vh auto; }
 
   /* setup */

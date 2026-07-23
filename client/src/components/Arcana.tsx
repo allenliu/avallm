@@ -53,7 +53,7 @@ export function celestialFor(agentId: string | undefined, name: string): { glyph
 
 export type EmblemId =
   | 'eye' | 'shield' | 'chalice' | 'dagger' | 'moons' | 'veil' | 'lantern' | 'swords'
-  | 'sun' | 'tower' | 'laurel' | 'crown' | 'book'
+  | 'sun' | 'tower' | 'laurel' | 'crown' | 'book' | 'chariot' | 'hanged'
 
 export function Emblem({ id, className }: { id: EmblemId; className?: string }) {
   return (
@@ -144,6 +144,29 @@ export function ArcanaDefs() {
           <path d="M17 21 Q23 19 26 21 M17 27 Q23 25 26 27 M17 33 Q23 31 26 33" opacity="0.6" />
           <path d="M34 21 Q40 19 43 21 M34 27 Q40 25 43 27 M34 33 Q40 31 43 33" opacity="0.6" />
           <path d="M30 4 l1.3 2.8 2.8 0.4 -2 2 0.5 2.9 -2.6 -1.4 -2.6 1.4 0.5 -2.9 -2 -2 2.8 -0.4 Z" fill="currentColor" stroke="none" opacity="0.8" />
+        </g>
+        {/* Approve — VII The Chariot: seen from the side, sent forth on a spoked
+            wheel, a starred canopy-rail above and the draw-pole reaching ahead. */}
+        <g id="em-chariot" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="22" cy="41" r="13" />
+          <circle cx="22" cy="41" r="3" />
+          <path d="M22 28 V54 M9 41 H35 M12.8 31.8 L31.2 50.2 M31.2 31.8 L12.8 50.2" opacity="0.75" />
+          <path d="M17 25 Q35 20 36 41" strokeWidth="2.2" />
+          <path d="M36 33 L51 24" />
+          <path d="M48 24 l3 0 0 3" opacity="0.8" />
+          <path d="M44 11 l1.2 2.6 2.9 0.3 -2.1 2 0.5 2.9 -2.5 -1.4 -2.5 1.4 0.5 -2.9 -2.1 -2 2.9 -0.3 Z" fill="currentColor" stroke="none" opacity="0.85" />
+        </g>
+        {/* Reject — XII The Hanged Man: bound by one foot from the beam, the free
+            leg crossed into a 4, haloed — the proposal halted and reversed. */}
+        <g id="em-hanged" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 11 H45" />
+          <path d="M35 11 V17" />
+          <path d="M30 17 H39" />
+          <path d="M35 17 V31" />
+          <path d="M35 23 L42 31" />
+          <path d="M30 33 Q35 30 40 33" opacity="0.7" />
+          <circle cx="35" cy="40" r="5" />
+          <path d="M35 47 v3 M28 40 h-3 M42 40 h3 M29.5 45 l-2 2.5 M40.5 45 l2 2.5" opacity="0.5" />
         </g>
       </defs>
     </svg>

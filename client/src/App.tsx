@@ -373,7 +373,7 @@ export function App() {
             <span className="you-sigil">{payload.spectator ? '◎' : HUMAN_CELESTIAL.glyph}</span>
           <span className="you-meta">
               <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
-              <span className="you-role">{payload.spectator ? 'public information only' : `${roleTitle} · your seat`}</span>
+              {payload.spectator && <span className="you-role">public information only</span>}
             </span>
           </div>
           {payload.spectator

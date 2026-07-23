@@ -48,37 +48,41 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
     setSay('')
   }
   return (
-    <div className="action-bar your-turn">
+    <div className="action-bar your-turn column discuss2">
       {leadOpening && (
         <span className="action-hint">
           ♛ You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
         </span>
       )}
-      <TurnTag>Your turn to speak</TurnTag>
-      <span className="action-label">
-        {round > 1 ? `Round ${round}` : teamPending ? 'React to the team' : 'Address the table'}
-      </span>
-      <input
-        autoFocus value={say} maxLength={300}
-        placeholder={teamPending ? 'React to the proposed team…' : 'Say something to the table…'}
-        onChange={(e) => setSay(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') submit(say) }}
-      />
-      {teamPending && (
-        <span className="lean-picker" title="Signal how you're leaning on this team (not binding)">
-          <span className="lean-lbl">lean</span>
-          {(['approve', 'reject', 'unsure'] as const).map((l) => (
-            <button
-              key={l}
-              className={`lean-btn ${l}${lean === l ? ' active' : ''}`}
-              title={`lean ${l === 'approve' ? 'aye' : l === 'reject' ? 'nay' : 'unsure'}`}
-              onClick={() => setLean(lean === l ? null : l)}
-            >{l === 'approve' ? 'AYE' : l === 'reject' ? 'NAY' : '?'}</button>
-          ))}
+      <div className="discuss-top">
+        <TurnTag>Your turn to speak</TurnTag>
+        <span className="action-label">
+          {round > 1 ? `Round ${round}` : teamPending ? 'React to the team' : 'Address the table'}
         </span>
-      )}
-      <button className="say-btn" onClick={() => submit(say)}>Say</button>
-      <button className="ghost pass-btn" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
+      </div>
+      <div className="discuss-bottom">
+        {teamPending && (
+          <span className="lean-seg" title="Signal how you're leaning on this team (not binding)">
+            <span className="lean-lbl">lean</span>
+            {(['approve', 'reject', 'unsure'] as const).map((l) => (
+              <button
+                key={l}
+                className={`lean-seg-btn ${l}${lean === l ? ' active' : ''}`}
+                title={`lean ${l === 'approve' ? 'aye' : l === 'reject' ? 'nay' : 'unsure'}`}
+                onClick={() => setLean(lean === l ? null : l)}
+              >{l === 'approve' ? 'AYE' : l === 'reject' ? 'NAY' : '?'}</button>
+            ))}
+          </span>
+        )}
+        <input
+          autoFocus value={say} maxLength={300}
+          placeholder={teamPending ? 'React to the proposed team…' : 'Say something to the table…'}
+          onChange={(e) => setSay(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') submit(say) }}
+        />
+        <button className="say-btn" onClick={() => submit(say)}>Say</button>
+        <button className="ghost pass-btn" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
+      </div>
     </div>
   )
 }
@@ -128,17 +132,20 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
       <span className="action-label">Approve <b className="team-gold">{team}</b> for quest {view.round}?</span>
       <span className="bar-spacer" />
       <div className="playcards">
-        <button className="play approve" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
+        <button className="play approve" title="The Chariot — approve, send them forth" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
-          <span className="pnum">AYE</span>
-          <span className="pem-frame"><Emblem id="laurel" className="pem" /></span>
-          <span className="pt">Approve</span><span className="ps">send them</span>
+          <span className="pnum">VII</span>
+          <span className="pem-frame"><Emblem id="chariot" className="pem" /></span>
+          {/* arcanum name on desktop, plain verdict on mobile (where numeral + subtitle are hidden) */}
+          <span className="pt vote-title"><span className="ptx-arc">The Chariot</span><span className="ptx-plain">Approve</span></span>
+          <span className="ps">send them forth</span>
         </button>
-        <button className="play reject" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
+        <button className="play reject" title="The Hanged Man — reject, force a new leader" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
-          <span className="pnum">NAY</span>
-          <span className="pem-frame"><Emblem id="dagger" className="pem" /></span>
-          <span className="pt">Reject</span><span className="ps">force a new leader</span>
+          <span className="pnum">XII</span>
+          <span className="pem-frame"><Emblem id="hanged" className="pem" /></span>
+          <span className="pt vote-title"><span className="ptx-arc">The Hanged Man</span><span className="ptx-plain">Reject</span></span>
+          <span className="ps">force a new leader</span>
         </button>
       </div>
     </div>
