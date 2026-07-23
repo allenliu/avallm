@@ -169,7 +169,7 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
     const addressNote = addressed.length
       ? ` NOTE: ${addressed.join(' and ')} mentioned or addressed you since your last turn — if you were asked something, respond to it now.`
       : ''
-    return `It is your turn in table-talk round ${round}.${teamNote}${addressNote} Speak only if it moves the conversation — passing is normal when nothing is aimed at you${round > 1 ? ', and most players pass by round 2' : ''}.`
+    return `It is your turn in table-talk round ${round}.${teamNote}${addressNote} Speak when you have something real to add — a fresh read, a contradiction to point out, or a result or vote that implicates you and calls for a response. Pass when you genuinely have nothing to add and nothing is aimed at you.`
   },
   propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}. If you announced an intended team during table talk, propose THAT team unless you have a real reason to change — you will get to explain your choice to the table next.`,
   pitch: (v, extra) => {
