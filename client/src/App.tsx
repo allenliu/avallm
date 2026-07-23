@@ -20,8 +20,16 @@ type Screen =
   | { name: 'game'; id: string; token: string }
 
 const tokenKey = (lobbyId: string) => `avalon-token-${lobbyId}`
+const gameTokenKey = (gameId: string) => `avalon-game-token-${gameId}`
 
 function parseHash(): Screen {
+  const g = window.location.hash.match(/^#\/game\/([a-z0-9]+)/)
+  if (g) {
+    const stored = localStorage.getItem(gameTokenKey(g[1]))
+    // Without the seat token we can't reconnect to a private view; drop to landing.
+    if (stored) return { name: 'game', id: g[1], token: stored }
+    return { name: 'landing' }
+  }
   const m = window.location.hash.match(/^#\/join\/([a-z0-9]+)/)
   if (m) {
     const stored = localStorage.getItem(tokenKey(m[1]))
@@ -56,12 +64,20 @@ export function App() {
     esRef.current?.close()
     setReveal(null)
     setPayload(null)
+    // Persist the seat so a refresh reconnects instead of dumping to the lobby.
+    // Solo games have no #/join/ URL, so the game id + token must live here too.
+    localStorage.setItem(gameTokenKey(id), token)
+    window.location.hash = `#/game/${id}`
     setScreen({ name: 'game', id, token })
     const es = new EventSource(`/api/game/${id}/events?token=${token}`)
     es.onmessage = (ev) => {
       setError(null) // EventSource auto-reconnects; a fresh payload means we're back
       setPayload(JSON.parse(ev.data))
     }
+    // Don't try to distinguish "game gone" here: EventSource can't read the HTTP
+    // status, and a page unload aborts the stream with readyState CLOSED too —
+    // acting on that would wipe the stored seat on every refresh. A truly dead
+    // game is caught by the fetch probe on the refresh-restore path instead.
     es.onerror = () => setError('connection lost — reconnecting…')
     esRef.current = es
   }, [])
@@ -96,6 +112,33 @@ export function App() {
   useEffect(() => {
     if (screen.name !== 'lobby' || lobbyEsRef.current) return
     enterLobby(screen.lobbyId, screen.token)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Refresh landed on a #/game/ URL (solo or reconnecting player): reopen the stream.
+  // Probe /valid first — EventSource hides the HTTP status, so a game that's gone
+  // (server restarted) would otherwise spin forever on "reconnecting…". /valid is a
+  // cheap JSON GET (no SSE listener to leak): 200 = live seat, 404/403 = dead.
+  useEffect(() => {
+    if (screen.name !== 'game' || esRef.current) return
+    const { id, token } = screen
+    const ctrl = new AbortController()
+    fetch(`/api/game/${id}/valid?token=${token}`, { signal: ctrl.signal })
+      .then((r) => {
+        if (r.ok) {
+          openGame(id, token)
+        } else {
+          // Server answered but the game/seat is gone — clear the stale pointer.
+          localStorage.removeItem(gameTokenKey(id))
+          window.location.hash = ''
+          setError('that game is no longer available (the server may have restarted)')
+          setScreen({ name: 'landing' })
+        }
+      })
+      // Only a network-level failure (server unreachable) lands here — not a 404.
+      // Open the stream and let EventSource retry until the server comes back.
+      .catch((e) => { if (e.name !== 'AbortError') openGame(id, token) })
+    return () => ctrl.abort()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -170,12 +213,14 @@ export function App() {
   const backToLanding = useCallback(() => {
     esRef.current?.close()
     lobbyEsRef.current?.close()
+    // Drop the solo game's stored seat so leaving doesn't reconnect on refresh.
+    if (screen.name === 'game') localStorage.removeItem(gameTokenKey(screen.id))
     window.location.hash = ''
     setPayload(null)
     setLobby(null)
     setLobbyMissing(false)
     setScreen({ name: 'landing' })
-  }, [])
+  }, [screen])
 
   if (screen.name === 'landing') {
     return (

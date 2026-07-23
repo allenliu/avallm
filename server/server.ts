@@ -11,6 +11,7 @@
 //   GET  /api/lobby/:id/events        (SSE, public lobby state)
 //   POST /api/lobby/:id/join          {name, mode: 'play'|'spectate'}
 //   POST /api/game/new                (solo sugar: a humanSeats=1 lobby, auto-started)
+//   GET  /api/game/:id/valid?token=   (200 live seat / 403 wrong token / 404 no game)
 //   GET  /api/game/:id/events?token=  (SSE: that seat's view; spectators get public-only)
 //   POST /api/game/:id/decide         {token, decision}
 //   GET  /api/game/:id/reveal         (gameOver only)
@@ -21,7 +22,7 @@ import http from 'node:http'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createGame, applyDecision, expectedDecisions, renamePlayer } from './engine/game.ts'
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
@@ -462,6 +463,14 @@ const server = http.createServer(async (req, res) => {
     if (parts[0] === 'api' && parts[1] === 'game' && parts[2]) {
       const s = sessions.get(parts[2])
       if (!s) return json(res, 404, { error: 'no such game' })
+      // Cheap liveness/seat check for reconnecting clients: EventSource can't
+      // read HTTP status, so the browser probes this before opening the stream
+      // to tell "game gone / not my seat" (404/403) from a live reconnect (200).
+      if (req.method === 'GET' && parts[3] === 'valid') {
+        const token = url.searchParams.get('token') ?? ''
+        if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
+        return json(res, 200, { ok: true })
+      }
       if (req.method === 'GET' && parts[3] === 'events') {
         const token = url.searchParams.get('token') ?? ''
         if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
@@ -579,7 +588,13 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.listen(PORT, () => {
-  console.log(`AvaLLM server listening on http://localhost:${PORT}`)
-  console.log(`client dist: ${fs.existsSync(path.join(DIST, 'index.html')) ? 'found' : 'NOT BUILT'}`)
-})
+// Bind a port only when run as the entry point (`node server/server.ts`), so
+// tests can import the handler and drive it on an ephemeral port of their own.
+export { server }
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  server.listen(PORT, () => {
+    console.log(`AvaLLM server listening on http://localhost:${PORT}`)
+    console.log(`client dist: ${fs.existsSync(path.join(DIST, 'index.html')) ? 'found' : 'NOT BUILT'}`)
+  })
+}
