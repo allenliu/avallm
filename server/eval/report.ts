@@ -61,6 +61,7 @@ interface PairDelta {
   silent: number
   rank: number | null        // merlin only; positive = candidate LESS conspicuous
   assassinated: number | null // merlin only, when both games reached assassination
+  vAssassin: number | null   // merlin only; virtual-assassin hit-rate delta
 }
 
 function pairDeltas(games: GameMetrics[]): { role: string; candidateId: string; baselineId: string; deltas: PairDelta[] } | null {
@@ -93,6 +94,9 @@ function pairDeltas(games: GameMetrics[]): { role: string; candidateId: string; 
         : null,
       assassinated: isMerlin && cM?.assassinated !== null && bM?.assassinated !== null
         ? Number(cM!.assassinated) - Number(bM!.assassinated)
+        : null,
+      vAssassin: isMerlin && cM?.virtualAssassinRate != null && bM?.virtualAssassinRate != null
+        ? cM.virtualAssassinRate - bM.virtualAssassinRate
         : null,
     }
   })
@@ -153,21 +157,35 @@ if (merlinGames.length) {
   for (const g of merlinGames) {
     byAgent.set(g.merlin!.agent, [...(byAgent.get(g.merlin!.agent) ?? []), g])
   }
-  const mWidths = [22, 6, 6, 9, 8, 14]
-  console.log(row(['merlin agent', 'games', 'vote', 'avg rank', 'rank #1', 'assassinated'], mWidths))
+  const mWidths = [22, 6, 6, 9, 8, 14, 10]
+  console.log(row(['merlin agent', 'games', 'vote', 'avg rank', 'rank #1', 'assassinated', 'vAssassin'], mWidths))
   for (const [agent, gs] of byAgent) {
     const ranks = gs.map((g) => g.merlin!.conspicuousnessRank).filter((r): r is number => r !== null)
     const reached = gs.filter((g) => g.merlin!.assassinated !== null)
     const hit = reached.filter((g) => g.merlin!.assassinated).length
+    const vRates = gs.map((g) => g.merlin!.virtualAssassinRate).filter((v): v is number => v !== null)
     console.log(row([
       agent, gs.length,
       fmt(mean(gs.map((g) => g.merlin!.voteScore).filter((v): v is number => v !== null))),
       fmt(mean(ranks), 1),
       `${ranks.filter((r) => r === 1).length}/${ranks.length}`,
       reached.length ? `${hit}/${reached.length} (${pct(hit, reached.length)})` : '—',
+      vRates.length ? fmt(mean(vRates)) : '—',
     ], mWidths))
   }
   console.log(`(rank 1 = most truth-aligned good player = most conspicuous; a hidden Merlin blends mid-pack)`)
+}
+
+const judged = games.filter((g) => g.judge)
+if (judged.length) {
+  console.log(`\n== JUDGE (${judged[0].judge!.model}) ==`)
+  const found = judged.filter((g) => g.judge!.blindedMerlinCorrect).length
+  console.log(`blinded pass: merlin found ${found}/${judged.length} (${pct(found, judged.length)})`)
+  const families = new Map<string, number>()
+  for (const g of judged) {
+    for (const i of g.judge!.incidents) families.set(i.family, (families.get(i.family) ?? 0) + 1)
+  }
+  for (const [f, n] of [...families].sort((a, b) => b[1] - a[1])) console.log(`  ${f}: ${n}`)
 }
 
 const paired = pairDeltas(games)
@@ -180,6 +198,7 @@ if (paired) {
   if (paired.role === 'merlin') {
     console.log(deltaLine('conspicuousness rank', paired.deltas.map((d) => d.rank), '(+ = candidate blends in better)'))
     console.log(deltaLine('assassinated', paired.deltas.map((d) => d.assassinated), '(- = candidate survives more)'))
+    console.log(deltaLine('virtual assassin', paired.deltas.map((d) => d.vAssassin), '(- = candidate harder to spot)'))
   }
 }
 console.log()

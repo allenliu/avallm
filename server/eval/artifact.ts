@@ -37,6 +37,53 @@ export interface GameArtifact {
   // { bench: <role>, variant: 'candidate'|'baseline', pairSeed, agentId } —
   // the report CLI groups paired runs by these.
   tags?: Record<string, string>
+  // Post-hoc LLM analyses, written back into the artifact by their CLIs
+  // (probe.ts, judge.ts) so a game accumulates its analyses in one record.
+  probes?: { virtualAssassin?: VirtualAssassinResult }
+  judge?: JudgeResult
+}
+
+// ---- post-hoc analysis results ----
+
+export interface VirtualAssassinResult {
+  model: string       // roster id used
+  samples: number
+  picks: (number | null)[] // per-sample seat picked (null = unparseable)
+  merlinSeat: number
+  hits: number
+  hitRate: number
+  ranAt: string
+}
+
+export interface JudgeScorecard {
+  seat: number
+  concealment: number | null // 0-10; null where the axis doesn't apply
+  deduction: number | null
+  influence: number | null
+  tableTalk: number | null
+  note: string
+}
+
+export interface JudgeIncident {
+  seat: number
+  seq: number
+  family: string      // knowledge-leak | commitment-failure | hammer-blindness |
+                      // fail-coordination | vote-speech-incoherence | blunder | good-play | other
+  description: string
+}
+
+export interface JudgeResult {
+  model: string
+  blinded: {
+    evil: number[]           // seats predicted evil from the public record alone
+    merlin: number | null    // seat predicted as Merlin
+    confidence: number
+    evilCorrect: number      // |predicted ∩ actual evil|
+    merlinCorrect: boolean
+  }
+  scorecards: JudgeScorecard[]
+  incidents: JudgeIncident[]
+  ranAt: string
 }
 
 export interface ToArtifactOpts {
@@ -78,6 +125,13 @@ export function toArtifact(game: Game, opts: ToArtifactOpts): GameArtifact {
 export function appendArtifact(file: string, artifact: GameArtifact): void {
   fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true })
   fs.appendFileSync(file, JSON.stringify(artifact) + '\n')
+}
+
+// Rewrite a JSONL file in place — used by the probe/judge CLIs to fold their
+// results back into the artifacts they analyzed.
+export function writeArtifacts(file: string, artifacts: GameArtifact[]): void {
+  fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true })
+  fs.writeFileSync(file, artifacts.map((a) => JSON.stringify(a)).join('\n') + '\n')
 }
 
 export function readArtifacts(file: string): GameArtifact[] {

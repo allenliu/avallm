@@ -17,7 +17,9 @@ export interface ParsedDecision {
 const THINKING_MAX_CHARS = 800
 const SAY_MAX_CHARS = 400
 
-function extractObject(content: string): Record<string, unknown> | null {
+// Exported for eval tooling (probe/judge), which parses non-decision JSON
+// replies with the same salvage tolerance.
+export function extractObject(content: string): Record<string, unknown> | null {
   const tryParse = (s: string) => {
     try {
       const o = JSON.parse(s)

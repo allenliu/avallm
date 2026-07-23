@@ -9,6 +9,9 @@
     "sim": "node server/sim/sim.ts",
     "play": "node server/sim/play.ts",
     "bench": "node server/eval/bench.ts",
-    "report": "node server/eval/report.ts"
+    "report": "node server/eval/report.ts",
+    "probe": "node server/eval/probe.ts",
+    "judge": "node server/eval/judge.ts",
+    "bank": "node server/eval/bank.ts"
   }
 }

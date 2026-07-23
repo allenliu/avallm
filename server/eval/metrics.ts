@@ -49,8 +49,15 @@ export interface GameMetrics {
     conspicuousnessRank: number | null
     goodPlayers: number
     assassinated: boolean | null // null: game never reached assassination
+    virtualAssassinRate: number | null // probe hit rate, null if not probed
   }
   assassination?: { assassin: Seat; target: Seat; wasMerlin: boolean }
+  judge?: {
+    model: string
+    blindedMerlinCorrect: boolean
+    blindedEvilCorrect: number
+    incidents: { seat: Seat; family: string }[]
+  }
 }
 
 export function computeMetrics(a: GameArtifact): GameMetrics {
@@ -147,8 +154,18 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
       conspicuousnessRank: rank,
       goodPlayers: good.length,
       assassinated: assassination ? assassination.wasMerlin : null,
+      virtualAssassinRate: a.probes?.virtualAssassin?.hitRate ?? null,
     }
   }
+
+  const judge = a.judge
+    ? {
+        model: a.judge.model,
+        blindedMerlinCorrect: a.judge.blinded.merlinCorrect,
+        blindedEvilCorrect: a.judge.blinded.evilCorrect,
+        incidents: a.judge.incidents.map((i) => ({ seat: i.seat as Seat, family: i.family })),
+      }
+    : undefined
 
   return {
     id: a.id,
@@ -160,5 +177,6 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
     seats,
     ...(merlin ? { merlin } : {}),
     ...(assassination ? { assassination } : {}),
+    ...(judge ? { judge } : {}),
   }
 }
