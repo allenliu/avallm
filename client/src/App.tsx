@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentInfo, DecisionRequest, Library, LobbyPayload, PreviewResponse, RevealPayload, ServerPayload, TableSeat } from './types.ts'
 import { tokenEstimate as tokenEst } from './agentConfig.ts'
-import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, TEAM_SIZES, buildRoles, twoFailQuest } from './setup.ts'
+import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
 import { ARCANA, Emblem, HUMAN_CELESTIAL, SPECTATOR_ARCANA } from './components/Arcana.tsx'
@@ -252,9 +252,9 @@ export function App() {
       <div className="landing-page">
         <div className="hero">
           <h1><Brand /></h1>
-          <p className="subtitle">The Resistance: Avalon vs. the LLMs</p>
+          <p className="subtitle">The Resistance: Avalon, played against a table of LLMs</p>
           <p className="tagline">
-            Hidden roles, open models. Bluff DeepSeek, out-read Gemini — or invite
+            Hidden roles, open models. Bluff DeepSeek, out-read Gemini, or invite
             friends and let the machines fill the empty chairs.
           </p>
         </div>
@@ -584,6 +584,18 @@ function defaultTable(library: Library | null, count: number): TableSeat[] {
   return Array.from({ length: count }, (_, i) => ({ agent: full[i % full.length] }))
 }
 
+// The five quests dealt as a tarot spread: each card wears a fixed celestial
+// sigil (crescent, sun, star, eye, wheel) with its quest order as a corner
+// numeral. Decorative — the authoritative team sizes live in the game board.
+const QUEST_NUMERALS = ['I', 'II', 'III', 'IV', 'V']
+const QUEST_SIGILS = [
+  <svg viewBox="0 0 30 30" className="qsig" key="moon"><path d="M20 6a10 10 0 1 0 0 18 8 8 0 0 1 0-18z" /></svg>,
+  <svg viewBox="0 0 30 30" className="qsig" key="sun"><circle cx="15" cy="15" r="5" /><path d="M15 2v4M15 24v4M2 15h4M24 15h4M6 6l3 3M21 21l3 3M24 6l-3 3M9 21l-3 3" /></svg>,
+  <svg viewBox="0 0 30 30" className="qsig" key="star"><path d="M15 3l2.5 9.5L27 15l-9.5 2.5L15 27l-2.5-9.5L3 15l9.5-2.5z" /></svg>,
+  <svg viewBox="0 0 30 30" className="qsig" key="eye"><path d="M2 15q6-9 13-9t13 9q-6 9-13 9T2 15z" /><circle className="fill" cx="15" cy="15" r="3" /></svg>,
+  <svg viewBox="0 0 30 30" className="qsig" key="wheel"><circle cx="15" cy="15" r="10" /><path d="M15 5v20M5 15h20M8 8l14 14M22 8L8 22" /></svg>,
+]
+
 function Launcher({ onStart, starting, library, onLibraryChange }: {
   onStart: (opts: {
     players: number; humanSeats: number; table: TableSeat[]; roles: Role[] | null; humanName: string
@@ -593,13 +605,13 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   library: Library | null
   onLibraryChange: () => void
 }) {
-  const [players, setPlayers] = useState(7)
+  const [players, setPlayers] = useState(5)
   const [humanSeats, setHumanSeats] = useState(1)
   const [table, setTable] = useState<TableSeat[]>([])
   const [humanName, setHumanName] = useState(() => localStorage.getItem('avalon-name') ?? '')
   const [invite, setInvite] = useState(() => localStorage.getItem('avalon-invite') ?? '')
   const [preset, setPreset] = useState<PresetId | 'custom'>('standard')
-  const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(7))
+  const [sel, setSel] = useState<SpecialSelection>(PRESETS.standard.pick(5))
   const [showRules, setShowRules] = useState(false)
 
   const botCount = players - humanSeats
@@ -651,10 +663,10 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   return (
     <div className="launcher-arcane">
       <div className="deal" aria-hidden="true">
-        {TEAM_SIZES[players].map((sz, i) => (
+        {QUEST_NUMERALS.map((num, i) => (
           <div key={i} className="dcard">
-            <span className="dsz">{sz}</span>
-            {twoFailQuest(players, i + 1) && <span className="dcard-note">2 fails</span>}
+            <span className="qidx">{num}</span>
+            {QUEST_SIGILS[i]}
           </div>
         ))}
       </div>
@@ -686,14 +698,14 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
                 <label className="field wide">Players
                   <select value={players} onChange={(e) => setPlayersAndRoles(Number(e.target.value))}>
                     {[5, 6, 7, 8, 9].map((n) => (
-                      <option key={n} value={n}>{n} — {n - EVIL_COUNT[n]} good / {EVIL_COUNT[n]} evil</option>
+                      <option key={n} value={n}>{n} players · {n - EVIL_COUNT[n]} good / {EVIL_COUNT[n]} evil</option>
                     ))}
                   </select>
                 </label>
                 <label className="field">Humans
                   <select value={humanSeats} onChange={(e) => setHumanSeats(Number(e.target.value))}>
                     {Array.from({ length: players }, (_, i) => i + 1).map((n) => (
-                      <option key={n} value={n}>{n === 1 ? 'just me' : `${n} — invite link`}</option>
+                      <option key={n} value={n}>{n === 1 ? 'just me' : `${n} · invite link`}</option>
                     ))}
                   </select>
                 </label>
@@ -774,7 +786,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
             <span className="inplay">
               <b>In play:</b>{' '}
               <span className="good">{rollup(goodRoles)}</span>
-              {' — '}
+              {' · '}
               <span className="evil">{rollup(evilRoles)}</span>
             </span>
           )}
@@ -800,6 +812,7 @@ function TablePicker({ library, table, onChange, onFill }: {
   onChange: (t: TableSeat[]) => void
   onFill: (mode: 'models' | 'autopilot') => void
 }) {
+  const [showModels, setShowModels] = useState(false)
   if (!library) return <p className="roles-preview">Loading agent library…</p>
   const agentById = (id: string) => library.agents.find((a) => a.id === id)
   const setSeat = (i: number, seat: TableSeat) => {
@@ -807,20 +820,33 @@ function TablePicker({ library, table, onChange, onFill }: {
     next[i] = seat
     onChange(next)
   }
+  const seatIsLlm = (s: TableSeat) => {
+    const a = agentById(s.agent)
+    return !!a && a.model !== 'rule-based' && a.model !== 'external'
+  }
+  // Per-seat model overrides are power-user plumbing — for a built-in model agent
+  // the agent already names its model, so the second dropdown is noise. Hide it by
+  // default; reveal on request, or force it open when a seat already carries an
+  // override or names an unavailable agent (whose dead default the server rejects).
+  const forced = table.some((s) => s.model || agentById(s.agent)?.unavailable)
+  const showOverrides = showModels || forced
+  // Only an LLM seat can take a model override, so the toggle is dead weight when
+  // the whole table is autopilot/external.
+  const anyLlm = table.some(seatIsLlm)
   return (
     <section className="card-panel">
       <h2>
         <span className="n">II</span>The Seats
         <span className="fill-buttons">
           fill with{' '}
-          <button className="fill-btn" onClick={() => onFill('models')}>LLM models</button>
+          <button className="fill-btn" onClick={() => onFill('models')}>LLMs</button>
           <button className="fill-btn" onClick={() => onFill('autopilot')}>Autopilot (free)</button>
         </span>
       </h2>
       <div className="body">
         {table.map((seat, i) => {
           const info = agentById(seat.agent)
-          const isLlm = info && info.model !== 'rule-based' && info.model !== 'external'
+          const isLlm = seatIsLlm(seat)
           return (
             <div key={i} className="seatrow" style={{ ['--mc' as string]: info?.color ?? 'var(--line)' }}>
               <span className="mini">{info?.monogram ?? '?'}</span>
@@ -844,7 +870,7 @@ function TablePicker({ library, table, onChange, onFill }: {
                   </option>
                 ))}
               </select>
-              {isLlm && (
+              {showOverrides && isLlm && (
                 <select
                   className="model-override"
                   value={seat.model ?? ''}
@@ -859,10 +885,19 @@ function TablePicker({ library, table, onChange, onFill }: {
                   ))}
                 </select>
               )}
-              <span className="seat-about">{info?.about ?? ''}</span>
             </div>
           )
         })}
+        {!forced && anyLlm && (
+          <button
+            type="button"
+            className="seat-advanced"
+            aria-expanded={showModels}
+            onClick={() => setShowModels((v) => !v)}
+          >
+            {showModels ? 'Hide per-seat models' : 'Choose per-seat models'}
+          </button>
+        )}
       </div>
     </section>
   )

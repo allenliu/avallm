@@ -199,7 +199,8 @@ export function builtinDefs(): AgentDef[] {
     name: r.displayName,
     author: 'built-in',
     version: 1,
-    about: r.blurb,
+    // No table-manner blurb: how a model actually plays Avalon is unmeasured,
+    // so we don't assert it. Cost tier and badge carry the honest signal.
     badge: r.badge,
     engine: { type: 'llm', model: r.id },
     tier: 'builtin' as const,

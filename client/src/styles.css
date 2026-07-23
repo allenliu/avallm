@@ -1173,22 +1173,23 @@ footer .error::before {
   box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold-deep), 0 8px 16px rgba(0, 0, 0, 0.5);
   display: flex; align-items: center; justify-content: center;
 }
-.dcard .dsz { /* same face as the in-game quest backs: the number sits in a gold ring */
-  width: 27px; height: 27px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--gold-deep); color: var(--gold);
-  font: 700 0.9rem var(--serif);
-  background: var(--night-2);
+.dcard .qsig { /* each quest's celestial sigil, drawn in gold line-art */
+  width: 26px; height: 26px;
+}
+.dcard .qsig path, .dcard .qsig circle {
+  fill: none; stroke: var(--gold); stroke-width: 1.4;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.dcard .qsig .fill { fill: var(--gold); stroke: none; }
+.dcard .qidx { /* quest order, as a corner index like a playing card */
+  position: absolute; top: 5px; left: 6px;
+  font: 700 0.48rem var(--mono); color: var(--faint); letter-spacing: 0.04em;
 }
 .dcard:nth-child(1) { transform: rotate(-9deg) translateY(6px); }
 .dcard:nth-child(2) { transform: rotate(-4.5deg) translateY(1px); }
 .dcard:nth-child(3) { transform: translateY(-2px); }
 .dcard:nth-child(4) { transform: rotate(4.5deg) translateY(1px); }
 .dcard:nth-child(5) { transform: rotate(9deg) translateY(6px); }
-.dcard-note {
-  position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%);
-  font: 600 0.5rem var(--mono); color: var(--evil); white-space: nowrap; letter-spacing: 0.06em;
-}
 .center-row { text-align: center; margin: 22px 0 0; }
 .rules-summary.wide { max-width: 720px; margin: 14px auto 0; }
 
@@ -1238,11 +1239,15 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px color-mix(in srgb, var(--mc, var(--line)) 50%, var(--line));
 }
 .seatrow select { flex: 1 1 38%; min-width: 0; font-size: 0.82rem; padding: 0.45em 0.6em; }
-.seatrow select.model-override { flex: 0 1 32%; }
-.seatrow .seat-about {
-  flex: 1 1 12rem; min-width: 0;
-  font-size: 0.74rem; font-style: italic; color: var(--faint); line-height: 1.35;
+.seatrow select.model-override { flex: 0 1 46%; }
+.seat-advanced {
+  margin-top: 10px; background: transparent; border: none;
+  font: 600 0.6rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--faint); padding: 0.3em 0; cursor: pointer;
 }
+.seat-advanced::before { content: '+ '; }
+.seat-advanced[aria-expanded='true']::before { content: '– '; }
+.seat-advanced:hover { color: var(--gold); filter: none; }
 .addagent {
   width: 100%; text-align: center;
   font: 600 0.62rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
@@ -1459,12 +1464,13 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .landing-page .hero { padding: 26px 0 4px; }
   .landing-page .hero h1 { font-size: 1.9rem; }
   .deal { gap: 10px; margin: 18px 0 2px; }
-  .dcard { width: 40px; height: 58px; font-size: 0.72rem; }
+  .dcard { width: 40px; height: 58px; }
+  .dcard .qsig { width: 21px; height: 21px; }
+  .dcard .qidx { top: 3px; left: 4px; font-size: 0.42rem; }
   .setup-grid { grid-template-columns: 1fr; gap: 12px; margin-top: 16px; }
   .card-panel .body { padding: 11px 13px 13px; }
   .seatrow { flex-wrap: wrap; }
   .seatrow select { flex: 1; }
-  .seatrow .seat-about { flex: 1 1 100%; padding-left: 42px; margin-top: -2px; }
   .cta-inner { padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); flex-wrap: wrap; gap: 8px; }
   .cta-inner .inplay { font-size: 0.72rem; width: 100%; }
   .cta { width: 100%; padding: 1.05em 0.6em; }

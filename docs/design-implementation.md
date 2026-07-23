@@ -360,7 +360,7 @@ families):
 | GPT-4o mini     | `openai/gpt-4o-mini`             | recognizable name for the marquee            |
 | Mistral         | `mistralai/mistral-small-*`      | —                                            |
 
-Per-entry config: `{ id, displayName, slug, badge: {color, monogram/logo}, blurb, tier }`.
+Per-entry config: `{ id, displayName, slug, badge: {color, monogram/logo}, tier }`.
 Seat assignment at setup: default random-from-roster (seeded), with a pre-game "table setup"
 screen to hand-pick your table.
 

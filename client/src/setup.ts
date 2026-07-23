@@ -17,17 +17,15 @@ export const TEAM_SIZES: Record<number, number[]> = {
   8: [3, 4, 4, 5, 5],
   9: [3, 4, 4, 5, 5],
 }
-export const twoFailQuest = (players: number, quest: number): boolean =>
-  players >= 7 && quest === 4
 
 export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc: string }> = {
   merlin: {
     name: 'Merlin', side: 'good',
-    desc: 'Sees who is evil (except Mordred) — but must hide it. If good wins 3 quests, the Assassin gets one shot at naming Merlin; a correct pick steals the game for evil.',
+    desc: 'Sees who is evil (except Mordred), but must hide it. If good wins 3 quests, the Assassin gets one shot at naming Merlin; a correct pick steals the game for evil.',
   },
   percival: {
     name: 'Percival', side: 'good',
-    desc: 'Sees Merlin and Morgana without knowing which is which. Protect the real Merlin — or impersonate them to draw the Assassin\'s aim.',
+    desc: 'Sees Merlin and Morgana without knowing which is which. Protect the real Merlin, or impersonate them to draw the Assassin\'s aim.',
   },
   servant: {
     name: 'Loyal Servant', side: 'good',
@@ -35,7 +33,7 @@ export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc
   },
   assassin: {
     name: 'Assassin', side: 'evil',
-    desc: 'Knows fellow evil. If good wins 3 quests, names one player as Merlin — a correct pick wins the game for evil.',
+    desc: 'Knows fellow evil. If good wins 3 quests, names one player as Merlin; a correct pick wins the game for evil.',
   },
   morgana: {
     name: 'Morgana', side: 'evil',
@@ -43,7 +41,7 @@ export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc
   },
   mordred: {
     name: 'Mordred', side: 'evil',
-    desc: 'Hidden from Merlin — evil\'s cleanest asset.',
+    desc: 'Hidden from Merlin. Evil\'s cleanest asset.',
   },
   oberon: {
     name: 'Oberon', side: 'evil',
@@ -66,11 +64,11 @@ export const WIN_REASONS: Record<string, string> = {
 export const winReasonText = (reason: string): string => WIN_REASONS[reason] ?? reason
 
 export const RULES_SUMMARY = [
-  'Good wins by succeeding 3 of 5 quests. Evil wins by failing 3 quests — or by assassinating Merlin after good wins.',
-  'Each round the leader proposes a quest team and EVERYONE votes. Strict majority approves; a tie rejects. Only 4 proposals per round can be rejected — the 5th ("hammer") proposal is locked in automatically, with no vote.',
+  'Good wins by succeeding 3 of 5 quests. Evil wins by failing 3 quests, or by assassinating Merlin after good wins.',
+  'Each round the leader proposes a quest team and everyone votes. A strict majority approves; a tie rejects. Only 4 proposals per round can be rejected; the 5th (the "hammer") is locked in automatically, with no vote.',
   'Approved teams play quest cards in secret: good must play Success, evil may play Fail. Only the number of Fail cards is revealed.',
-  'Roles are secret, but some players know things (see role list). Discussion is free — anyone may lie. The public vote record is the best evidence in the game.',
-  'When a team is proposed, you can signal a non-binding lean (👍/👎/🤔) during discussion before votes are cast.',
+  'Roles are secret, but some players know things (see the role list). Discussion is free and anyone may lie. The public vote record is the best evidence in the game.',
+  'While a team is on the table, you can signal a non-binding lean (for, against, or unsure) during discussion before votes are cast.',
 ]
 
 // Optional specials the user can toggle. Merlin & Assassin come as a pair —
@@ -88,7 +86,7 @@ export type PresetId = 'beginner' | 'standard' | 'advanced'
 export const PRESETS: Record<PresetId, { label: string; blurb: string; pick: (n: number) => SpecialSelection }> = {
   beginner: {
     label: 'Beginner',
-    blurb: 'Merlin & Assassin only — the cleanest introduction.',
+    blurb: 'Merlin & Assassin only. The cleanest introduction.',
     pick: () => ({ merlinPair: true, percival: false, morgana: false, mordred: false, oberon: false }),
   },
   standard: {
@@ -101,7 +99,7 @@ export const PRESETS: Record<PresetId, { label: string; blurb: string; pick: (n:
   },
   advanced: {
     label: 'Advanced',
-    blurb: 'Mordred hides from Merlin — good\'s information gets thin.',
+    blurb: 'Mordred hides from Merlin; good\'s information gets thin.',
     pick: (n) => ({
       merlinPair: true,
       percival: true,
