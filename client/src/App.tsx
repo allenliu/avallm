@@ -35,6 +35,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(parseHash)
   const [payload, setPayload] = useState<ServerPayload | null>(null)
   const [lobby, setLobby] = useState<LobbyPayload | null>(null)
+  const [lobbyMissing, setLobbyMissing] = useState(false)
   const [reveal, setReveal] = useState<RevealPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
@@ -68,12 +69,25 @@ export function App() {
   const enterLobby = useCallback((lobbyId: string, token: string) => {
     window.location.hash = `#/join/${lobbyId}`
     setScreen({ name: 'lobby', lobbyId, token })
+    setLobbyMissing(false)
     lobbyEsRef.current?.close()
     const es = new EventSource(`/api/lobby/${lobbyId}/events`)
     es.onmessage = (ev) => {
       const data: LobbyPayload = JSON.parse(ev.data)
       setLobby(data)
       if (data.status === 'started' && data.gameId) openGame(data.gameId, token)
+    }
+    es.onerror = () => {
+      // The server 404s the SSE for a lobby it doesn't know — never existed, or
+      // wiped by a redeploy (games live in memory). Per the SSE spec an HTTP
+      // error permanently fails the connection: readyState becomes CLOSED and
+      // the browser will NOT reconnect, so surface the miss (otherwise the
+      // screen is stuck on "Opening the lobby…", or freezes if we were seated).
+      // A transient network drop instead leaves readyState at CONNECTING, where
+      // EventSource retries on its own — leave that alone.
+      if (es.readyState !== EventSource.CLOSED) return
+      lobbyEsRef.current = null
+      setLobbyMissing(true)
     }
     lobbyEsRef.current = es
   }, [openGame])
@@ -159,6 +173,7 @@ export function App() {
     window.location.hash = ''
     setPayload(null)
     setLobby(null)
+    setLobbyMissing(false)
     setScreen({ name: 'landing' })
   }, [])
 
@@ -191,7 +206,7 @@ export function App() {
   }
 
   if (screen.name === 'lobby') {
-    return <LobbyScreen lobby={lobby} lobbyId={screen.lobbyId} token={screen.token} onBack={backToLanding} />
+    return <LobbyScreen lobby={lobby} missing={lobbyMissing} lobbyId={screen.lobbyId} token={screen.token} onBack={backToLanding} />
   }
 
   if (!payload) {
@@ -257,6 +272,18 @@ export function App() {
   )
 }
 
+// A lobby the server doesn't know — never existed, or wiped by a redeploy.
+// Shown from both entry paths: JoinScreen (no token) and LobbyScreen (token).
+function LobbyMissing({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="landing">
+      <h1><Brand /></h1>
+      <p className="tagline">That lobby doesn't exist (or the server restarted).</p>
+      <button onClick={onBack}>Start your own game</button>
+    </div>
+  )
+}
+
 function JoinScreen({ lobbyId, onJoined, onBack }: {
   lobbyId: string
   onJoined: (token: string, data: LobbyPayload & { token: string }) => void
@@ -295,15 +322,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
     }
   }
 
-  if (missing) {
-    return (
-      <div className="landing">
-        <h1><Brand /></h1>
-        <p className="tagline">That lobby doesn't exist (or the server restarted).</p>
-        <button onClick={onBack}>Start your own game</button>
-      </div>
-    )
-  }
+  if (missing) return <LobbyMissing onBack={onBack} />
   if (!preview) return <div className="landing"><p className="tagline">Finding the table…</p></div>
 
   const started = preview.status === 'started'
@@ -332,14 +351,16 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
   )
 }
 
-function LobbyScreen({ lobby, lobbyId, token, onBack }: {
+function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
   lobby: LobbyPayload | null
+  missing: boolean
   lobbyId: string
   token: string
   onBack: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const joinUrl = `${window.location.origin}/#/join/${lobbyId}`
+  if (missing) return <LobbyMissing onBack={onBack} />
   if (!lobby) return <div className="landing"><p className="tagline">Opening the lobby…</p></div>
   const waitingFor = lobby.humanSeats - lobby.members.length
   return (
