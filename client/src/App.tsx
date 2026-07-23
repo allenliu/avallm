@@ -15,6 +15,11 @@ import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 
 const Brand = () => <>Ava<span className="llm">LLM</span></>
 
+const REPO_URL = 'https://github.com/allenliu/avallm'
+const SourceLink = () => (
+  <a className="source-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">Source</a>
+)
+
 type Screen =
   | { name: 'landing' }
   | { name: 'join'; lobbyId: string }
@@ -252,7 +257,11 @@ export function App() {
       <div className="landing-page">
         <div className="hero">
           <h1><Brand /></h1>
-          <p className="subtitle">The Resistance: Avalon, played against a table of LLMs</p>
+          <p className="subtitle">
+            The Resistance: Avalon, played against a table of LLMs
+            <span className="subtitle-sep"> · </span>
+            <SourceLink />
+          </p>
           <p className="tagline">
             Hidden roles, open models. Bluff DeepSeek, out-read Gemini, or invite
             friends and let the machines fill the empty chairs.
@@ -300,6 +309,7 @@ export function App() {
           <button className="ghost" onClick={() => setShowHistory(true)}>Record</button>
           <button className="ghost" onClick={() => setShowRef(true)}>Codex</button>
           <button className="ghost" onClick={copyLog} title="Copy a debug transcript of this game to the clipboard">{copyLabel}</button>
+          <SourceLink />
         </span>
       </header>
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
