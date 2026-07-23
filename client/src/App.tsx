@@ -258,8 +258,7 @@ export function App() {
             friends and let the machines fill the empty chairs.
           </p>
         </div>
-        <Launcher onStart={startGame} starting={starting} library={library} onLibraryChange={refreshLibrary} />
-        {error && <p className="error center">{error}</p>}
+        <Launcher onStart={startGame} starting={starting} library={library} onLibraryChange={refreshLibrary} error={error} />
       </div>
     )
   }
@@ -596,7 +595,7 @@ const QUEST_SIGILS = [
   <svg viewBox="0 0 30 30" className="qsig" key="wheel"><circle cx="15" cy="15" r="10" /><path d="M15 5v20M5 15h20M8 8l14 14M22 8L8 22" /></svg>,
 ]
 
-function Launcher({ onStart, starting, library, onLibraryChange }: {
+function Launcher({ onStart, starting, library, onLibraryChange, error }: {
   onStart: (opts: {
     players: number; humanSeats: number; table: TableSeat[]; roles: Role[] | null; humanName: string
     invite?: string
@@ -604,6 +603,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   starting: boolean
   library: Library | null
   onLibraryChange: () => void
+  error: string | null
 }) {
   const [players, setPlayers] = useState(5)
   const [humanSeats, setHumanSeats] = useState(1)
@@ -615,6 +615,11 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
   const [showRules, setShowRules] = useState(false)
 
   const botCount = players - humanSeats
+  // On a gated (public) deploy the invite code is mandatory. Block the start
+  // client-side so the dead-click never reaches the server, and so the reason
+  // shows next to the button instead of as a stray error at the page foot.
+  const gated = !!library?.gated
+  const needsCode = gated && !invite.trim()
 
   // Fill the table once the library arrives; resize when players/humans change.
   useEffect(() => {
@@ -709,10 +714,11 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
                     ))}
                   </select>
                 </label>
-                {library?.gated && (
-                  <label className="field">Invite code
+                {gated && (
+                  <label className={`field field-required${needsCode ? ' missing' : ''}`}>Invite code
                     <input
-                      value={invite} maxLength={64} placeholder="required on this server"
+                      value={invite} maxLength={64} placeholder="required to start (ask the host)"
+                      aria-required="true"
                       onChange={(e) => {
                         setInvite(e.target.value)
                         localStorage.setItem('avalon-invite', e.target.value)
@@ -791,9 +797,14 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
             </span>
           )}
           <span className="cta-spacer" />
+          {(error || needsCode) && (
+            <span className={`cta-msg${error ? ' err' : ''}`}>
+              {error ?? 'Enter the invite code to start.'}
+            </span>
+          )}
           <button
             className="cta"
-            disabled={starting || !built.roles || table.length !== botCount}
+            disabled={starting || !built.roles || table.length !== botCount || needsCode}
             onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName, invite: invite || undefined })}
           >
             {starting
@@ -879,7 +890,7 @@ function TablePicker({ library, table, onChange, onFill }: {
                 >
                   {/* No "default" option for unavailable agents — their default
                       is the dead model the server would reject. */}
-                  {!info.unavailable && <option value="">default — {info.model}</option>}
+                  {!info?.unavailable && <option value="">default — {info?.model}</option>}
                   {library.models.map((m) => (
                     <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
                   ))}

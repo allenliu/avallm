@@ -1310,6 +1310,10 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
 .cta-inner .inplay .good { color: var(--good); }
 .cta-inner .inplay .evil { color: var(--evil); }
 .cta-spacer { flex: 1; }
+.cta-msg { font-size: 0.78rem; color: var(--dim); text-align: right; }
+.cta-msg.err { color: var(--bad); }
+.field-required.missing input { border-color: var(--gold-deep); }
+.field-required.missing input::placeholder { color: var(--gold); opacity: 0.85; }
 .cta {
   font: 700 0.9rem var(--serif); letter-spacing: 0.12em; text-transform: uppercase;
   color: #241c0e; border: 1px solid var(--gold-lt); border-radius: 5px;
@@ -1473,6 +1477,7 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .seatrow select { flex: 1; }
   .cta-inner { padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); flex-wrap: wrap; gap: 8px; }
   .cta-inner .inplay { font-size: 0.72rem; width: 100%; }
+  .cta-inner .cta-msg { width: 100%; text-align: left; }
   .cta { width: 100%; padding: 1.05em 0.6em; }
 
   /* reveal */
