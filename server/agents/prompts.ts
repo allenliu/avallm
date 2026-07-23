@@ -4,7 +4,7 @@
 
 import { MAX_PROPOSALS } from '../engine/rules.ts'
 import { factsDossier } from './facts.ts'
-import type { PlayerView, Seat } from '../engine/types.ts'
+import type { Lean, PlayerView, Seat } from '../engine/types.ts'
 import type { Msg } from '../llm/openrouter.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
 
@@ -140,6 +140,18 @@ export function directAddresses(view: PlayerView): string[] {
   return [...mentioners]
 }
 
+// The deciding seat's OWN most-recent public lean, from the transcript. Leans
+// attach only while a team is on the table, so during a vote this is the bot's
+// signal on the CURRENT proposal — surfaced so the vote can't silently
+// contradict a lean the table already saw. undefined if the seat never leaned.
+export function ownRecentLean(view: PlayerView): Lean | undefined {
+  for (let i = view.transcript.length - 1; i >= 0; i--) {
+    const u = view.transcript[i]
+    if (u.seat === view.seat && u.lean) return u.lean
+  }
+  return undefined
+}
+
 export interface AskExtra {
   chosenTeam?: Seat[]
 }
@@ -163,7 +175,15 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
     const team = (extra?.chosenTeam ?? []).map((s) => nameOf(v, s)).join(', ')
     return `You are the leader and your team for quest ${v.round} is locked in: ${team}. Address the table: pitch this team in one or two sentences.`
   },
-  vote: () => `Vote on the proposed team: approve or reject.`,
+  vote: (v) => {
+    const lean = ownRecentLean(v)
+    // Neutral fact: the public lean this seat already signalled on this team.
+    // A light consistency note mirrors the pitch contract's flip acknowledgement.
+    const leanNote = lean
+      ? ` Your most recent public lean on this team was: ${lean}. If your vote differs, briefly acknowledge why.`
+      : ''
+    return `Vote on the proposed team: approve or reject.${leanNote}`
+  },
   quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
   assassinate: () => `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. If you are right, evil wins.`,
   reflect: () => `Update your private read of the table: who do you suspect and why, and what is your plan?`,
