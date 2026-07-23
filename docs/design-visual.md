@@ -200,6 +200,15 @@ remain future options (Zodiac's seat-linking lines double as a turn-order diagra
   the two ballots share the sealing stage and diverge at resolution.
   Follow-up noted: ballots read all-sealing→reveal (server resolves bots together); a live
   "3/7" trickle needs per-decision broadcasts.
+- [x] **Reveal choreography** (fixes "the flip/gather-shuffle never plays in real games"):
+  the animations are CSS **mount animations on the reveal event row**, so they run their
+  full duration regardless of how fast the server resolved (the dev bot-delay is only for
+  the *sealing* capture). Vote reveal = **Option A**: each ballot flips from face-down to
+  the voter's aye/nay, staggered, staying as labeled cards (replaces the text tally).
+  Quest reveal = **Q1**: the team's face-down cards gather → shuffle → a single card flips
+  to the aggregate (The Sun / The Tower + fail count); individual plays never shown. Both
+  honor `prefers-reduced-motion` (land on the final state). Live standalone of the quest
+  reveal: https://claude.ai/code/artifact/185f1da7-76ad-45f7-b543-3063be2eb2b6
 - [x] **Dev-only bot-decision delay** (`AVALON_BOT_DELAY_MS`, 0/off in prod) holds the
   `acting` state so the screenshot harness can capture the transient thinking/ballot/beat
   UI. Gallery now captures vote-ballot, quest-ballot, discuss-thinking, assassin-beat at

@@ -681,6 +681,98 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 @media (prefers-reduced-motion: reduce) {
   .bslot.pending, .qmini.pending, .ballot.quest.gathered .qmini, .feed-row.moment.assassin-beat { animation: none; }
 }
+
+/* ---- vote reveal (Option A): ballots flip in place to aye/nay ---- */
+.feed-row.votereveal {
+  display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap;
+  border-left: 2px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 3px 3px 0; padding: 0.4rem 0.6rem 0.4rem 0.7rem; margin: 0.15rem 0;
+}
+.votereveal .votes-lbl { align-self: center; font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.vcards { display: inline-flex; gap: 6px; }
+.vcardcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.vflip { display: inline-block; width: 30px; height: 40px; perspective: 260px; }
+.vflip .vf-inner {
+  position: relative; display: block; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  animation: voteflip 0.55s cubic-bezier(0.3, 0.7, 0.4, 1) var(--d, 0s) both;
+}
+.vf-front, .vf-back {
+  position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border-radius: 4px; display: grid; place-items: center; font: 700 0.74rem var(--mono);
+}
+.vf-front {
+  background:
+    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg, var(--night-2), var(--panel));
+  border: 1px solid var(--gold-deep); box-shadow: inset 0 0 0 1.5px var(--night-2);
+}
+.vf-back { transform: rotateY(180deg); border: 1px solid var(--line); background: var(--night-2); }
+.vflip.aye .vf-back { color: #9cd0a4; border-color: var(--good); background: rgba(111, 143, 217, 0.15); }
+.vflip.nay .vf-back { color: #e6a49a; border-color: var(--evil); background: rgba(194, 94, 84, 0.15); }
+@keyframes voteflip { from { transform: rotateY(0); } to { transform: rotateY(180deg); } }
+.vcard-name { font: 500 0.5rem var(--mono); color: var(--faint); max-width: 46px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.votereveal .votes-result { align-self: center; font: 700 0.72rem var(--mono); letter-spacing: 0.1em; animation: revealfade 0.4s ease 0.95s both; }
+.votereveal .votes-result.ok { color: #9cd0a4; }
+.votereveal .votes-result.bad { color: #e6a49a; }
+@keyframes revealfade { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+
+/* ---- quest reveal (Q1): gather → shuffle → single flip to the aggregate ---- */
+.feed-row.questreveal {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 0.55rem 1rem 0.5rem; margin: 0.5rem 0;
+  border-top: 1px solid; border-bottom: 1px solid;
+}
+.feed-row.questreveal.ok { border-color: var(--good); background: linear-gradient(90deg, transparent, rgba(111, 143, 217, 0.12), transparent); }
+.feed-row.questreveal.bad { border-color: var(--evil); background: linear-gradient(90deg, transparent, rgba(194, 94, 84, 0.12), transparent); }
+.qr-stage { position: relative; width: 108px; height: 58px; }
+.qr-card {
+  position: absolute; left: 50%; top: 50%; width: 30px; height: 42px; margin: -21px 0 0 -15px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, var(--night-2), var(--panel));
+  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep), 0 3px 6px rgba(0, 0, 0, 0.5);
+  transform: translateX(var(--x)) rotate(var(--r));
+  animation: qgather 1.5s ease both;
+}
+@keyframes qgather {
+  0%, 20% { transform: translateX(var(--x)) rotate(var(--r)); opacity: 1; }
+  42% { transform: translateX(0) rotate(0); opacity: 1; }
+  50% { transform: translateX(2px) rotate(3deg); }
+  58% { transform: translateX(-2px) rotate(-3deg); }
+  66% { transform: translateX(0) rotate(0); opacity: 1; }
+  78%, 100% { transform: translateX(0) rotate(0); opacity: 0; }
+}
+.qr-result {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  opacity: 0; animation: qreveal 1.5s ease both;
+}
+.qr-result.sun { color: var(--good); }
+.qr-result.tower { color: var(--evil); }
+.qr-em { width: 30px; height: 30px; }
+.qr-word { font: 700 0.5rem var(--mono); letter-spacing: 0.1em; }
+@keyframes qreveal {
+  0%, 70% { opacity: 0; transform: perspective(300px) rotateY(90deg) scale(0.85); }
+  84% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1.06); }
+  100% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1); }
+}
+.qr-caption { text-align: center; animation: revealfade 0.4s ease 1.25s both; }
+.qr-caption b { font: 700 0.95rem var(--serif); letter-spacing: 0.16em; text-transform: uppercase; }
+.feed-row.questreveal.ok .qr-caption b { color: var(--good); }
+.feed-row.questreveal.bad .qr-caption b { color: var(--evil); }
+.qr-sub { display: block; font: 500 0.66rem var(--mono); color: var(--dim); letter-spacing: 0.05em; margin-top: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* skip the choreography — land straight on the revealed state */
+  .vf-inner { animation: none; transform: rotateY(180deg); }
+  .votereveal .votes-result, .qr-caption { animation: none; opacity: 1; }
+  .qr-card { animation: none; opacity: 0; }
+  .qr-result { animation: none; opacity: 1; transform: none; }
+}
+
 /* the vote tally: everyone's played card laid in a row */
 .feed-row.votes {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;

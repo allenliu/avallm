@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { AgentInfo, GameEvent, PlayerView, Seat } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
-import { celestialFor } from './Arcana.tsx'
+import { celestialFor, Emblem } from './Arcana.tsx'
 import { winReasonText } from '../setup.ts'
 
 export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
@@ -29,7 +29,7 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
   const shortModel = (s: number) =>
     s === view.seat ? 'you' : bots[s] ? (bots[s].model.includes('/') ? bots[s].model.split('/')[1] : bots[s].model) : 'human'
 
-  const rows = view.events.map((ev) => renderEvent(ev, name, view.seat)).filter(Boolean) as FeedRow[]
+  const rows = view.events.map((ev) => renderEvent(ev, name, view)).filter(Boolean) as FeedRow[]
 
   return (
     <div className="feed" ref={ref}>
@@ -55,16 +55,51 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
             </div>
           )
         }
-        if (row.votes) {
+        if (row.kind === 'votereveal') {
+          // Option A: each ballot flips from face-down to the voter's aye/nay.
+          // The flip is a CSS mount animation, so it plays its full duration
+          // even when the server resolved instantly (no dev bot-delay).
           return (
-            <div key={row.key} className={`feed-row votes ${row.cls}`}>
+            <div key={row.key} className="feed-row votereveal">
               <span className="votes-lbl">Votes</span>
-              {row.votes.map((v) => (
-                <span key={v.seat} className={`vcard ${v.vote}`} title={`${name(v.seat)} voted ${v.vote}`}>
-                  {name(v.seat)} <b>{v.vote === 'approve' ? '✓' : '✕'}</b>
+              <span className="vcards">
+                {row.votes!.map((v, i) => (
+                  <span key={v.seat} className="vcardcol" style={{ ['--d' as string]: `${0.15 + i * 0.09}s` }}>
+                    <span className={`vflip ${v.vote === 'approve' ? 'aye' : 'nay'}`}>
+                      <span className="vf-inner">
+                        <span className="vf-front" />
+                        <span className="vf-back">{v.vote === 'approve' ? '✓' : '✕'}</span>
+                      </span>
+                    </span>
+                    <span className="vcard-name">{name(v.seat)}</span>
+                  </span>
+                ))}
+              </span>
+              <span className={`votes-result ${row.cls}`}>{row.text} {row.ayes}–{row.nays}</span>
+            </div>
+          )
+        }
+        if (row.kind === 'questreveal') {
+          // Q1: face-down cards gather, shuffle, then a single card flips to the
+          // aggregate (The Sun / The Tower + fail count). Individual plays are
+          // never shown — the shuffle IS the anonymity. Mount-driven animation.
+          const won = row.cls === 'ok'
+          return (
+            <div key={row.key} className={`feed-row questreveal ${row.cls}`}>
+              <span className="qr-stage" style={{ ['--n' as string]: row.teamSize }}>
+                {Array.from({ length: row.teamSize ?? 3 }).map((_, i) => (
+                  <span key={i} className="qr-card"
+                    style={{ ['--i' as string]: i, ['--x' as string]: `calc((${i} - (${row.teamSize ?? 3} - 1) / 2) * 15px)`, ['--r' as string]: `calc((${i} - (${row.teamSize ?? 3} - 1) / 2) * 6deg)` }} />
+                ))}
+                <span className={`qr-result ${won ? 'sun' : 'tower'}`}>
+                  <Emblem id={won ? 'sun' : 'tower'} className="qr-em" />
+                  <span className="qr-word">{won ? 'THE SUN' : `TOWER ·${row.failCount}`}</span>
                 </span>
-              ))}
-              <span className={`votes-result ${row.cls.includes('ok') ? 'ok' : 'bad'}`}>{row.text}</span>
+              </span>
+              <span className="qr-caption">
+                <b>{row.text}</b>
+                <span className="qr-sub">{row.sub}</span>
+              </span>
             </div>
           )
         }
@@ -170,14 +205,20 @@ function PendingIndicator({ view, bots, pending, name }: {
 interface FeedRow {
   key: number
   cls: string
+  kind?: 'votereveal' | 'questreveal'
   seat?: number
   text: string
   sub?: string
   lean?: string
   votes?: { seat: number; vote: string }[]
+  ayes?: number
+  nays?: number
+  teamSize?: number
+  failCount?: number
 }
 
-function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: number): FeedRow | null {
+function renderEvent(ev: GameEvent, name: (s: number) => string, view: PlayerView): FeedRow | null {
+  const viewSeat = view.seat
   const p = ev.payload
   switch (ev.type) {
     case 'leadChange': {
@@ -200,18 +241,25 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, viewSeat: numbe
       if (p.auto) {
         return { key: ev.seq, cls: 'record hammer', text: '🔨 The hammer falls — the 5th proposal is locked in automatically, no vote.' }
       }
+      const votes = p.votes as { seat: number; vote: string }[]
+      const ayes = votes.filter((v) => v.vote === 'approve').length
       return {
         key: ev.seq,
+        kind: 'votereveal',
         cls: p.approved ? 'ok' : 'bad',
-        votes: p.votes as { seat: number; vote: string }[],
+        votes, ayes, nays: votes.length - ayes,
         text: p.approved ? 'APPROVED' : 'REJECTED',
       }
     }
     case 'questResult': {
       const won = p.result === 'success'
+      const q = view.quests[p.round - 1]
+      const teamSize = q?.team?.length ?? q?.teamSize ?? (p.failsRequired + 2)
       return {
         key: ev.seq,
-        cls: won ? 'moment ok' : 'moment bad',
+        kind: 'questreveal',
+        cls: won ? 'ok' : 'bad',
+        teamSize, failCount: p.failCount,
         text: `Quest ${p.round} · ${won ? 'The Sun — SUCCESS' : 'The Tower — FAILED'}`,
         sub: `${p.failCount} fail card${p.failCount === 1 ? '' : 's'} revealed, ${p.failsRequired} needed`,
       }
