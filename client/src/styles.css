@@ -586,14 +586,33 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   display: flex; flex-direction: column; gap: 0.45rem;
 }
 .feed-row { line-height: 1.45; font-size: 0.94rem; overflow-wrap: anywhere; }
-.feed-row.talk { padding: 3px 0 2px; }
-.say-who {
-  display: flex; align-items: baseline; gap: 7px;
-  font-weight: 700; font-size: 0.88rem;
-  color: var(--mc, var(--gold));
+/* ---- the illuminated stream: one line per turn (talk / quiet / deed) ----
+   A turn's identity is the name's colour (--mc) — no sigil, no monogram badge.
+   Punctuation: colon introduces speech, mid-dot separates fields, deeds/passes
+   are narrated with no connector. */
+.c-line {
+  line-height: 1.45; font-size: 0.94rem; overflow-wrap: anywhere;
+  padding: 0.16rem 0 0.16rem 0.7rem;
+  border-left: 2px solid transparent; margin-left: -0.1rem;
+  animation: lay 0.3s ease both;
 }
-.say-who small { font: 500 0.62rem var(--mono); color: var(--faint); letter-spacing: 0.03em; }
-.say-text { color: var(--text); max-width: 64ch; margin-top: 1px; }
+.c-line .cl-nm { font-weight: 700; color: var(--mc, var(--gold)); }
+.c-line .cl-glyph { color: var(--gold); }
+.c-line .cl-verb { color: var(--faint); font-style: italic; }
+.c-line .cl-say { color: var(--text); }
+/* quiet register — passes, wordless signals, renames: dimmed & italic whole */
+.c-line.quiet { color: var(--faint); font-style: italic; font-size: 0.86rem; }
+.c-line.quiet .cl-nm { font-weight: 600; font-style: normal; color: var(--mc, var(--faint)); }
+/* deeds — proposals, the crown, the hammer: a gold rail marks a recorded move */
+.c-line.deed {
+  color: var(--dim); font-size: 0.92rem;
+  border-left-color: var(--gold-deep); background: rgba(201, 168, 76, 0.05); border-radius: 0 3px 3px 0;
+}
+.c-line.deed .cl-verb { color: var(--gold-deep); }
+.c-line.deed .cl-say { color: var(--dim); }
+.c-line.deed .cl-pitch { color: var(--text); font-style: italic; }
+.c-line.deed.hammer { color: var(--gold); border-left-color: var(--gold); }
+.c-line.deed.hammer .cl-say { color: var(--gold); }
 .leanmark {
   font: 600 0.58rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
   padding: 2px 6px; border: 1px solid; border-radius: 2px; margin-left: 8px; vertical-align: 1px;
@@ -602,23 +621,14 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .leanmark.r { color: #e6a49a; border-color: rgba(194, 94, 84, 0.55); }
 .leanmark.u { color: var(--dim); border-color: var(--line); }
 .feed-speaker { font-weight: 700; margin-right: 0.5rem; display: inline-flex; align-items: center; gap: 0.35rem; }
-.feed-row.pass { color: var(--faint); font-style: italic; font-size: 0.85rem; }
-.feed-row.pass .feed-speaker { font-weight: 600; }
-/* T1 ghost row: a pending row at the feed's live edge while a bot decides */
-.feed-row.thinking-row {
-  display: flex; align-items: baseline; gap: 8px;
-  animation: lay 0.3s ease both;
-}
-.thinking-row .tr-glyph {
-  font-family: var(--serif); font-size: 15px; line-height: 1; color: var(--mc, var(--gold));
-  text-shadow: 0 0 8px color-mix(in srgb, var(--mc, var(--gold)) 60%, transparent);
-}
-.thinking-row .tr-nm { font-weight: 700; font-size: 0.85rem; color: var(--mc, var(--gold)); }
-.thinking-row .tr-act { font-style: italic; color: var(--faint); font-size: 0.85rem; }
-.thinking-row .tr-dots { display: inline-flex; gap: 2px; color: var(--mc, var(--gold)); font-size: 0.5rem; align-self: center; }
-.thinking-row .tr-dots i { font-style: normal; animation: dotpulse 1.2s infinite; }
-.thinking-row .tr-dots i:nth-child(2) { animation-delay: 0.2s; }
-.thinking-row .tr-dots i:nth-child(3) { animation-delay: 0.4s; }
+/* the live-edge ghost row: a pending line while a bot decides — same
+   illuminated-line vocabulary, name in colour, italic verb, pulsing dots */
+.c-line.think { display: flex; align-items: baseline; gap: 6px; }
+.c-line.think .cl-nm { color: var(--mc, var(--gold)); }
+.tr-dots { display: inline-flex; gap: 2px; font-size: 0.5rem; color: var(--mc, var(--gold)); align-self: center; }
+.tr-dots i { font-style: normal; animation: dotpulse 1.2s infinite; }
+.tr-dots i:nth-child(2) { animation-delay: 0.2s; }
+.tr-dots i:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dotpulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 
 /* ---- sealing ballots (vote + quest) & the assassination beat ---- */
@@ -796,20 +806,6 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .votes-result { font: 700 0.72rem var(--mono); letter-spacing: 0.12em; margin-left: 4px; }
 .votes-result.ok { color: #9cd0a4; }
 .votes-result.bad { color: #e6a49a; }
-.feed-row.record {
-  font: 500 0.76rem var(--mono);
-  color: var(--dim);
-  border-left: 2px solid var(--gold-deep);
-  background: rgba(201, 168, 76, 0.05);
-  border-radius: 0 3px 3px 0;
-  padding: 0.32rem 0.6rem 0.32rem 0.7rem;
-  margin: 0.15rem 0;
-}
-.feed-row.record .feed-speaker { font: 700 0.76rem var(--mono); }
-.feed-row.record.ok { color: #9cd0a4; }
-.feed-row.record.bad { color: #e6a49a; }
-.feed-row.record.lead { color: var(--gold); }
-.feed-row.record.hammer { color: var(--gold); border-left-color: var(--gold); }
 .feed-row.moment {
   margin: 0.6rem 0; padding: 0.55rem 1rem 0.5rem; text-align: center;
   border-top: 1px solid; border-bottom: 1px solid;
@@ -1132,7 +1128,6 @@ footer .error::before {
 .think-row.card-success b { color: var(--ok); }
 
 /* ---- motion: cards land, results flip ---- */
-.feed-row.record, .feed-row.pass, .feed-row.talk { animation: lay 0.3s ease both; }
 .feed-row.moment { animation: momentIn 0.45s ease both; }
 @keyframes lay { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 @keyframes momentIn { from { opacity: 0; transform: scaleX(0.96); } to { opacity: 1; transform: none; } }
@@ -1150,7 +1145,7 @@ footer .error::before {
   .youredge.waits::after, .youredge.waits .playcards { animation: none; }
   .thinking-dots { animation: none; opacity: 1; }
   .play, .play.approve:hover, .play.reject:hover { transition: none; }
-  .feed-row.record, .feed-row.pass, .feed-row.talk, .feed-row.moment, .qcard.face { animation: none; }
+  .c-line, .tr-dots i, .feed-row.moment, .qcard.face { animation: none; }
   .turn-tag { animation: none; }
   .flip { animation: none !important; }
 }
