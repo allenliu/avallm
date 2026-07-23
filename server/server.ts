@@ -413,7 +413,10 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const { lobby, token } = createLobby({
-        name: body.humanName, playerCount: body.playerCount, humanSeats: 1,
+        // Solo default is 'You', not the lobby path's 'Host' — there is no
+        // lobby to host when playing alone with an empty name field.
+        name: cleanName(body.humanName, 'You'),
+        playerCount: body.playerCount, humanSeats: 1,
         table: body.table, roles: body.roles,
       })
       const session = sessions.get(lobby.gameId!)!
