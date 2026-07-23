@@ -76,6 +76,70 @@ test('parseTableSeat accepts both wire shapes and rejects bad overrides', () => 
   assert.throws(() => parseTableSeat({ agent: 'autopilot', model: 'haiku' }, byId), /does not take a model/)
 })
 
+test('validateDef: new layer fields — key checks, caps, temperature, CRLF', () => {
+  const ok = (engine: object) => validateDef({ id: 'ok', name: 'x', engine: { type: 'llm', model: 'deepseek', ...engine } })
+  // unknown guidance keys fail loudly at save time
+  assert.throws(() => ok({ kindGuidance: { sing: 'la' } }), /unknown kind "sing"/)
+  assert.throws(() => ok({ roleGuidance: { wizard: 'zap' } }), /unknown role "wizard"/)
+  // temperature stays in the JSON-reliable band
+  assert.throws(() => ok({ temperature: 1.2 }), /temperature/)
+  assert.throws(() => ok({ temperature: -0.1 }), /temperature/)
+  ok({ temperature: 0 })
+  ok({ temperature: 1 })
+  // per-field and aggregate caps
+  assert.throws(() => ok({ strategy: 'x'.repeat(2001) }), /strategy/)
+  assert.throws(() => ok({
+    strategy: 'x'.repeat(2000), personality: 'x'.repeat(2000),
+    roleGuidance: { merlin: 'x'.repeat(2000), servant: 'x'.repeat(2000), assassin: 'x'.repeat(2000) },
+    kindGuidance: { vote: 'x'.repeat(2000) },
+  }), /exceeds/)
+  // Windows textareas paste CRLF — normalized at the boundary
+  const d = ok({ strategy: 'line one\r\nline two', kindGuidance: { reflect: 'a\r\nb' } })
+  const e = d.engine as { strategy?: string; kindGuidance?: Record<string, string> }
+  assert.equal(e.strategy, 'line one\nline two')
+  assert.equal(e.kindGuidance?.reflect, 'a\nb')
+})
+
+test('validateDef: legacy string versions read as integers; lenient mode keeps dead models', () => {
+  const legacy = validateDef({
+    id: 'old', name: 'Old', version: '1.0',
+    engine: { type: 'llm', model: 'deepseek' },
+  })
+  assert.equal(legacy.version, 1)
+  // load mode accepts a vanished roster model so it can be surfaced, not skipped
+  const dead = validateDef(
+    { id: 'dead', name: 'Dead', engine: { type: 'llm', model: 'gone-model' } },
+    { allowUnknownModel: true },
+  )
+  assert.equal((dead.engine as { model: string }).model, 'gone-model')
+  // publicInfo must not throw on it either
+  const info = publicInfo(dead)
+  assert.match(info.model, /unavailable/)
+})
+
+test('strategy and kindGuidance layer into the prompt in design-doc order', () => {
+  const g = createGame({ seed: 'defs-layers', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const view = viewFor(g, 0)
+  const [sys] = buildMessages('vote', view, '', {
+    strategy: 'STRATEGY-MARKER trust the vote record',
+    personality: 'PERSONA-MARKER theatrical',
+    kindGuidance: { vote: 'VOTE-MARKER weigh history', discuss: 'DISCUSS-MARKER never' },
+  })
+  const at = (needle: string) => {
+    const i = sys.content.indexOf(needle)
+    assert.ok(i >= 0, `missing: ${needle}`)
+    return i
+  }
+  // order: rules < strategy < role guidance < persona < kind guidance < guard < contract
+  assert.ok(at('succeeding 3 of 5') < at('STRATEGY-MARKER'))
+  assert.ok(at('STRATEGY-MARKER') < at('PERSONA-MARKER'))
+  assert.ok(at('PERSONA-MARKER') < at('VOTE-MARKER'))
+  assert.ok(at('VOTE-MARKER') < at('TABLE TALK block'))       // injection guard after all custom text
+  assert.ok(at('TABLE TALK block') < at('"vote"'))            // contract is the last word
+  // guidance for other kinds stays out of this call
+  assert.ok(!sys.content.includes('DISCUSS-MARKER'))
+})
+
 test('personality and roleGuidance layer into the prompt; contracts stay fixed', () => {
   const g = createGame({ seed: 'defs-p', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
   const view = viewFor(g, 0)

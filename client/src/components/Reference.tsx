@@ -5,6 +5,7 @@ import { useState } from 'react'
 import type { AgentInfo, Library, PlayerView } from '../types.ts'
 import { ROLE_INFO, RULES_SUMMARY } from '../setup.ts'
 import type { Role } from '../setup.ts'
+import { agentConfigText, tokenEstimate } from '../agentConfig.ts'
 import { ModelBadge } from './TableSeats.tsx'
 
 type Tab = 'rules' | 'roles' | 'table' | 'library' | 'setup'
@@ -95,6 +96,7 @@ function TableTab({ view, bots }: { view: PlayerView; bots: Record<number, Agent
               {info.model}{info.version ? ` · v${info.version}` : ''}{info.author ? ` · by ${info.author}` : ''}
               {info.about ? ` — ${info.about}` : ''}
               {info.personality ? ` Persona: ${info.personality}` : ''}
+              {info.tunedChars > 0 && ` · tuned (~${tokenEstimate(info.tunedChars)} tokens of custom strategy)`}
             </span>
           </div>
         )
@@ -115,11 +117,12 @@ function LibraryTab({ library }: { library: Library | null }) {
           <span className="role-toggle-desc lib-desc">
             {a.model}{a.version ? ` · v${a.version}` : ''}{a.author ? ` · by ${a.author}` : ''}
             {a.custom ? ' · custom' : ''}
+            {a.unavailable ? ` · unavailable (${a.unavailable})` : ''}
             {a.about ? ` — ${a.about}` : ''}
-            {a.personality && (
+            {a.tunedChars > 0 && (
               <details className="prompt-details">
-                <summary>personality prompt</summary>
-                <pre>{a.personality}</pre>
+                <summary>prompt config (~{tokenEstimate(a.tunedChars)} tokens)</summary>
+                <pre>{agentConfigText(a)}</pre>
               </details>
             )}
           </span>

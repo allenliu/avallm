@@ -20,13 +20,17 @@ export interface LlmAgentOpts {
   modelId: string           // roster id, e.g. 'deepseek'
   client: OpenRouterClient
   agentId?: string          // library agent id, used for spend tags (defaults to modelId)
+  label?: string            // display label for degrade attribution, e.g. 'Merlin Hunter v2'
+                            // (two custom agents can share a model — the model name is ambiguous)
   prompts?: PromptOverrides // agent-config prompt layers
+  temperature?: number      // agent-config override of the per-kind default, [0, 1]
 }
 
 export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   const entry = rosterById(opts.modelId)
   const { client } = opts
   const tagId = opts.agentId ?? entry.id
+  const label = opts.label ?? entry.displayName
   const overrides = opts.prompts ?? {}
   let scratchpad = ''
   let reflectedQuests = 0
@@ -46,7 +50,7 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
     }
     return client.call(entry.slug, messages, {
       tag: `${tagId}/${kind}`,
-      temperature: params.temperature,
+      temperature: opts.temperature ?? params.temperature,
       max_tokens: params.max_tokens,
       response_format: params.json ? { type: 'json_object' } : undefined,
     })
@@ -96,7 +100,7 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
           ? parsed.error!
           : parsed.decision && legalityError(parsed.decision, view)
         if (error) {
-          throw new Error(`${entry.displayName} failed ${kind} twice: ${error}`)
+          throw new Error(`${label} failed ${kind} twice: ${error}`)
         }
       }
       const decision = parsed.decision!

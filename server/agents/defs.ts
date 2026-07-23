@@ -1,21 +1,27 @@
 // Agent definitions — the agent library. An agent is a CONFIG: identity
 // (name/version/author/about/badge) + an engine. For llm engines the config
-// owns the prompt LAYERS (personality, per-role strategy overrides) and may
-// SUGGEST a model; which model actually plays is a seat-time decision
-// (resolveModel: lobby override > def suggestion > DEFAULT_MODEL — the host
-// pays the bill, so the host gets the final say). The output contracts, rules
-// digest, injection guard, and view rendering stay engine-owned so a custom
-// agent can't break parsing or leak hidden information.
+// owns the prompt LAYERS (strategy, personality, per-role and
+// per-decision-kind guidance, temperature) and may SUGGEST a model; which
+// model actually plays is a seat-time decision (resolveModel: lobby override
+// > def suggestion > DEFAULT_MODEL — the host pays the bill, so the host gets
+// the final say). The output contracts, rules digest, injection guard, and
+// view rendering stay engine-owned so a custom agent can't break parsing or
+// leak hidden information. Design: docs/design-custom-agents.md.
 //
-// Built-ins: one agent per roster model (baseline prompts) + Autopilot (the
-// heuristic player). Custom agents are JSON files in data/agents/ — created
-// via POST /api/agents (llm engines only) or dropped in by hand (stdio
-// engines are file-drop ONLY: accepting commands over HTTP would be RCE).
+// Three tiers, earlier wins on id collision (collisions are surfaced, not
+// silent — see loadAgentLibrary):
+//   builtin — one agent per roster model (baseline prompts) + Autopilot
+//   curated — checked-in agents/*.json, version with the repo, read-only
+//   user    — data/agents/*.json, created via POST/PUT /api/agents (llm
+//             engines only) or dropped in by hand (stdio engines are
+//             file-drop ONLY: accepting commands over HTTP would be RCE)
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_MODEL, ROSTER, rosterById } from '../llm/roster.ts'
+import { CALL_PARAMS } from '../llm/call-params.ts'
+import type { LlmCallKind } from '../llm/call-params.ts'
 import { ROLE_ALIGNMENT } from '../engine/rules.ts'
 import type { Role } from '../engine/types.ts'
 
@@ -23,11 +29,14 @@ export interface LlmEngine {
   type: 'llm'
   model?: string // roster id — a SUGGESTION; seat-time override wins, DEFAULT_MODEL backstops
   personality?: string
+  strategy?: string
   roleGuidance?: Partial<Record<Role, string>>
   // 'replace' (default) swaps out the baseline guidance for that role;
   // 'append' layers the custom text under it, so the agent still rides
   // baseline strategy improvements.
   roleGuidanceMode?: 'replace' | 'append'
+  kindGuidance?: Partial<Record<LlmCallKind, string>>
+  temperature?: number // global sampling override, must be in [0, 1]
 }
 
 export type AgentEngine =
@@ -35,29 +44,51 @@ export type AgentEngine =
   | { type: 'heuristic' }
   | { type: 'stdio'; cmd: string; args: string[] }
 
+export type AgentTier = 'builtin' | 'curated' | 'user'
+
 export interface AgentDef {
   id: string
   name: string
-  version?: string
+  version?: number
   author?: string
   about?: string
   badge?: { color?: string; monogram?: string }
   engine: AgentEngine
-  custom?: boolean
+  tier?: AgentTier        // assigned at load, not persisted
+  unavailable?: string    // reason this agent can't be seated (assigned at load)
 }
 
-// What the client sees (never raw stdio commands).
+// A library-load problem worth showing users, not just console logs
+// (corrupt file, cross-tier id shadowing).
+export interface LibraryProblem {
+  file: string
+  reason: string
+}
+
+// What the client sees (never raw stdio commands). Custom prompt configs are
+// deliberately public — transparency is part of the premise, and secrecy is
+// unenforceable under a shared invite code (design doc §4).
 export interface AgentPublicInfo {
   id: string
   name: string
-  version?: string
+  version?: number
   author?: string
   about?: string
   model: string          // display name of the model, or 'rule-based' / 'external'
   color: string
   monogram: string
-  personality?: string   // shown for transparency in the library
-  custom: boolean
+  personality?: string
+  strategy?: string
+  roleGuidance?: Partial<Record<Role, string>>
+  roleGuidanceMode?: 'replace' | 'append'
+  kindGuidance?: Partial<Record<LlmCallKind, string>>
+  temperature?: number
+  suggestedModel?: string // the def's RAW model suggestion (roster id), if any —
+                          // `model` above is always the resolved display slug
+  tunedChars: number     // aggregate custom prompt text, 0 for baseline agents
+  custom: boolean        // editable (user tier)
+  tier: AgentTier
+  unavailable?: string
 }
 
 // One seat at a lobby table: which agent plays it, and (optionally) which
@@ -78,27 +109,31 @@ export function resolveModel(def: AgentDef, override?: string): string {
 // Throws on unknown agents/models and on model overrides for non-llm engines,
 // so a bad table is rejected at lobby creation, never at game start.
 export function parseTableSeat(raw: unknown, agentById: (id: string) => AgentDef): TableSeat {
-  if (typeof raw === 'string') {
-    agentById(raw) // throws on unknown agent
-    return { agent: raw }
-  }
-  const t = raw as Partial<TableSeat>
+  const t: Partial<TableSeat> | null = typeof raw === 'string' ? { agent: raw } : raw as Partial<TableSeat>
   if (!t || typeof t !== 'object' || typeof t.agent !== 'string') {
     throw new Error('table entry must be an agent id or {agent, model?}')
   }
-  const def = agentById(t.agent)
+  const def = agentById(t.agent) // throws on unknown agent
   if (t.model !== undefined) {
     if (typeof t.model !== 'string') throw new Error('seat model must be a roster id')
     rosterById(t.model) // throws on unknown model
     if (def.engine.type !== 'llm') {
       throw new Error(`agent ${def.id} is ${def.engine.type} — it does not take a model`)
     }
+  } else if (def.unavailable) {
+    // A stale model suggestion is curable by a seat override; without one the
+    // seat is rejected here, at lobby creation — never at game start.
+    throw new Error(`agent "${def.name}" cannot be seated: ${def.unavailable}`)
   }
-  return { agent: t.agent, model: t.model }
+  return t.model === undefined ? { agent: t.agent } : { agent: t.agent, model: t.model }
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const USER_AGENTS_DIR = path.join(__dirname, '..', '..', 'data', 'agents')
+export const CURATED_AGENTS_DIR = path.join(__dirname, '..', '..', 'agents')
+
+const FIELD_CAP = 2000
+const AGGREGATE_CAP = 10_000
 
 function hashColor(s: string): string {
   let h = 0
@@ -116,10 +151,11 @@ export function builtinDefs(): AgentDef[] {
     id: r.id,
     name: r.displayName,
     author: 'built-in',
-    version: '1.0',
+    version: 1,
     about: r.blurb,
     badge: r.badge,
     engine: { type: 'llm', model: r.id },
+    tier: 'builtin' as const,
   }))
   return [
     ...models,
@@ -127,16 +163,50 @@ export function builtinDefs(): AgentDef[] {
       id: 'autopilot',
       name: 'Autopilot',
       author: 'built-in',
-      version: '1.0',
+      version: 1,
       about: 'The rule-based player from the strategy playbook. Free, instant, and unimaginative.',
       badge: { color: '#5a5f73', monogram: 'AP' },
       engine: { type: 'heuristic' },
+      tier: 'builtin',
     },
   ]
 }
 
-export function validateDef(raw: unknown): AgentDef {
-  const d = raw as Partial<AgentDef>
+// Windows textareas paste \r\n, which inflates char caps and puts stray \r
+// into prompts — normalize every custom text field at the validation boundary.
+const normText = (s: string) => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+
+export function customChars(e: AgentEngine): number {
+  if (e.type !== 'llm') return 0
+  return (e.strategy?.length ?? 0)
+    + (e.personality?.length ?? 0)
+    + Object.values(e.roleGuidance ?? {}).reduce((n, t) => n + (t?.length ?? 0), 0)
+    + Object.values(e.kindGuidance ?? {}).reduce((n, t) => n + (t?.length ?? 0), 0)
+}
+
+function validateGuidanceMap(
+  map: Record<string, unknown>, field: string, noun: string, validKeys: (k: string) => boolean,
+): void {
+  if (!map || typeof map !== 'object' || Array.isArray(map)) {
+    throw new Error(`${field} must be an object of ${noun} -> text`)
+  }
+  for (const [key, text] of Object.entries(map)) {
+    if (!validKeys(key)) throw new Error(`${field}: unknown ${noun} "${key}"`)
+    if (typeof text !== 'string' || text.length > FIELD_CAP) {
+      throw new Error(`${field}.${key} must be a string (max ${FIELD_CAP} chars)`)
+    }
+  }
+}
+
+export interface ValidateOpts {
+  // Lenient library-load mode: accept defs whose roster model id has
+  // disappeared so they can be surfaced as `unavailable` instead of silently
+  // skipped. POST/PUT always validate strictly.
+  allowUnknownModel?: boolean
+}
+
+export function validateDef(raw: unknown, opts: ValidateOpts = {}): AgentDef {
+  const d = raw as Partial<AgentDef> & { version?: number | string }
   if (!d || typeof d !== 'object') throw new Error('agent def must be an object')
   if (typeof d.id !== 'string' || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(d.id)) {
     throw new Error('agent id must be a short kebab-case slug')
@@ -144,26 +214,51 @@ export function validateDef(raw: unknown): AgentDef {
   if (typeof d.name !== 'string' || !d.name.trim() || d.name.length > 40) {
     throw new Error('agent name required (max 40 chars)')
   }
+  // Legacy defs carry version: '1.0' — read any string as its leading number.
+  if (typeof d.version === 'string') d.version = Math.trunc(parseFloat(d.version)) || 1
+  if (d.version !== undefined && (typeof d.version !== 'number' || !Number.isInteger(d.version) || d.version < 1)) {
+    throw new Error('version must be a positive integer')
+  }
   const e = d.engine as AgentEngine | undefined
   if (!e || typeof e !== 'object') throw new Error('agent engine required')
   if (e.type === 'llm') {
-    if (e.model !== undefined) rosterById(e.model) // optional suggestion; throws on unknown model
-    if (e.personality !== undefined && (typeof e.personality !== 'string' || e.personality.length > 2000)) {
-      throw new Error('personality must be a string (max 2000 chars)')
+    // The model is an optional SUGGESTION (resolveModel backstops).
+    if (e.model !== undefined) {
+      if (typeof e.model !== 'string') throw new Error('model must be a roster id')
+      if (!opts.allowUnknownModel) rosterById(e.model) // throws on unknown model
+    }
+    for (const field of ['personality', 'strategy'] as const) {
+      const v = e[field]
+      if (v !== undefined) {
+        if (typeof v !== 'string' || v.length > FIELD_CAP) {
+          throw new Error(`${field} must be a string (max ${FIELD_CAP} chars)`)
+        }
+        e[field] = normText(v)
+      }
     }
     if (e.roleGuidance !== undefined) {
-      if (!e.roleGuidance || typeof e.roleGuidance !== 'object' || Array.isArray(e.roleGuidance)) {
-        throw new Error('roleGuidance must be an object of role -> text')
-      }
-      for (const [role, text] of Object.entries(e.roleGuidance)) {
-        if (!(role in ROLE_ALIGNMENT)) throw new Error(`roleGuidance: unknown role "${role}"`)
-        if (typeof text !== 'string' || text.length > 2000) {
-          throw new Error(`roleGuidance.${role} must be a string (max 2000 chars)`)
-        }
+      validateGuidanceMap(e.roleGuidance, 'roleGuidance', 'role', (k) => k in ROLE_ALIGNMENT)
+      for (const k of Object.keys(e.roleGuidance)) {
+        e.roleGuidance[k as Role] = normText(e.roleGuidance[k as Role]!)
       }
     }
     if (e.roleGuidanceMode !== undefined && e.roleGuidanceMode !== 'replace' && e.roleGuidanceMode !== 'append') {
       throw new Error(`roleGuidanceMode must be "replace" or "append"`)
+    }
+    if (e.kindGuidance !== undefined) {
+      validateGuidanceMap(e.kindGuidance, 'kindGuidance', 'kind', (k) => k in CALL_PARAMS)
+      for (const k of Object.keys(e.kindGuidance)) {
+        e.kindGuidance[k as LlmCallKind] = normText(e.kindGuidance[k as LlmCallKind]!)
+      }
+    }
+    if (e.temperature !== undefined) {
+      if (typeof e.temperature !== 'number' || !Number.isFinite(e.temperature)
+        || e.temperature < 0 || e.temperature > 1) {
+        throw new Error('temperature must be a number in [0, 1]')
+      }
+    }
+    if (customChars(e) > AGGREGATE_CAP) {
+      throw new Error(`custom prompt text exceeds ${AGGREGATE_CAP} chars total`)
     }
   } else if (e.type === 'stdio') {
     if (typeof e.cmd !== 'string' || !Array.isArray(e.args)) {
@@ -175,37 +270,79 @@ export function validateDef(raw: unknown): AgentDef {
   return d as AgentDef
 }
 
-export function loadAgentLibrary(): AgentDef[] {
-  const lib = builtinDefs()
-  const seen = new Set(lib.map((d) => d.id))
-  if (fs.existsSync(USER_AGENTS_DIR)) {
-    for (const file of fs.readdirSync(USER_AGENTS_DIR).filter((f) => f.endsWith('.json')).sort()) {
-      try {
-        const def = validateDef(JSON.parse(fs.readFileSync(path.join(USER_AGENTS_DIR, file), 'utf8')))
-        if (seen.has(def.id)) continue // built-ins win; first file wins among dupes
-        seen.add(def.id)
-        lib.push({ ...def, custom: true })
-      } catch (err) {
-        console.warn(`[agents] skipping ${file}: ${err instanceof Error ? err.message : err}`)
-      }
-    }
-  }
-  return lib
+export interface AgentLibrary {
+  agents: AgentDef[]
+  problems: LibraryProblem[]
 }
 
+function loadTier(
+  dir: string, tier: AgentTier, seen: Set<string>,
+  agents: AgentDef[], problems: LibraryProblem[],
+): void {
+  if (!fs.existsSync(dir)) return
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
+    try {
+      const def = validateDef(JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')), { allowUnknownModel: true })
+      if (seen.has(def.id)) {
+        // Earlier tiers win, but a vanished agent is a bug report, not a shrug.
+        const reason = `id "${def.id}" is shadowed by a ${agents.find((a) => a.id === def.id)?.tier} agent — rename the file's id to restore it`
+        console.warn(`[agents] ${file}: ${reason}`)
+        problems.push({ file: `${tier}/${file}`, reason })
+        continue
+      }
+      seen.add(def.id)
+      // Only a STALE suggestion is a problem; no suggestion at all is fine
+      // (the seat override or DEFAULT_MODEL backstops it).
+      const suggested = def.engine.type === 'llm' ? def.engine.model : undefined
+      if (suggested !== undefined && !ROSTER.some((r) => r.id === suggested)) {
+        def.unavailable = `model "${suggested}" is no longer in the roster — pick a new model`
+      }
+      agents.push({ ...def, tier })
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err)
+      console.warn(`[agents] skipping ${file}: ${reason}`)
+      problems.push({ file: `${tier}/${file}`, reason: `unreadable (${reason})` })
+    }
+  }
+}
+
+export function loadAgentLibrary(): AgentLibrary {
+  const agents = builtinDefs()
+  const problems: LibraryProblem[] = []
+  const seen = new Set(agents.map((d) => d.id))
+  loadTier(CURATED_AGENTS_DIR, 'curated', seen, agents, problems)
+  loadTier(USER_AGENTS_DIR, 'user', seen, agents, problems)
+  return { agents, problems }
+}
+
+// Atomic write (temp + rename): a Railway redeploy mid-write must not leave
+// truncated JSON that silently drops the agent from the next boot's library.
 export function saveCustomDef(def: AgentDef): void {
   fs.mkdirSync(USER_AGENTS_DIR, { recursive: true })
-  fs.writeFileSync(path.join(USER_AGENTS_DIR, `${def.id}.json`), JSON.stringify(def, null, 2))
+  const { tier, unavailable, ...persisted } = def
+  const file = path.join(USER_AGENTS_DIR, `${def.id}.json`)
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify(persisted, null, 2))
+  fs.renameSync(tmp, file)
+}
+
+export function deleteCustomDef(id: string): void {
+  fs.rmSync(path.join(USER_AGENTS_DIR, `${id}.json`), { force: true })
 }
 
 export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicInfo {
   // The OpenRouter slug, not a marketing name — "deepseek/deepseek-v4-flash"
   // tells you exactly what you're playing against. Always the RESOLVED model
   // (seat override > def suggestion > default), so the badge never lies about
-  // which model is actually answering.
-  const model = def.engine.type === 'llm'
-    ? rosterById(resolveModel(def, modelOverride)).slug
-    : def.engine.type === 'heuristic' ? 'rule-based' : 'external'
+  // which model is actually answering; a stale suggestion renders as
+  // "<id> (unavailable)" instead of throwing so the library can list it.
+  const e = def.engine
+  let model = 'external'
+  if (e.type === 'heuristic') model = 'rule-based'
+  else if (e.type === 'llm') {
+    const resolved = modelOverride ?? e.model ?? DEFAULT_MODEL
+    model = ROSTER.find((r) => r.id === resolved)?.slug ?? `${resolved} (unavailable)`
+  }
   return {
     id: def.id,
     name: def.name,
@@ -215,7 +352,16 @@ export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicIn
     model,
     color: def.badge?.color ?? hashColor(def.id),
     monogram: def.badge?.monogram ?? monogramOf(def.name),
-    personality: def.engine.type === 'llm' ? def.engine.personality : undefined,
-    custom: def.custom ?? false,
+    personality: e.type === 'llm' ? e.personality : undefined,
+    strategy: e.type === 'llm' ? e.strategy : undefined,
+    roleGuidance: e.type === 'llm' ? e.roleGuidance : undefined,
+    roleGuidanceMode: e.type === 'llm' ? e.roleGuidanceMode : undefined,
+    kindGuidance: e.type === 'llm' ? e.kindGuidance : undefined,
+    temperature: e.type === 'llm' ? e.temperature : undefined,
+    suggestedModel: e.type === 'llm' ? e.model : undefined,
+    tunedChars: customChars(e),
+    custom: def.tier === 'user',
+    tier: def.tier ?? 'user',
+    unavailable: def.unavailable,
   }
 }

@@ -30,11 +30,15 @@ export function createAgentFromDef(def: AgentDef, ctx: AgentContext, modelOverri
         modelId: resolveModel(def, modelOverride),
         client: getClient(),
         agentId: def.id,
+        label: `${def.name}${def.version ? ` v${def.version}` : ''}`,
         prompts: {
           personality: def.engine.personality,
+          strategy: def.engine.strategy,
           roleGuidance: def.engine.roleGuidance,
           roleGuidanceMode: def.engine.roleGuidanceMode,
+          kindGuidance: def.engine.kindGuidance,
         },
+        temperature: def.engine.temperature,
       })
   }
 }

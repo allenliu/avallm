@@ -159,6 +159,62 @@ input::placeholder { color: var(--faint); }
 .add-agent textarea { font-size: 0.88rem; resize: vertical; }
 .add-agent input { width: 100%; }
 
+/* ---- agent studio ---- */
+.agent-studio-closed {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  width: 100%; max-width: 34rem;
+}
+.custom-agent-row {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.custom-agent-row button { font-size: 0.75rem; padding: 0.25em 0.6em; }
+.custom-agent-row.unavailable { opacity: 0.6; }
+.custom-agent-name { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; }
+.tuned-note { color: var(--gold); font-size: 0.78rem; }
+.agent-studio .action-label { margin: 0; }
+.agent-studio .prompt-details summary { user-select: none; }
+.guidance-row {
+  display: flex; flex-direction: column; gap: 0.2rem;
+  margin-top: 0.45rem; text-align: left;
+}
+.guidance-key {
+  font-size: 0.78rem; color: var(--dim);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.guidance-revert { font-size: 0.7rem; padding: 0.1em 0.5em; }
+.guidance-row textarea {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 0.45em 0.7em;
+  font-size: 0.84rem;
+  font-family: inherit;
+  resize: vertical;
+}
+.temp-row { font-size: 0.85rem; text-align: left; }
+.preview-pane {
+  white-space: pre-wrap;
+  font-family: inherit;
+  background: var(--panel-2);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text);
+  max-height: 24rem;
+  overflow-y: auto;
+  text-align: left;
+}
+.reveal-agent-configs {
+  margin-top: 0.8rem;
+  display: flex; flex-direction: column; gap: 0.35rem;
+  text-align: left;
+  width: 100%; max-width: 44rem;
+}
+
 /* ---- modal sheets (Record / Codex) ---- */
 .ref-overlay {
   position: fixed; inset: 0;

@@ -65,14 +65,25 @@ export interface DecisionRequest {
 export interface AgentInfo {
   id: string
   name: string
-  version?: string
+  version?: number
   author?: string
   about?: string
   model: string
   color: string
   monogram: string
   personality?: string
+  strategy?: string
+  roleGuidance?: Record<string, string>
+  roleGuidanceMode?: 'replace' | 'append'
+  kindGuidance?: Record<string, string>
+  temperature?: number
+  // The def's raw model suggestion (roster id), if any; `model` is always the
+  // resolved display slug.
+  suggestedModel?: string
+  tunedChars: number
   custom: boolean
+  tier: 'builtin' | 'curated' | 'user'
+  unavailable?: string
 }
 
 // One bot seat sent to the server: which agent, and optionally which model
@@ -84,11 +95,26 @@ export interface TableSeat {
 
 export interface Library {
   agents: AgentInfo[]
+  problems?: { file: string; reason: string }[]
   models: { id: string; name: string; slug: string; tier: string }[]
-  baseline?: { rulesDigest: string; roleGuidance: Record<string, string> }
+  baseline?: {
+    rulesDigest: string
+    roleGuidance: Record<string, string>
+    tableTalkNorms?: string
+    outputContracts?: Record<string, string>
+    kinds?: string[]
+  }
   gated?: boolean
   defaultTable?: string[]
   defaultModel?: string
+}
+
+export interface PreviewResponse {
+  messages: { role: string; content: string }[]
+  rolesInPlay: string[]
+  kinds: string[]
+  tokenEstimate: number
+  error?: string
 }
 
 export interface ServerPayload {
@@ -126,5 +152,7 @@ export interface RevealPayload {
   players: RevealPlayer[]
   log: GameEvent[]
   degraded: { seat: Seat; kind: string; error: string }[]
+  // Def snapshots taken at game start — the configs that actually played.
+  agents?: Record<number, AgentInfo>
 }
 

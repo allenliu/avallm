@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AgentInfo, PlayerView, RevealPayload } from '../types.ts'
+import { agentConfigText, tokenEstimate } from '../agentConfig.ts'
 import { ModelBadge } from './TableSeats.tsx'
 import { ROLE_INFO, winReasonText } from '../setup.ts'
 import type { Role } from '../setup.ts'
@@ -54,6 +55,33 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
         <button className="secondary" onClick={onNewGame}>New game</button>
       </div>
       {showThinking && reveal && <ThinkingTimeline reveal={reveal} bots={bots} />}
+      {reveal && <AgentConfigCards reveal={reveal} bots={bots} />}
+    </div>
+  )
+}
+
+// The configs that actually played (def snapshots from game start) — full
+// transparency once the game is over, including custom prompt layers.
+function AgentConfigCards({ reveal, bots }: { reveal: RevealPayload; bots: Record<number, AgentInfo> }) {
+  const tuned = Object.entries(reveal.agents ?? {})
+    .filter(([, a]) => a.custom || a.tunedChars > 0)
+  if (!tuned.length) return null
+  return (
+    <div className="reveal-agent-configs">
+      <p className="roles-preview">Custom agents, as configured for this game:</p>
+      {tuned.map(([seat, a]) => {
+        const player = reveal.players.find((p) => p.seat === Number(seat))
+        return (
+          <details key={seat} className="prompt-details">
+            <summary>
+              <ModelBadge info={bots[Number(seat)] ?? a} />
+              {player?.name ?? a.name} — {a.name} v{a.version ?? 1} ({a.model},
+              ~{tokenEstimate(a.tunedChars)} tokens of custom prompt)
+            </summary>
+            <pre>{agentConfigText(a)}</pre>
+          </details>
+        )
+      })}
     </div>
   )
 }

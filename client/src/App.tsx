@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPayload, TableSeat } from './types.ts'
+import type { AgentInfo, DecisionRequest, Library, LobbyPayload, PreviewResponse, RevealPayload, ServerPayload, TableSeat } from './types.ts'
+import { tokenEstimate as tokenEst } from './agentConfig.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, TEAM_SIZES, buildRoles, twoFailQuest } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
@@ -10,7 +11,7 @@ import { QuestBoard } from './components/QuestBoard.tsx'
 import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
-import { TableSeats } from './components/TableSeats.tsx'
+import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 
 const Brand = () => <>Ava<span className="llm">LLM</span></>
 
@@ -696,7 +697,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
                 : Array.from({ length: botCount }, () => ({ agent: 'autopilot' })))}
             />
           )}
-          <AddAgentForm library={library} onAdded={onLibraryChange} />
+          <AgentStudio library={library} onChanged={onLibraryChange} />
         </div>
         <div className="setup-col">
           <section className="card-panel">
@@ -802,8 +803,8 @@ function TablePicker({ library, table, onChange, onFill }: {
               {/* Switching agents drops any model override — the new agent's own default applies. */}
               <select value={seat.agent} onChange={(e) => setSeat(i, { agent: e.target.value })} title={info?.model}>
                 {library.agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}
+                  <option key={a.id} value={a.id} disabled={!!a.unavailable}>
+                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — unavailable' : ''}
                   </option>
                 ))}
               </select>
@@ -829,65 +830,263 @@ function TablePicker({ library, table, onChange, onFill }: {
   )
 }
 
-function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: () => void }) {
+// Agent Studio (design doc §8): create AND edit custom agents, with the full
+// prompt-layer surface (strategy, per-role, per-kind, temperature) and a free
+// server-rendered prompt preview against a fixture game.
+function AgentStudio({ library, onChanged }: { library: Library | null; onChanged: () => void }) {
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<AgentInfo | null>(null)
   const [name, setName] = useState('')
   const [model, setModel] = useState('')
   const [about, setAbout] = useState('')
   const [personality, setPersonality] = useState('')
+  const [strategy, setStrategy] = useState('')
+  const [temp, setTemp] = useState('')                  // '' = per-kind defaults
+  const [roleG, setRoleG] = useState<Record<string, string>>({})
+  const [roleGMode, setRoleGMode] = useState<'replace' | 'append'>('replace')
+  const [kindG, setKindG] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [pvRole, setPvRole] = useState('servant')
+  const [pvKind, setPvKind] = useState('discuss')
+  const [preview, setPreview] = useState<PreviewResponse | null>(null)
   if (!library) return null
+
+  const roles = Object.keys(library.baseline?.roleGuidance ?? {})
+  const kinds = library.baseline?.kinds ?? []
+  const invite = () => localStorage.getItem('avalon-invite') || undefined
+  const tunedChars = strategy.length + personality.length
+    + Object.values(roleG).reduce((n, t) => n + t.length, 0)
+    + Object.values(kindG).reduce((n, t) => n + t.length, 0)
+
+  const draftBody = () => ({
+    name,
+    model: model || undefined, // omitted = ride the seat/server default
+    about,
+    personality,
+    strategy,
+    roleGuidance: roleG,
+    roleGuidanceMode: roleGMode,
+    kindGuidance: kindG,
+    temperature: temp === '' ? null : Number(temp),
+    invite: invite(),
+  })
+
+  const reset = () => {
+    setName(''); setModel(''); setAbout(''); setPersonality(''); setStrategy('')
+    setTemp(''); setRoleG({}); setRoleGMode('replace'); setKindG({}); setErr(null); setPreview(null)
+  }
+  const startCreate = () => { reset(); setEditing(null); setOpen(true) }
+  const startEdit = (a: AgentInfo) => {
+    reset()
+    setEditing(a)
+    setName(a.name); setAbout(a.about ?? ''); setPersonality(a.personality ?? '')
+    setStrategy(a.strategy ?? '')
+    setTemp(a.temperature !== undefined ? String(a.temperature) : '')
+    setRoleG({ ...(a.roleGuidance ?? {}) })
+    setRoleGMode(a.roleGuidanceMode ?? 'replace')
+    setKindG({ ...(a.kindGuidance ?? {}) })
+    // The raw suggestion, NOT a.model — that is the resolved display slug, and
+    // pinning it here would silently turn "no fixed model" into a fixed one.
+    setModel(a.suggestedModel ?? '')
+    setOpen(true)
+  }
+
   const submit = async () => {
     setBusy(true)
     setErr(null)
     try {
-      const res = await fetch('/api/agents', {
-        method: 'POST',
+      const res = await fetch(editing ? `/api/agents/${editing.id}` : '/api/agents', {
+        method: editing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          model: model || undefined, // omitted = ride the seat/server default
-          about: about || undefined,
-          personality: personality || undefined,
-          invite: localStorage.getItem('avalon-invite') || undefined,
-        }),
+        body: JSON.stringify(draftBody()),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'failed to save agent')
       setOpen(false)
-      setName(''); setAbout(''); setPersonality('')
-      onAdded()
+      reset()
+      onChanged()
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
   }
-  if (!open) {
-    return <button className="addagent" onClick={() => setOpen(true)}>+ Inscribe your own agent</button>
+
+  const del = async (a: AgentInfo) => {
+    if (!window.confirm(`Delete "${a.name}" from the library? Finished games keep their record of it.`)) return
+    try {
+      const res = await fetch(`/api/agents/${a.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite: invite() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'failed to delete agent')
+      onChanged()
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e))
+    }
   }
+
+  const runPreview = async () => {
+    setErr(null)
+    try {
+      const res = await fetch('/api/agents/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...draftBody(), role: pvRole, kind: pvKind }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'preview failed')
+      setPreview(data)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const guidanceEditor = (
+    keys: string[], values: Record<string, string>,
+    setValues: (v: Record<string, string>) => void,
+    baseline: Record<string, string> | undefined, placeholder: (k: string) => string,
+  ) => keys.map((k) => (
+    <label key={k} className="guidance-row">
+      <span className="guidance-key">
+        {k}
+        {values[k] && baseline?.[k] !== undefined && (
+          <button
+            className="secondary guidance-revert"
+            title="Revert to the baseline guidance"
+            onClick={() => {
+              const next = { ...values }
+              delete next[k]
+              setValues(next)
+            }}
+          >revert</button>
+        )}
+      </span>
+      <textarea
+        value={values[k] ?? ''} maxLength={2000} rows={2}
+        placeholder={placeholder(k)}
+        onChange={(e) => setValues({ ...values, [k]: e.target.value })}
+      />
+    </label>
+  ))
+
+  if (!open) {
+    const customs = library.agents.filter((a) => a.custom)
+    return (
+      <div className="agent-studio-closed">
+        <button className="addagent" onClick={startCreate}>+ Inscribe your own agent</button>
+        {customs.map((a) => (
+          <div key={a.id} className={`custom-agent-row${a.unavailable ? ' unavailable' : ''}`}>
+            <ModelBadge info={a} />
+            <span className="custom-agent-name">
+              {a.name} v{a.version ?? 1}
+              {a.tunedChars > 0 && <span className="tuned-note"> · tuned (~{tokenEst(a.tunedChars)} tokens)</span>}
+              {a.unavailable && <span className="error"> — {a.unavailable}</span>}
+            </span>
+            <button className="secondary" onClick={() => startEdit(a)}>edit</button>
+            <button className="secondary" onClick={() => del(a)}>delete</button>
+          </div>
+        ))}
+        {(library.problems ?? []).map((p) => (
+          <p key={p.file} className="warning">agent file {p.file}: {p.reason}</p>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div className="add-agent card-panel">
+    <div className="add-agent agent-studio card-panel">
       <div className="body add-agent-body">
-        <div className="row">
-          <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
-          <select value={model} onChange={(e) => setModel(e.target.value)}>
-            <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
-            {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
+      <p className="action-label">{editing ? `Editing ${editing.name} (saves as v${(editing.version ?? 1) + 1})` : 'New agent'}</p>
+      <div className="row">
+        <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
+        <select value={model} onChange={(e) => setModel(e.target.value)}>
+          <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
+          {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
+        </select>
+      </div>
+      <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
+      <textarea
+        value={personality} maxLength={2000} rows={2}
+        placeholder="Personality — the table persona (e.g. 'Theatrical and paranoid. Accuse early, defend loudly.')"
+        onChange={(e) => setPersonality(e.target.value)}
+      />
+      <textarea
+        value={strategy} maxLength={2000} rows={3}
+        placeholder="Strategy — always-on doctrine, any role (e.g. 'Track who approves failed teams across the whole vote record; treat early reject-storms as evil coordination.')"
+        onChange={(e) => setStrategy(e.target.value)}
+      />
+      <details className="prompt-details">
+        <summary>Per-role strategy overrides ({Object.values(roleG).filter(Boolean).length} set)</summary>
+        <label className="temp-row">
+          Mode{' '}
+          <select value={roleGMode} onChange={(e) => setRoleGMode(e.target.value as 'replace' | 'append')}>
+            <option value="replace">replace the baseline guidance</option>
+            <option value="append">append under the baseline (rides baseline improvements)</option>
           </select>
-        </div>
-        <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
-        <textarea
-          value={personality} maxLength={2000} rows={3}
-          placeholder="Personality / strategy prompt — layered onto the baseline agent (e.g. 'You are theatrical and paranoid. Accuse early, defend loudly, never vote with the crowd.')"
-          onChange={(e) => setPersonality(e.target.value)}
-        />
+        </label>
+        <p className="roles-preview">
+          {roleGMode === 'replace'
+            ? 'Your text replaces the baseline guidance for that role. Leave blank to keep the baseline (shown as placeholder).'
+            : 'Your text is added below the baseline guidance for that role, so the agent keeps riding baseline improvements.'}
+        </p>
+        {guidanceEditor(roles, roleG, setRoleG, library.baseline?.roleGuidance,
+          (r) => library.baseline?.roleGuidance[r] ?? '')}
+      </details>
+      <details className="prompt-details">
+        <summary>Per-decision guidance ({Object.values(kindG).filter(Boolean).length} set)</summary>
+        <p className="roles-preview">
+          Extra coaching for one decision type. The <b>reflect</b> slot shapes the agent's private
+          notes — a custom memory strategy.
+        </p>
+        {guidanceEditor(kinds, kindG, setKindG, undefined,
+          (k) => `e.g. ${k === 'assassinate' ? 'Rank seats by vote-correctness; shoot the most correct.' : k === 'reflect' ? 'Note each player: trust 0-10, one reason, one prediction.' : `guidance applied only to ${k} calls`}`)}
+      </details>
+      <label className="temp-row">
+        Temperature{' '}
+        <select value={temp} onChange={(e) => setTemp(e.target.value)}>
+          <option value="">per-decision defaults</option>
+          {[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((t) => (
+            <option key={t} value={String(t)}>{t}</option>
+          ))}
+        </select>
+      </label>
+      <p className="roles-preview">
+        Custom text: {tunedChars.toLocaleString()} / 10,000 chars (~{tokenEst(tunedChars)} tokens
+        added to every call this agent makes).
+      </p>
+      <details className="prompt-details" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !preview) void runPreview() }}>
+        <summary>Preview the exact prompt (free — no model call)</summary>
         <div className="row">
-          <button disabled={busy || !name.trim()} onClick={submit}>Save to library</button>
-          <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
+          <label>as{' '}
+            <select value={pvRole} onChange={(e) => setPvRole(e.target.value)}>
+              {(preview?.rolesInPlay ?? roles).filter((r, i, a) => a.indexOf(r) === i).map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </label>
+          <label>deciding{' '}
+            <select value={pvKind} onChange={(e) => setPvKind(e.target.value)}>
+              {(preview?.kinds ?? kinds).map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+          </label>
+          <button className="secondary" onClick={runPreview}>Render</button>
+          {preview && <span className="roles-preview">~{preview.tokenEstimate} tokens</span>}
         </div>
-        {err && <p className="error">{err}</p>}
+        {preview && (
+          <pre className="preview-pane">
+            {preview.messages.map((m) => `── ${m.role.toUpperCase()} ──\n${m.content}`).join('\n\n')}
+          </pre>
+        )}
+      </details>
+      <div className="row">
+        <button disabled={busy || !name.trim()} onClick={submit}>
+          {editing ? 'Save changes' : 'Save to library'}
+        </button>
+        <button className="secondary" onClick={() => { setOpen(false); reset() }}>Cancel</button>
+      </div>
+      {err && <p className="error">{err}</p>}
       </div>
     </div>
   )
