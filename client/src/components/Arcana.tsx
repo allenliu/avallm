@@ -18,6 +18,39 @@ export const ARCANA: Record<Role, { numeral: string; title: string; emblem: Embl
 // classical deck: present at the table, bound to none of it.
 export const SPECTATOR_ARCANA = { numeral: '0', title: 'The Witness', emblem: 'book' as EmblemId }
 
+// Seat sigils: each agent is a celestial body in the constellation (design
+// pick O2, docs/design-visual.md). Humans are ⊕ — Earth, the one mortal body
+// among the machines. Unknown/custom agents draw deterministically from the
+// outer pool so a given name always keeps its glyph.
+const CELESTIAL: Record<string, { glyph: string; body: string }> = {
+  deepseek: { glyph: '☿', body: 'Mercury' },
+  gemini: { glyph: '♊', body: 'Gemini' },
+  'gemini-flash': { glyph: '☄', body: 'the Comet' },
+  haiku: { glyph: '☉', body: 'Sol' },
+  kimi: { glyph: '☽', body: 'Luna' },
+  glm: { glyph: '♃', body: 'Jupiter' },
+  'gpt-oss': { glyph: '♄', body: 'Saturn' },
+  seed: { glyph: '♆', body: 'Neptune' },
+  autopilot: { glyph: '⚙', body: 'the Clockwork' },
+}
+const OUTER_POOL: { glyph: string; body: string }[] = [
+  { glyph: '♅', body: 'Uranus' },
+  { glyph: '♇', body: 'Pluto' },
+  { glyph: '⚳', body: 'Ceres' },
+  { glyph: '⚴', body: 'Pallas' },
+  { glyph: '⚵', body: 'Juno' },
+  { glyph: '⚶', body: 'Vesta' },
+]
+export const HUMAN_CELESTIAL = { glyph: '⊕', body: 'Earth' }
+
+export function celestialFor(agentId: string | undefined, name: string): { glyph: string; body: string } {
+  if (!agentId) return HUMAN_CELESTIAL
+  if (CELESTIAL[agentId]) return CELESTIAL[agentId]
+  let h = 0
+  for (const c of agentId || name) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return OUTER_POOL[h % OUTER_POOL.length]
+}
+
 export type EmblemId =
   | 'eye' | 'shield' | 'chalice' | 'dagger' | 'moons' | 'veil' | 'lantern' | 'swords'
   | 'sun' | 'tower' | 'laurel' | 'crown' | 'book'

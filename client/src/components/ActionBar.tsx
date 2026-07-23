@@ -66,18 +66,19 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
       />
       {teamPending && (
         <span className="lean-picker" title="Signal how you're leaning on this team (not binding)">
+          <span className="lean-lbl">lean</span>
           {(['approve', 'reject', 'unsure'] as const).map((l) => (
             <button
               key={l}
               className={`lean-btn ${l}${lean === l ? ' active' : ''}`}
-              title={`lean ${l}`}
-            onClick={() => setLean(lean === l ? null : l)}
-            >{l === 'approve' ? '✓' : l === 'reject' ? '✕' : '?'}</button>
+              title={`lean ${l === 'approve' ? 'aye' : l === 'reject' ? 'nay' : 'unsure'}`}
+              onClick={() => setLean(lean === l ? null : l)}
+            >{l === 'approve' ? 'AYE' : l === 'reject' ? 'NAY' : '?'}</button>
           ))}
         </span>
       )}
-      <button onClick={() => submit(say)}>Say</button>
-      <button className="secondary" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
+      <button className="say-btn" onClick={() => submit(say)}>Say</button>
+      <button className="ghost pass-btn" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
     </div>
   )
 }
@@ -128,10 +129,16 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
       <span className="bar-spacer" />
       <div className="playcards">
         <button className="play approve" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
-          <Emblem id="laurel" className="pem" /><span className="pt">Approve</span><span className="ps">send them</span>
+          <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
+          <span className="pnum">AYE</span>
+          <span className="pem-frame"><Emblem id="laurel" className="pem" /></span>
+          <span className="pt">Approve</span><span className="ps">send them</span>
         </button>
         <button className="play reject" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
-          <Emblem id="dagger" className="pem" /><span className="pt">Reject</span><span className="ps">force a new leader</span>
+          <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
+          <span className="pnum">NAY</span>
+          <span className="pem-frame"><Emblem id="dagger" className="pem" /></span>
+          <span className="pt">Reject</span><span className="ps">force a new leader</span>
         </button>
       </div>
     </div>
@@ -149,11 +156,17 @@ function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<
       <span className="bar-spacer" />
       <div className="playcards">
         <button className="play approve" onClick={() => onDecide({ kind: 'quest', card: 'success' })}>
-          <Emblem id="laurel" className="pem" /><span className="pt">Success</span>
+          <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
+          <span className="pnum">XIX</span>
+          <span className="pem-frame"><Emblem id="laurel" className="pem" /></span>
+          <span className="pt">Success</span>
         </button>
         {!good && (
           <button className="play reject" onClick={() => onDecide({ kind: 'quest', card: 'fail' })}>
-            <Emblem id="dagger" className="pem" /><span className="pt">Fail</span>
+            <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
+            <span className="pnum">XVI</span>
+            <span className="pem-frame"><Emblem id="dagger" className="pem" /></span>
+            <span className="pt">Fail</span>
           </button>
         )}
       </div>

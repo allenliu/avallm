@@ -1,17 +1,22 @@
 import { useEffect, useRef } from 'react'
-import type { AgentInfo, GameEvent, PlayerView } from '../types.ts'
+import type { AgentInfo, GameEvent, PlayerView, Seat } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
+import { celestialFor } from './Arcana.tsx'
 import { winReasonText } from '../setup.ts'
 
-export function Feed({ view, bots, degradedSeqs }: {
+export function Feed({ view, bots, acting, degradedSeqs }: {
   view: PlayerView
   bots: Record<number, AgentInfo>
+  acting?: Seat[]
   degradedSeqs?: number[]
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  // Ghost rows for bots currently deciding — the transcript's live edge. The
+  // viewer's own turn shows the action bar instead, so skip their seat.
+  const thinking = (acting ?? []).filter((s) => s !== view.seat && s in bots)
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
-  }, [view.events.length])
+  }, [view.events.length, thinking.join(',')])
   // The viewer sees "You" for their own seat; the canonical name (what bots
   // see) is never a pronoun, so this label lives only in the client.
   const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
@@ -69,6 +74,18 @@ export function Feed({ view, bots, degradedSeqs }: {
             <span className="feed-text">{row.text}</span>
             {row.sub && <span className="feed-sub">{row.sub}</span>}
             {autopilot}
+          </div>
+        )
+      })}
+      {thinking.map((s) => {
+        const body = celestialFor(bots[s]?.id, name(s))
+        return (
+          <div key={`thinking-${s}`} className="feed-row thinking-row"
+            style={{ ['--mc' as string]: bots[s]?.color ?? 'var(--gold)' }}>
+            <span className="tr-glyph">{body.glyph}</span>
+            <span className="tr-nm">{name(s)}</span>
+            <span className="tr-act">is thinking</span>
+            <span className="tr-dots"><i>●</i><i>●</i><i>●</i></span>
           </div>
         )
       })}

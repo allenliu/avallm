@@ -63,6 +63,7 @@ cartouche, engraved emblem in an oval frame, title plate, corner stars. Emblems 
 | Quest success — **The Sun** | XIX | sun | quest card flips to this |
 | Quest fail — **The Tower** | XVI | struck tower | fail count on title plate |
 | Spectator — **The Witness** | 0 | open book | unaligned; the Fool's position |
+| Seat sigils — **celestial bodies** | — | ☿ ♊ ☉ ☽ ♃ ♄ … | pick O2 (2026-07-23): each agent is a body in the constellation, brand-colored; humans are ⊕ Earth; autopilot is ⚙ the Clockwork; custom agents draw deterministically from the outer pool (`celestialFor` in Arcana.tsx). Unicode for now — converting the chosen set to SVG is an open polish item. |
 | Vote approve | AYE | laurel | also good's forced Success card |
 | Vote reject | NAY | dagger | |
 | Leader marker | ♛ | crown | passes clockwise |
@@ -156,6 +157,35 @@ verdicts from Allen: speaking ripple **rejected**, quest comet **rejected** (the
 flip alone carries it), gem-drop on lean **adopted** (fires on post-proposal lean
 signals), your-turn edge sweep + hand rise **adopted**. Sub-variants Orrery/Zodiac
 remain future options (Zodiac's seat-linking lines double as a turn-order diagram).
+
+### Feedback rounds (2026-07-23, post-push)
+
+- [x] Custom scrollbars (thin, gold on grab).
+- [x] Quest-card legibility: **A1** (62×88) shipped; **A2 tally plaque** shipped
+  mobile-only (spread stacks: cards row, proposal + tally beneath) — awaiting veto.
+- [x] **Arcane tooltips**: seat cards (status / lean / last vote / leads-in-N / blurb,
+  side-placed to dodge the arc clip — note `.farseats`' transform makes it an atomic
+  stacking layer, hence the `:has(:hover)` z-index lift) and quest cards (past = who
+  went + fails revealed; future = team size + fails needed). Declutter: model slugs,
+  next-♛ tag, and the 2-fails label moved into hover; tooltips off on touch.
+- [x] **Play cards to specimen parity**: full anatomy at 112×150 (cartouche, oval
+  emblem frame, bordered title plate, corner stars, radial sheen), rising above the
+  edge. Root cause of the quality gap: button-scale cards had dropped four anatomy
+  layers and starved the emblems below their stroke-density floor (~30px).
+- [x] **Seat sigils → O2 celestial bodies** (see arcana table above).
+- [x] Full-bleed table zone (game container un-capped; chrome/main center at 1400px).
+- [x] Error/reconnect banner: floating comet-marked toast above the edge rail.
+- [x] Input section: framed lean group with AYE/NAY/? chips (same vocabulary as seats
+  and feed), gold Say, ghost Pass.
+- [x] Quest tooltip counter-rotates out of the card's 3D tilt (reads flat).
+- [x] Landing dealt-cards match the in-game quest-back face (number in a gold ring).
+- [x] **T1 thinking indicator**: ghost row at the feed's live edge (agent's celestial
+  glyph + name in brand color, "is thinking", pulsing dots) for bots mid-decision;
+  only visible during real LLM latency, not autopilot.
+- [x] Full-bleed follow-ups: footer content re-centered to 1400px (bar stays full-bleed
+  as the table edge); orbit given a FIXED aspect + centered max-width so widening no
+  longer flattens the arc (it sits under the seats at every width; mobile keeps a
+  rounder aspect).
 
 ### Exploratory / future (design for compatibility, don't build yet)
 

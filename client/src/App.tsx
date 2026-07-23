@@ -4,7 +4,7 @@ import { tokenEstimate as tokenEst } from './agentConfig.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, TEAM_SIZES, buildRoles, twoFailQuest } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
-import { ARCANA, Emblem, SPECTATOR_ARCANA } from './components/Arcana.tsx'
+import { ARCANA, Emblem, HUMAN_CELESTIAL, SPECTATOR_ARCANA } from './components/Arcana.tsx'
 import { Feed } from './components/Feed.tsx'
 import { HistoryGrid } from './components/HistoryGrid.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
@@ -298,7 +298,7 @@ export function App() {
         </main>
       ) : (
       <main>
-        <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
+        <Feed view={view} bots={bots} acting={acting} degradedSeqs={payload.degradedSeqs} />
         <aside>
           {payload.spectator
             ? <div className="role-card spectator">
@@ -336,8 +336,8 @@ export function App() {
       {!gameOver && (
       <footer className={`youredge${myAsk && !payload.spectator ? ' waits' : ''}`}>
         <div className="edge-inner">
-          <div className="youchip" title={roleTitle}>
-            <span className="you-sigil">{payload.spectator ? '◎' : view.name.slice(0, 2).toUpperCase()}</span>
+          <div className="youchip" title={payload.spectator ? roleTitle : `${roleTitle} — you are ⊕ Earth at this table`}>
+            <span className="you-sigil">{payload.spectator ? '◎' : HUMAN_CELESTIAL.glyph}</span>
           <span className="you-meta">
               <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
               <span className="you-role">{payload.spectator ? 'public information only' : `${roleTitle} · your seat`}</span>
@@ -629,7 +629,7 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
       <div className="deal" aria-hidden="true">
         {TEAM_SIZES[players].map((sz, i) => (
           <div key={i} className="dcard">
-            {sz}
+            <span className="dsz">{sz}</span>
             {twoFailQuest(players, i + 1) && <span className="dcard-note">2 fails</span>}
           </div>
         ))}

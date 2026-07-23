@@ -2,37 +2,57 @@ import type { PlayerView } from '../types.ts'
 import { Emblem } from './Arcana.tsx'
 
 // The quest line as a five-card spread lying on the felt: face-down = future,
-// glowing = current, flipped = resolved (The Sun / The Tower).
+// glowing = current, flipped = resolved (The Sun / The Tower). Details live in
+// arcane tooltips (who went, fails revealed); the tally plaque carries the
+// score where hover doesn't exist (mobile).
 export function QuestBoard({ view }: { view: PlayerView }) {
+  const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
+  const suns = view.quests.filter((q) => q.result === 'success').length
+  const towers = view.quests.filter((q) => q.result === 'fail').length
   return (
     <div className="spread">
       <div className="qcards">
         {view.quests.map((q) => {
-          const state = q.result ?? (q.num === view.round ? 'current' : 'pending')
-          const title = `Quest ${q.num}: team of ${q.teamSize}${q.failsRequired === 2 ? ', needs 2 fails' : ''}${q.result ? ` — ${q.result} (${q.failCount} fail${q.failCount === 1 ? '' : 's'})` : ''}`
+          const tip = (
+            <span className="tooltip tip-up" role="tooltip">
+              <span className="t-title"><span className="t-num">Q·{q.num}</span>
+                {q.result === 'success' ? 'The Sun' : q.result === 'fail' ? 'The Tower' : q.num === view.round ? 'Current quest' : 'Future quest'}
+              </span>
+              <span className="t-rows">
+                {q.team
+                  ? <span className="t-row"><span className="k">went</span><span className="v">{q.team.map(name).join(' · ')}</span></span>
+                  : <span className="t-row"><span className="k">team</span><span className="v">{q.teamSize} players</span></span>}
+                {q.result
+                  ? <span className="t-row"><span className="k">fails</span><span className="v">{q.failCount} revealed · {q.failsRequired} needed</span></span>
+                  : <span className="t-row"><span className="k">to fail</span><span className="v">needs {q.failsRequired} fail card{q.failsRequired === 1 ? '' : 's'}</span></span>}
+              </span>
+            </span>
+          )
           if (q.result === 'success') {
             return (
-              <div key={q.num} className="qcard face won" title={title}>
+              <div key={q.num} className="qcard face won">
                 <span className="qn">Q·{q.num}</span>
                 <Emblem id="sun" className="qem" />
                 <span className="word">THE SUN</span>
+                {tip}
               </div>
             )
           }
           if (q.result === 'fail') {
             return (
-              <div key={q.num} className="qcard face lost" title={title}>
+              <div key={q.num} className="qcard face lost">
                 <span className="qn">Q·{q.num}</span>
                 <Emblem id="tower" className="qem" />
                 <span className="word">TOWER ·{q.failCount}</span>
+                {tip}
               </div>
             )
           }
           return (
-            <div key={q.num} className={`qcard back${state === 'current' ? ' current' : ''}`} title={title}>
+            <div key={q.num} className={`qcard back${q.num === view.round ? ' current' : ''}`}>
               <span className="qn">Q·{q.num}</span>
               <span className="sz">{q.teamSize}</span>
-              {q.failsRequired === 2 && <span className="twofail">2 fails</span>}
+              {tip}
             </div>
           )
         })}
@@ -47,6 +67,11 @@ export function QuestBoard({ view }: { view: PlayerView }) {
             />
           ))}
         </div>
+      </div>
+      <div className="tally" title="Quests won — first to three takes the game">
+        <span className="side sun"><b>{suns}</b><small>suns</small></span>
+        <span className="dash">—</span>
+        <span className="side twr"><b>{towers}</b><small>towers</small></span>
       </div>
     </div>
   )
