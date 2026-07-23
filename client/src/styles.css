@@ -349,6 +349,14 @@ input::placeholder { color: var(--faint); }
   overflow: hidden;
   flex: 0 0 auto;
 }
+/* The descending arcs are hard-clipped where the zone meets the feed; this
+   scrim dissolves them into the night instead. It sits below the spread (z 2)
+   and seats (z 3), so only the orbit lines fade — the cards stay crisp. */
+.fartable::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 48%;
+  background: linear-gradient(to bottom, transparent, var(--night) 88%);
+  z-index: 1; pointer-events: none;
+}
 /* Orbit is a centered ellipse with a FIXED aspect, so its curvature stays
    constant no matter the viewport width (full-bleed widened it before, which
    flattened the arc). max-width lets it use more space than the old page cap
@@ -470,7 +478,6 @@ input::placeholder { color: var(--faint); }
   width: 62px; height: 88px; border-radius: 6px; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   border: 1px solid var(--line);
-  transform: perspective(400px) rotateX(14deg);
   box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 .qcard .qn {
@@ -494,7 +501,7 @@ input::placeholder { color: var(--faint); }
 .qcard.current {
   box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold),
     0 0 20px rgba(201, 168, 76, 0.45), 0 8px 14px rgba(0, 0, 0, 0.5);
-  transform: perspective(400px) rotateX(14deg) translateY(-6px);
+  transform: translateY(-6px);
   animation: card-glow 3.4s ease-in-out infinite;
 }
 @keyframes card-glow {
@@ -516,17 +523,6 @@ input::placeholder { color: var(--faint); }
 .qcard .qem { width: 33px; height: 33px; }
 .qcard .word { font: 700 0.6rem var(--mono); letter-spacing: 0.08em; margin-top: 3px; }
 .spread .prop { display: flex; flex-direction: column; gap: 4px; padding-bottom: 5px; }
-.spread .tally {
-  display: none; /* desktop reads the spread itself (A1); the plaque is the mobile scoreboard */ align-items: center; gap: 9px; align-self: flex-end; margin-bottom: 4px;
-  border: 1px solid var(--line); border-radius: 7px; padding: 7px 12px;
-  background: linear-gradient(180deg, rgba(32, 28, 66, 0.7), rgba(20, 17, 42, 0.45));
-}
-.tally .side { display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
-.tally .side b { font: 700 1.25rem/1 var(--serif); }
-.tally .side.sun b { color: var(--good); }
-.tally .side.twr b { color: var(--evil); }
-.tally .side small { font: 600 0.44rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin-top: 2px; }
-.tally .dash { color: var(--faint); }
 .prop-lbl { font: 600 0.62rem var(--mono); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
 .pips { display: flex; gap: 5px; }
 .pip { width: 9px; height: 9px; transform: rotate(45deg); background: var(--panel); border: 1px solid var(--line); }
@@ -553,7 +549,6 @@ input::placeholder { color: var(--faint); }
 .tooltip.tip-up { bottom: calc(100% + 11px); left: 50%; transform: translateX(-50%); }
 /* children of the tilted quest cards live in their rotated plane — rotate the
    tooltip back so it reads flat on screen */
-.qcard > .tooltip.tip-up { transform: translateX(-50%) rotateX(-12deg); transform-origin: 50% 100%; }
 .tooltip.tip-right { left: calc(100% + 10px); top: -4px; }
 .tooltip.tip-left { right: calc(100% + 10px); top: -4px; }
 .qcard:hover > .tooltip, .seat-card:hover > .tooltip { opacity: 1; pointer-events: auto; }
@@ -625,6 +620,67 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .thinking-row .tr-dots i:nth-child(2) { animation-delay: 0.2s; }
 .thinking-row .tr-dots i:nth-child(3) { animation-delay: 0.4s; }
 @keyframes dotpulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+/* ---- sealing ballots (vote + quest) & the assassination beat ---- */
+.feed-row.ballot {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  border-left: 2px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 3px 3px 0; padding: 0.4rem 0.6rem 0.4rem 0.7rem; margin: 0.15rem 0;
+  animation: lay 0.3s ease both;
+}
+.ballot-lbl { font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.ballot-prog { font: 500 0.72rem var(--mono); color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+.bslots { display: inline-flex; gap: 5px; }
+/* a sealed vote never shows its value (aye/nay is secret until the reveal) */
+.bslot { width: 22px; height: 30px; border-radius: 3px; }
+.bslot.pending {
+  background:
+    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, var(--night-2), var(--panel));
+  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep);
+  animation: seal-pulse 1.4s ease-in-out infinite;
+}
+.bslot.sealed {
+  background: var(--night-2); position: relative;
+  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold);
+}
+.bslot.sealed::after { content: "✦"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.5rem; color: var(--gold); }
+@keyframes seal-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+/* quest: face-down cards that gather into a stack — never flipped (anonymous) */
+.feed-row.ballot.quest .qstack { display: inline-flex; }
+.qmini {
+  width: 24px; height: 32px; border-radius: 4px;
+  background:
+    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, var(--night-2), var(--panel));
+  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep), 0 3px 6px rgba(0, 0, 0, 0.5);
+  margin-left: -6px; transition: transform 0.35s ease, margin 0.35s ease;
+}
+.qmini:first-child { margin-left: 0; }
+.qmini.pending { animation: seal-pulse 1.4s ease-in-out infinite; }
+/* once all sealed, the cards collapse together and shuffle — anonymity by gathering */
+.ballot.quest.gathered .qmini { margin-left: -20px; animation: shuffle 0.9s ease-in-out infinite; }
+.ballot.quest.gathered .qmini:first-child { margin-left: 0; }
+.ballot.quest.gathered .qmini:nth-child(odd) { animation-delay: 0.15s; }
+@keyframes shuffle { 0%, 100% { transform: translateX(0) rotate(0); } 50% { transform: translateX(2px) rotate(2deg); } }
+
+.feed-row.moment.assassin-beat {
+  border-color: var(--evil);
+  background: linear-gradient(90deg, transparent, rgba(194, 94, 84, 0.14), transparent);
+  animation: beat 1.8s ease-in-out infinite;
+}
+.feed-row.moment.assassin-beat .feed-text { color: var(--evil); }
+@keyframes beat {
+  0%, 100% { box-shadow: 0 0 0 rgba(194, 94, 84, 0); }
+  50% { box-shadow: inset 0 0 22px rgba(194, 94, 84, 0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bslot.pending, .qmini.pending, .ballot.quest.gathered .qmini, .feed-row.moment.assassin-beat { animation: none; }
+}
 /* the vote tally: everyone's played card laid in a row */
 .feed-row.votes {
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
@@ -990,8 +1046,8 @@ footer .error::before {
 @keyframes momentIn { from { opacity: 0; transform: scaleX(0.96); } to { opacity: 1; transform: none; } }
 .qcard.face { animation: qflip 0.6s ease both; }
 @keyframes qflip {
-  from { transform: perspective(400px) rotateX(14deg) rotateY(88deg); }
-  to { transform: perspective(400px) rotateX(14deg) rotateY(0); }
+  from { transform: perspective(400px) rotateY(88deg); }
+  to { transform: perspective(400px) rotateY(0); }
 }
 .turn-tag { animation: tagPulse 2.6s ease-in-out infinite; }
 @keyframes tagPulse { 50% { opacity: 0.55; } }
@@ -1267,15 +1323,11 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   }
   .spread .qcards { flex-basis: 100%; justify-content: center; }
   .spread .prop { align-items: center; padding-bottom: 0; }
-  .spread .tally { align-self: center; margin-bottom: 0; }
   .qcard { width: 44px; height: 62px; }
   .qcard .qn { display: none; }
   .qcard .qem { width: 22px; height: 22px; }
   .qcard .word { font-size: 0.42rem; }
   .qcard.back .sz { width: 24px; height: 24px; font-size: 0.8rem; }
-  .spread .tally { display: flex; align-items: center; padding: 5px 8px; gap: 6px; }
-  .tally .side b { font-size: 1rem; }
-  .tally .side small { display: none; }
   .prop-lbl { font-size: 0.48rem; }
   main { flex-direction: column; padding: 0.5rem 0.7rem; gap: 0.5rem; }
   main aside { width: 100%; flex-direction: row; flex-wrap: wrap; order: -1; }

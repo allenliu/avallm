@@ -4,19 +4,24 @@ import { ModelBadge } from './TableSeats.tsx'
 import { celestialFor } from './Arcana.tsx'
 import { winReasonText } from '../setup.ts'
 
-export function Feed({ view, bots, acting, degradedSeqs }: {
+export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
   view: PlayerView
   bots: Record<number, AgentInfo>
   acting?: Seat[]
+  waitingOn?: string[]
   degradedSeqs?: number[]
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  // Ghost rows for bots currently deciding — the transcript's live edge. The
-  // viewer's own turn shows the action bar instead, so skip their seat.
-  const thinking = (acting ?? []).filter((s) => s !== view.seat && s in bots)
+  // Everyone with a decision still outstanding this phase: bots mid-decision
+  // (acting) plus humans not yet acted (waitingOn, matched by name). Drives the
+  // live-edge indicators, which vary by phase (ghost row / ballot / beat).
+  const pending = new Set<Seat>(acting ?? [])
+  const waitingNames = new Set(waitingOn ?? [])
+  for (const p of view.players) if (waitingNames.has(p.name)) pending.add(p.seat)
+  const pendingKey = [...pending].sort((a, b) => a - b).join(',')
   useEffect(() => {
     ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
-  }, [view.events.length, thinking.join(',')])
+  }, [view.events.length, view.phase, pendingKey])
   // The viewer sees "You" for their own seat; the canonical name (what bots
   // see) is never a pronoun, so this label lives only in the client.
   const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
@@ -77,7 +82,76 @@ export function Feed({ view, bots, acting, degradedSeqs }: {
           </div>
         )
       })}
-      {thinking.map((s) => {
+      <PendingIndicator view={view} bots={bots} pending={pending} name={name} />
+    </div>
+  )
+}
+
+const Dots = () => <span className="tr-dots"><i>●</i><i>●</i><i>●</i></span>
+
+// The live-edge indicator, chosen by phase:
+//  discussion / proposal → ghost row (a typing indicator; agents act in turn)
+//  vote                  → sealing ballot; resolves to the attributed tally
+//  quest                 → sealing ballot; the cards gather & shuffle, then the
+//                          questResult moment reveals ONLY the fail count (who
+//                          played what stays secret — the shuffle is the anonymity)
+//  assassination         → the dread beat, leading into the reveal
+function PendingIndicator({ view, bots, pending, name }: {
+  view: PlayerView
+  bots: Record<number, AgentInfo>
+  pending: Set<Seat>
+  name: (s: number) => string
+}) {
+  if (view.phase === 'assassination') {
+    return (
+      <div className="feed-row moment assassin-beat" role="status">
+        <span className="feed-text">⚔ The Knife is drawn</span>
+        <span className="feed-sub">the Assassin studies the table<Dots /></span>
+      </div>
+    )
+  }
+  if (pending.size === 0) return null
+
+  if (view.phase === 'vote') {
+    const total = view.players.length
+    const sealed = total - view.players.filter((p) => pending.has(p.seat)).length
+    return (
+      <div className="feed-row ballot" role="status">
+        <span className="ballot-lbl">Ballots</span>
+        <span className="bslots">
+          {view.players.map((p) => (
+            <span key={p.seat} className={`bslot ${pending.has(p.seat) ? 'pending' : 'sealed'}`}
+              title={pending.has(p.seat) ? `${name(p.seat)} — still to vote` : `${name(p.seat)} — sealed`} />
+          ))}
+        </span>
+        <span className="ballot-prog">{sealed}/{total} sealed<Dots /></span>
+      </div>
+    )
+  }
+
+  if (view.phase === 'quest') {
+    const team = view.currentTeam ?? []
+    const sealed = team.length - team.filter((s) => pending.has(s)).length
+    const allSealed = sealed === team.length
+    return (
+      <div className={`feed-row ballot quest${allSealed ? ' gathered' : ''}`} role="status">
+        <span className="ballot-lbl">The chosen are sealing their quest cards</span>
+        <span className="qstack">
+          {team.map((s, i) => (
+            <span key={s} className={`qmini ${pending.has(s) ? 'pending' : 'sealed'}`}
+              style={{ ['--i' as string]: i }} title="a quest card, played in secret" />
+          ))}
+        </span>
+        <span className="ballot-prog">{allSealed ? <>gathered &amp; shuffled<Dots /></> : <>{sealed}/{team.length} sealed<Dots /></>}</span>
+      </div>
+    )
+  }
+
+  // discussion / proposal: ghost rows for bots mid-decision (humans use the action bar)
+  const botsPending = [...pending].filter((s) => s !== view.seat && s in bots)
+  return (
+    <>
+      {botsPending.map((s) => {
         const body = celestialFor(bots[s]?.id, name(s))
         return (
           <div key={`thinking-${s}`} className="feed-row thinking-row"
@@ -85,11 +159,11 @@ export function Feed({ view, bots, acting, degradedSeqs }: {
             <span className="tr-glyph">{body.glyph}</span>
             <span className="tr-nm">{name(s)}</span>
             <span className="tr-act">is thinking</span>
-            <span className="tr-dots"><i>●</i><i>●</i><i>●</i></span>
+            <Dots />
           </div>
         )
       })}
-    </div>
+    </>
   )
 }
 

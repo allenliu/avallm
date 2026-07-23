@@ -110,7 +110,18 @@ async function soloRun(browser, viewportName, viewport) {
       await shot('reveal-thinking', true)
       break
     }
-    if (st.waiting) continue
+    if (st.waiting) {
+      // bots deciding while we wait — capture the transient live-edge indicators
+      const kind = await page.evaluate(() => {
+        if (document.querySelector('.assassin-beat')) return 'assassin-beat'
+        if (document.querySelector('.ballot.quest')) return 'quest-ballot'
+        if (document.querySelector('.feed-row.ballot')) return 'vote-ballot'
+        if (document.querySelector('.thinking-row')) return 'discuss-thinking'
+        return null
+      })
+      if (kind && !seen.has(kind)) { seen.add(kind); await shot(kind) }
+      continue
+    }
     if (!st.buttons.length && !st.hasInput) continue
 
     if (!modalsDone && seen.size >= 2) {
@@ -129,10 +140,12 @@ async function soloRun(browser, viewportName, viewport) {
 
     if (st.buttons.includes('Approve') && st.buttons.includes('Reject')) {
       if (!seen.has('vote')) { seen.add('vote'); await shot('vote') }
+      if (!seen.has('vote-ballot') && await page.$('.feed-row.ballot')) { seen.add('vote-ballot'); await shot('vote-ballot') }
       if (!rejectedOnce) { rejectedOnce = true; await clickByText(page, 'Reject') }
       else await clickByText(page, 'Approve')
     } else if (st.buttons.includes('Success')) {
       if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
+      if (!seen.has('quest-ballot') && await page.$('.ballot.quest')) { seen.add('quest-ballot'); await shot('quest-ballot') }
       await clickByText(page, 'Success')
     } else if (st.buttons.includes('Fail')) {
       if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
@@ -219,9 +232,11 @@ async function lobbyRun(browser) {
 }
 
 // ---------- main ----------
+// The bot-decision delay holds the transient thinking / sealing-ballot / beat
+// UI long enough to snapshot (autopilot otherwise decides in zero frames).
 const server = spawn(process.execPath, ['server/server.ts'], {
   cwd: root,
-  env: { ...process.env, AVALON_PORT: String(PORT), PORT: String(PORT) },
+  env: { ...process.env, AVALON_PORT: String(PORT), PORT: String(PORT), AVALON_BOT_DELAY_MS: '1300' },
   stdio: ['ignore', 'pipe', 'inherit'],
 })
 await new Promise((resolve, reject) => {

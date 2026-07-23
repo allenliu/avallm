@@ -185,7 +185,26 @@ remain future options (Zodiac's seat-linking lines double as a turn-order diagra
 - [x] Full-bleed follow-ups: footer content re-centered to 1400px (bar stays full-bleed
   as the table edge); orbit given a FIXED aspect + centered max-width so widening no
   longer flattens the arc (it sits under the seats at every width; mobile keeps a
-  rounder aspect).
+  rounder aspect); a bottom fade scrim dissolves the descending orbit arcs into the
+  night instead of a hard clip where the zone meets the feed.
+- [x] Quest cards flattened (dropped the vestigial `rotateX(14deg)` felt-tilt now that
+  there is no felt) — fixes the slanted quest tooltip at the root and matches seat cards.
+- [x] Mobile tally plaque **vetoed** and removed (markup + CSS).
+- [x] **Phase-aware live-edge indicators** (`PendingIndicator` in Feed, keyed on
+  `view.phase`): discussion/proposal keep the ghost row; **vote → sealing ballot**
+  (per-voter slots, sealed shows ✦ never the value, resolves to the attributed tally);
+  **quest → Q1 gather-&-shuffle ballot** (face-down cards per team member collapse and
+  shuffle when all sealed — anonymity by gathering — then the questResult moment reveals
+  only the fail count); **assassination → the dread beat** ("⚔ The Knife is drawn"). Ghost
+  row stays for sequential speech only. Vote is public/attributed, quest is anonymous —
+  the two ballots share the sealing stage and diverge at resolution.
+  Follow-up noted: ballots read all-sealing→reveal (server resolves bots together); a live
+  "3/7" trickle needs per-decision broadcasts.
+- [x] **Dev-only bot-decision delay** (`AVALON_BOT_DELAY_MS`, 0/off in prod) holds the
+  `acting` state so the screenshot harness can capture the transient thinking/ballot/beat
+  UI. Gallery now captures vote-ballot, quest-ballot, discuss-thinking, assassin-beat at
+  both viewports; the `vote-thinking.html` / `quest-ballot.html` design previews are in
+  `docs/mocks/`.
 
 ### Exploratory / future (design for compatibility, don't build yet)
 

@@ -46,6 +46,10 @@ const DIST = path.join(__dirname, '..', 'client', 'dist')
 // Railway (and most PaaS) inject PORT; AVALON_PORT wins for local overrides.
 const PORT = Number(process.env.AVALON_PORT || process.env.PORT) || 8787
 
+// Dev-only: artificial pause on the "acting" state so the screenshot harness
+// can capture the transient thinking / sealing-ballot UI. Unset (0) in prod.
+const BOT_DELAY_MS = Number(process.env.AVALON_BOT_DELAY_MS) || 0
+
 // Public-deployment gate: when AVALON_INVITE_CODE is set, creating anything
 // that can spend money or write disk (lobbies, games, custom agents) requires
 // the code. Joining an existing lobby by URL is deliberately NOT gated —
@@ -407,6 +411,10 @@ async function pump(s: Session): Promise<void> {
       }
       s.acting = botReqs.map((r) => r.seat)
       broadcast(s)
+      // Dev-only: hold the "acting" state briefly so the screenshot harness can
+      // snapshot the transient thinking / sealing-ballot UI (autopilot bots
+      // otherwise decide in zero frames). Never set in production.
+      if (BOT_DELAY_MS > 0) await new Promise((r) => setTimeout(r, BOT_DELAY_MS))
       const decisions = await Promise.all(botReqs.map(async (req) => {
         const view = viewFor(s.game, req.seat)
         const agent = s.agents.get(req.seat)!

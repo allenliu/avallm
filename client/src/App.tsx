@@ -322,7 +322,7 @@ export function App() {
         </main>
       ) : (
       <main>
-        <Feed view={view} bots={bots} acting={acting} degradedSeqs={payload.degradedSeqs} />
+        <Feed view={view} bots={bots} acting={acting} waitingOn={payload.waitingOn} degradedSeqs={payload.degradedSeqs} />
         <aside>
           {payload.spectator
             ? <div className="role-card spectator">

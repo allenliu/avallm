@@ -1,0 +1,136 @@
+<title>Thinking during a vote — treatments</title>
+<style>
+  :root {
+    --night: #14112a; --night-2: #1b173a; --panel: #201c42; --line: #363057;
+    --bone: #eae2d0; --dim: #a7a094; --faint: #6f6a84;
+    --gold: #c9a84c; --gold-lt: #e0c26a; --gold-deep: #8a7230;
+    --good: #6f8fd9; --evil: #c25e54;
+    --ds: #6b83ff; --gm: #4fb39c; --hk: #e08a67; --km: #45c4d8; --gl: #a97fe6; --gp: #67b377;
+    --mono: "Cascadia Mono", Consolas, monospace;
+    --serif: Constantia, "Palatino Linotype", Georgia, serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--night); color: var(--bone); font: 15px/1.55 var(--serif); padding-bottom: 70px; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+  header { text-align: center; padding: 40px 0 6px; }
+  .eyebrow { font: 600 10.5px/1 var(--mono); letter-spacing: 0.26em; text-transform: uppercase; color: var(--gold); }
+  h1 { font: 700 30px/1.15 var(--serif); margin-top: 8px; }
+  .lede { color: var(--dim); max-width: 62ch; margin: 8px auto 0; font-size: 14.5px; }
+  h2 { font: 700 13px/1.4 var(--serif); letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin: 40px 0 4px; }
+  h2 small { display: block; font: 400 12.5px/1.5 var(--serif); letter-spacing: 0.01em; text-transform: none; color: var(--dim); margin-top: 4px; max-width: 78ch; }
+  .verdict { font: 500 11px/1.6 var(--mono); color: var(--faint); margin: 6px 0 10px; }
+  .verdict b { color: var(--dim); font-weight: 600; }
+
+  .feed { border: 1px solid var(--line); border-radius: 8px; position: relative;
+    background: linear-gradient(180deg, rgba(32,28,66,0.5), rgba(20,17,42,0.25));
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .say .who { display: flex; align-items: baseline; gap: 7px; font-weight: 700; font-size: 0.88rem; color: var(--mc, var(--gold)); }
+  .say .who small { font: 500 0.62rem var(--mono); color: var(--faint); }
+  .say .txt { color: var(--bone); max-width: 64ch; margin-top: 1px; }
+  .pass { color: var(--faint); font-style: italic; font-size: 0.85rem; }
+  .record { font: 500 0.76rem var(--mono); color: var(--dim); border-left: 2px solid var(--gold-deep);
+    background: rgba(201,168,76,0.05); border-radius: 0 3px 3px 0; padding: 5px 10px; }
+  .record b { color: var(--gold); }
+  .dots i { font-style: normal; animation: dp 1.2s infinite; display: inline-block; }
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes dp { 0%,100%{opacity:.2} 50%{opacity:1} }
+
+  /* what happens today (the problem) */
+  .ghost { display: flex; align-items: baseline; gap: 8px; }
+  .ghost .g { font-size: 15px; color: var(--mc); text-shadow: 0 0 8px color-mix(in srgb, var(--mc) 60%, transparent); }
+  .ghost .n { font-weight: 700; font-size: 0.85rem; color: var(--mc); }
+  .ghost .a { font-style: italic; color: var(--faint); font-size: 0.85rem; }
+  .ghost .d { color: var(--mc); font-size: 0.6rem; letter-spacing: 2px; }
+
+  /* A: collective row */
+  .seal { display: flex; align-items: center; gap: 9px; padding: 4px 2px; }
+  .seal .ico { color: var(--gold); font-size: 15px; }
+  .seal .t { font: 500 0.9rem var(--serif); font-style: italic; color: var(--dim); }
+  .seal .d { color: var(--gold); font-size: 0.55rem; letter-spacing: 2px; }
+
+  /* B: live ballot */
+  .ballot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 3px 0; }
+  .ballot .lbl { font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+  .bslot { width: 26px; height: 34px; border-radius: 4px; position: relative;
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    font: 700 0.6rem var(--mono); }
+  .bslot.pending {
+    background: repeating-linear-gradient(45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 7px),
+      linear-gradient(180deg, var(--night-2), var(--panel));
+    box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep);
+    animation: pend 1.4s ease-in-out infinite;
+  }
+  @keyframes pend { 0%,100%{opacity:.5} 50%{opacity:1} }
+  .bslot.cast { border-color: var(--gold); color: var(--gold); background: var(--night-2);
+    box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold); }
+  .ballot .prog { font: 500 0.7rem var(--mono); color: var(--dim); margin-left: 4px; }
+
+  /* C: quiet — a seat row showing the pulse only (no feed row) */
+  .seatstrip { display: flex; gap: 10px; }
+  .mini { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 54px; }
+  .mcard { width: 40px; height: 54px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(175deg, var(--panel), var(--night-2)); border: 1px solid var(--line);
+    box-shadow: inset 0 0 0 2px var(--night-2), inset 0 0 0 3px color-mix(in srgb, var(--mc) 45%, var(--line)); position: relative; }
+  .mcard .g { font-size: 15px; color: var(--mc); }
+  .mcard.acting::after { content: "●●●"; position: absolute; bottom: -13px; font-size: 0.4rem; letter-spacing: 1px; color: var(--gold); animation: dp 1.2s infinite; }
+  .mname { font-size: 0.62rem; color: var(--dim); }
+  .caption { font: 500 0.55rem var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); text-align: center; margin-top: 12px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AvaLLM · previews · thinking during a vote</div>
+    <h1>Sealed ballots, not typing indicators</h1>
+    <p class="lede">The ghost row is right for discussion (agents speak one at a time). But a vote is <b>secret and simultaneous</b> — everyone decides at once — so per-bot "is thinking" rows pile up and leak the moment. Treatments for the vote/quest phases only; discussion keeps its ghost row.</p>
+  </header>
+
+  <h2>Today — the problem<small>Every pending voter gets its own ghost row, so the feed stacks up while you decide, and it reads like a chat where five people are typing at once.</small></h2>
+  <div class="feed">
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="ghost" style="--mc: var(--ds)"><span class="g">☿</span><span class="n">DeepSeek</span><span class="a">is thinking</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+    <div class="ghost" style="--mc: var(--gm)"><span class="g">♊</span><span class="n">Gemini</span><span class="a">is thinking</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+    <div class="ghost" style="--mc: var(--hk)"><span class="g">☉</span><span class="n">Haiku</span><span class="a">is thinking</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+    <div class="ghost" style="--mc: var(--gl)"><span class="g">♃</span><span class="n">GLM</span><span class="a">is thinking</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+    <div class="ghost" style="--mc: var(--gp)"><span class="g">♄</span><span class="n">GPT-OSS</span><span class="a">is thinking</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+  </div>
+
+  <h2>A · The collective row<small>One line replaces the pile: "the table is sealing its votes." Says exactly what's happening — a simultaneous secret ballot — in one calm row. Disappears when the tally lands.</small></h2>
+  <div class="feed">
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="seal"><span class="ico">⧗</span><span class="t">The table is sealing its votes</span><span class="d dots"><i>●</i><i>●</i><i>●</i></span></div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> quietest, one row · matches the secret-simultaneous nature · loses per-bot "who's still out" detail (they're on the seat cards anyway)</p>
+
+  <h2>B · The live ballot<small>A face-down card per voter, pending (hatched, pulsing) until that seat locks, then flipping face-up as cast — the sealed ballots filling in real time. Becomes the vote tally when complete. Progress you can watch without revealing anyone's choice.</small></h2>
+  <div class="feed">
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="ballot">
+      <span class="lbl">Ballots</span>
+      <span class="bslot cast">✓</span>
+      <span class="bslot cast">✓</span>
+      <span class="bslot pending"></span>
+      <span class="bslot cast">✓</span>
+      <span class="bslot pending"></span>
+      <span class="bslot pending"></span>
+      <span class="bslot cast">✓</span>
+      <span class="prog">4 / 7 sealed</span>
+    </div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> most thematic (secret ballots, arcane) · live progress · a ✓ only marks "voted," never how — the values stay hidden until the reveal · one more custom component</p>
+
+  <h2>C · Quiet feed, seat pulse only<small>During a vote, add nothing to the feed — the seat cards already pulse ●●● for whoever's still out. The transcript stays calm and the vote-tally moment lands cleanly against silence.</small></h2>
+  <div class="feed">
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div style="height: 6px"></div>
+    <div class="seatstrip">
+      <div class="mini" style="--mc: var(--ds)"><span class="mcard acting"><span class="g">☿</span></span><span class="mname">DeepSeek</span></div>
+      <div class="mini" style="--mc: var(--gm)"><span class="mcard"><span class="g">♊</span></span><span class="mname">Gemini</span></div>
+      <div class="mini" style="--mc: var(--hk)"><span class="mcard acting"><span class="g">☉</span></span><span class="mname">Haiku</span></div>
+      <div class="mini" style="--mc: var(--gl)"><span class="mcard"><span class="g">♃</span></span><span class="mname">GLM</span></div>
+      <div class="mini" style="--mc: var(--gp)"><span class="mcard acting"><span class="g">♄</span></span><span class="mname">GPT-OSS</span></div>
+    </div>
+    <div class="caption">(shown here for reference — in-game this pulse is only on the seat cards up on the table, not in the feed)</div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> zero feed noise · relies on the table-arc pulse you may not be looking at · least informative but most restful · simplest to build (just suppress the rows)</p>
+</div>

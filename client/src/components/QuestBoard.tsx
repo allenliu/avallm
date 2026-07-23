@@ -7,8 +7,6 @@ import { Emblem } from './Arcana.tsx'
 // score where hover doesn't exist (mobile).
 export function QuestBoard({ view }: { view: PlayerView }) {
   const name = (s: number) => (s === view.seat ? 'You' : view.players[s]?.name ?? `seat ${s}`)
-  const suns = view.quests.filter((q) => q.result === 'success').length
-  const towers = view.quests.filter((q) => q.result === 'fail').length
   return (
     <div className="spread">
       <div className="qcards">
@@ -67,11 +65,6 @@ export function QuestBoard({ view }: { view: PlayerView }) {
             />
           ))}
         </div>
-      </div>
-      <div className="tally" title="Quests won — first to three takes the game">
-        <span className="side sun"><b>{suns}</b><small>suns</small></span>
-        <span className="dash">—</span>
-        <span className="side twr"><b>{towers}</b><small>towers</small></span>
       </div>
     </div>
   )

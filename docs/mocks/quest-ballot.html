@@ -1,0 +1,130 @@
+<title>Quest ballot — anonymous resolution</title>
+<style>
+  :root {
+    --night: #14112a; --night-2: #1b173a; --panel: #201c42; --line: #363057;
+    --bone: #eae2d0; --dim: #a7a094; --faint: #6f6a84;
+    --gold: #c9a84c; --gold-lt: #e0c26a; --gold-deep: #8a7230;
+    --good: #6f8fd9; --evil: #c25e54;
+    --mono: "Cascadia Mono", Consolas, monospace;
+    --serif: Constantia, "Palatino Linotype", Georgia, serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--night); color: var(--bone); font: 15px/1.55 var(--serif); padding-bottom: 70px; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 0 20px; }
+  header { text-align: center; padding: 40px 0 6px; }
+  .eyebrow { font: 600 10.5px/1 var(--mono); letter-spacing: 0.26em; text-transform: uppercase; color: var(--gold); }
+  h1 { font: 700 30px/1.15 var(--serif); margin-top: 8px; }
+  .lede { color: var(--dim); max-width: 64ch; margin: 8px auto 0; font-size: 14.5px; }
+  h2 { font: 700 13px/1.4 var(--serif); letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin: 40px 0 4px; }
+  h2 small { display: block; font: 400 12.5px/1.5 var(--serif); letter-spacing: 0.01em; text-transform: none; color: var(--dim); margin-top: 4px; max-width: 80ch; }
+  .verdict { font: 500 11px/1.6 var(--mono); color: var(--faint); margin: 6px 0 10px; }
+  .verdict b { color: var(--dim); font-weight: 600; }
+  .feed { border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, rgba(32,28,66,0.5), rgba(20,17,42,0.25));
+    padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .record { font: 500 0.76rem var(--mono); color: var(--dim); border-left: 2px solid var(--gold-deep);
+    background: rgba(201,168,76,0.05); border-radius: 0 3px 3px 0; padding: 5px 10px; }
+  .record b { color: var(--gold); }
+  .steplbl { font: 600 0.52rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint); margin-bottom: -2px; }
+  .dots i { font-style: normal; animation: dp 1.2s infinite; display: inline-block; }
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes dp { 0%,100%{opacity:.2} 50%{opacity:1} }
+
+  /* shared ballot slot */
+  .ballot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ballot .lbl { font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+  .slot { width: 30px; height: 40px; border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; font: 700 0.62rem var(--mono); }
+  .slot.pending { background: repeating-linear-gradient(45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 7px), linear-gradient(180deg, var(--night-2), var(--panel));
+    box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep); animation: pend 1.4s ease-in-out infinite; }
+  @keyframes pend { 0%,100%{opacity:.5} 50%{opacity:1} }
+  .slot.sealed { border: 1px solid var(--gold); color: var(--gold); background: var(--night-2); box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold); }
+  .prog { font: 500 0.7rem var(--mono); color: var(--dim); margin-left: 4px; }
+
+  /* vote reveal (attributed) */
+  .vslot { width: auto; padding: 3px 7px; height: auto; border-radius: 3px; border: 1px solid; display: inline-flex; gap: 5px; align-items: baseline; font: 600 0.68rem var(--mono); }
+  .vslot.aye { color: #c9d9f2; border-color: rgba(111,143,217,0.6); background: rgba(111,143,217,0.13); }
+  .vslot.nay { color: #f0cdc7; border-color: rgba(194,94,84,0.6); background: rgba(194,94,84,0.13); }
+  .vslot b.aye { color: #9cd0a4; } .vslot b.nay { color: #e6a49a; }
+
+  /* quest gather+shuffle: a stack */
+  .stack { position: relative; width: 46px; height: 62px; }
+  .stack .c { position: absolute; inset: 0; border-radius: 5px;
+    background: repeating-linear-gradient(45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 8px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 8px), linear-gradient(180deg, var(--night-2), var(--panel));
+    box-shadow: inset 0 0 0 2px var(--night-2), inset 0 0 0 3px var(--gold-deep), 0 4px 8px rgba(0,0,0,0.5); }
+  .stack .c:nth-child(1){transform:translate(-4px,3px) rotate(-5deg)} .stack .c:nth-child(2){transform:translate(3px,1px) rotate(4deg)} .stack .c:nth-child(3){transform:rotate(-1deg)}
+  .questmoment { text-align: center; padding: 10px 16px; border-top: 1px solid var(--evil); border-bottom: 1px solid var(--evil);
+    background: linear-gradient(90deg, transparent, rgba(194,94,84,0.12), transparent); }
+  .questmoment .t { font: 700 0.95rem var(--serif); letter-spacing: 0.16em; text-transform: uppercase; color: var(--evil); }
+  .questmoment .s { font: 500 0.66rem var(--mono); color: var(--dim); margin-top: 2px; }
+  .questmoment.ok { border-color: var(--good); background: linear-gradient(90deg, transparent, rgba(111,143,217,0.12), transparent); }
+  .questmoment.ok .t { color: var(--good); }
+  .arrow { text-align: center; color: var(--faint); font-size: 0.8rem; margin: 2px 0; }
+  .countbadge { display: inline-flex; align-items: center; gap: 6px; font: 700 0.7rem var(--serif); color: var(--evil);
+    border: 1px solid var(--evil); border-radius: 3px; padding: 3px 9px; background: rgba(194,94,84,0.1); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">AvaLLM · previews · the quest ballot</div>
+    <h1>Sealed the same way — revealed differently</h1>
+    <p class="lede">Votes and quest cards both seal as a ballot. But votes are <b>public and attributed</b> once revealed, while quest cards are <b>anonymous</b> — only the number of fails is ever shown. So the two ballots share the sealing stage and diverge at resolution. Here's the shared stage, then three ways the quest ballot can resolve without leaking who failed.</p>
+  </header>
+
+  <h2>The shared sealing stage<small>Identical for both: a face-down card per actor, hatched and pulsing until that seat locks in. This is your chosen vote ballot (B), and the quest ballot starts the same way.</small></h2>
+  <div class="feed">
+    <div class="steplbl">Vote — 3 of 7 sealed</div>
+    <div class="ballot"><span class="lbl">Ballots</span>
+      <span class="slot sealed">✓</span><span class="slot sealed">✓</span><span class="slot pending"></span><span class="slot sealed">✓</span><span class="slot pending"></span><span class="slot pending"></span><span class="slot pending"></span>
+      <span class="prog">sealing… <span class="dots"><i>●</i><i>●</i><i>●</i></span></span>
+    </div>
+  </div>
+
+  <h2>Vote resolution — attributed (for contrast)<small>When the vote completes, each ballot flips to show that seat's aye or nay. Public info, by the rules.</small></h2>
+  <div class="feed">
+    <div class="ballot"><span class="lbl">Votes</span>
+      <span class="vslot aye">DeepSeek <b class="aye">✓</b></span><span class="vslot nay">Gemini <b class="nay">✕</b></span><span class="vslot aye">Allen <b class="aye">✓</b></span>
+      <span class="vslot nay">Haiku <b class="nay">✕</b></span><span class="vslot aye">Kimi <b class="aye">✓</b></span><span class="vslot nay">GLM <b class="nay">✕</b></span><span class="vslot aye">GPT-OSS <b class="aye">✓</b></span>
+      <span class="prog" style="color:#e6a49a">→ REJECTED</span>
+    </div>
+  </div>
+
+  <h2>Q1 · Gather &amp; shuffle → aggregate<small>The sealed cards slide into a single stack and shuffle — then the stack flips ONCE to the quest result (The Sun / The Tower + fail count). Individual cards are never shown. This is exactly how the physical game preserves anonymity: collect, shuffle, reveal only the count.</small></h2>
+  <div class="feed">
+    <div class="steplbl">Quest 3 — the chosen have sealed their cards</div>
+    <div class="ballot" style="justify-content:center; gap:14px;">
+      <span class="lbl" style="align-self:center">Sealed</span>
+      <div class="stack"><span class="c"></span><span class="c"></span><span class="c"></span></div>
+      <span class="prog">gathered &amp; shuffled <span class="dots"><i>●</i><i>●</i><i>●</i></span></span>
+    </div>
+    <div class="arrow">↓ flips once ↓</div>
+    <div class="questmoment"><div class="t">Quest 3 · The Tower — Failed</div><div class="s">1 fail card revealed among 3 · who played it stays secret</div></div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> most thematic & rule-accurate (the shuffle IS the anonymity) · one satisfying flip · teaches the secret-quest rule visually · a touch more animation to build</p>
+
+  <h2>Q2 · Seal &amp; tally<small>Cards seal, then fade face-down while the quest-result moment reveals the count on its own line. No stack, no shuffle — the anonymity is implicit (cards simply never turn over).</small></h2>
+  <div class="feed">
+    <div class="steplbl">Quest 3 — sealing</div>
+    <div class="ballot"><span class="lbl">Cards</span>
+      <span class="slot sealed" style="opacity:.5">◆</span><span class="slot sealed" style="opacity:.5">◆</span><span class="slot sealed" style="opacity:.5">◆</span>
+      <span class="prog">3 / 3 sealed</span>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="questmoment"><div class="t">Quest 3 · The Tower — Failed</div><div class="s">1 fail among 3 cards</div></div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> simplest · clearly anonymous (nothing flips) · least drama — the sealed cards just vanish into the result</p>
+
+  <h2>Q3 · Face-down fan → count stamp<small>The sealed cards fan out face-down and stay that way; a count badge stamps across them ("1 fail"). The cards are visibly present but never turned — anonymity you can see.</small></h2>
+  <div class="feed">
+    <div class="steplbl">Quest 3 — the verdict</div>
+    <div class="ballot" style="justify-content:center; gap:16px; position:relative;">
+      <div style="display:flex; gap:-6px;">
+        <span class="slot sealed" style="transform:rotate(-8deg)">◆</span>
+        <span class="slot sealed" style="transform:rotate(0deg); margin:0 -4px">◆</span>
+        <span class="slot sealed" style="transform:rotate(8deg)">◆</span>
+      </div>
+      <span class="countbadge">✕ 1 fail</span>
+    </div>
+  </div>
+  <p class="verdict"><b>trade-offs:</b> keeps the cards on stage (secrecy made tangible) · compact · the badge doubles as the result, but a separate quest-result moment still reads cleaner for the big beat</p>
+</div>
