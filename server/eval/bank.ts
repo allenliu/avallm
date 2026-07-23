@@ -12,8 +12,9 @@
 //
 // replay: rebuild the same prompt path the live game would use (buildMessages
 // with the candidate's prompt layers) and make ONE call per situation,
-// printing candidate output next to the original. Verdicts are printed for
-// eyeballing today; the automated pass/fail checker is the next layer.
+// printing candidate output next to the original. With --check, a cheap
+// checker call judges whether the replayed decision still exhibits the
+// flagged flaw — the automated gate 1 of the promotion loop (design doc §8).
 
 import { parseArgs } from 'node:util'
 import { pathToFileURL } from 'node:url'
@@ -25,6 +26,7 @@ import { heuristicDecide } from '../agents/heuristic.ts'
 import { loadAgentLibrary } from '../agents/defs.ts'
 import { rosterById } from '../llm/roster.ts'
 import { CALL_PARAMS } from '../llm/call-params.ts'
+import { extractObject } from '../agents/parse.ts'
 import { readArtifacts } from './artifact.ts'
 import { snapshotAt } from './replay.ts'
 import type { DecisionSnapshot } from './replay.ts'
@@ -108,6 +110,37 @@ export async function replayItem(item: BankItem, def: AgentDef): Promise<{ decis
   return { decision: parsed.decision }
 }
 
+// The checker sees only what an outside reviewer needs: the complaint, the
+// original action, and the replayed action. It never learns which prompt
+// version produced which, beyond the labels here — and "fixed" requires the
+// flaw to be gone, not merely different.
+export async function checkReplay(
+  item: BankItem, replayed: Decision, model = 'gemini',
+): Promise<{ verdict: 'fixed' | 'same-flaw' | 'unclear'; note: string }> {
+  const { getClient } = await import('../llm/client.ts')
+  const s = item.snapshot
+  const system = [
+    `You are reviewing a single decision from The Resistance: Avalon for a specific flaw.`,
+    `A player's original decision was flagged by a game judge. A revised bot faced the IDENTICAL`,
+    `situation. Decide whether the revised decision exhibits the SAME flaw. A merely different`,
+    `decision is not automatically fixed; judge against the flagged flaw only.`,
+    `Reply with ONLY a JSON object: {"verdict": "fixed"|"same-flaw"|"unclear", "note": "<one line>"}.`,
+  ].join('\n')
+  const user = [
+    `Situation: ${s.role.toUpperCase()} making a "${s.kind}" decision (quest ${s.req.round}, proposal ${s.req.proposalNum}).`,
+    `Judge's complaint about the original: ${item.description}`,
+    `Original decision:  ${describeDecision(s.original, s.view)}`,
+    `Revised decision:   ${describeDecision(replayed, s.view)}`,
+  ].join('\n')
+  const content = await getClient().call(rosterById(model).slug, [
+    { role: 'system', content: system },
+    { role: 'user', content: user },
+  ], { tag: 'eval/bank-check', temperature: 0, max_tokens: 200, response_format: { type: 'json_object' } })
+  const o = extractObject(content)
+  const verdict = o?.verdict === 'fixed' || o?.verdict === 'same-flaw' ? o.verdict : 'unclear'
+  return { verdict, note: String(o?.note ?? '').slice(0, 200) }
+}
+
 // ---- JSONL helpers ----
 
 function readBank(file: string): BankItem[] {
@@ -130,6 +163,8 @@ async function main(): Promise<void> {
       out: { type: 'string', default: 'data/eval/bank.jsonl' },
       candidate: { type: 'string' },
       limit: { type: 'string' },
+      check: { type: 'boolean', default: false },
+      checkModel: { type: 'string', default: 'gemini' },
     },
   })
   const [cmd, ...files] = positionals
@@ -159,6 +194,7 @@ async function main(): Promise<void> {
     if (!def) throw new Error(`no agent "${values.candidate}" in the library`)
     let items = readBank(bankFile)
     if (values.limit) items = items.slice(0, Number(values.limit))
+    const verdicts = { fixed: 0, 'same-flaw': 0, unclear: 0, failed: 0 }
     for (const item of items) {
       const s = item.snapshot
       console.log(`\n== ${item.bankId} [${item.family}] ${s.role} ${s.kind}, Q${s.req.round}.${s.req.proposalNum} ==`)
@@ -166,10 +202,20 @@ async function main(): Promise<void> {
       console.log(`original:  ${describeDecision(s.original, s.view)}`)
       const r = await replayItem(item, def)
       console.log(`${def.id}: ${r.decision ? ` ${describeDecision(r.decision, s.view)}` : ` FAILED (${r.error})`}`)
+      if (!r.decision) { verdicts.failed++; continue }
+      if (values.check) {
+        const c = await checkReplay(item, r.decision, values.checkModel)
+        verdicts[c.verdict]++
+        console.log(`check: ${c.verdict.toUpperCase()} — ${c.note}`)
+      }
     }
-    if (def.engine.type === 'llm') {
+    if (values.check) {
+      console.log(`\n${items.length} situations: ${verdicts.fixed} fixed, ${verdicts['same-flaw']} same flaw, `
+        + `${verdicts.unclear} unclear${verdicts.failed ? `, ${verdicts.failed} failed to answer` : ''}`)
+    }
+    if (values.check || def.engine.type === 'llm') {
       const { getClient } = await import('../llm/client.ts')
-      console.log(`\nspend: $${getClient().getTotalCost().toFixed(4)}`)
+      console.log(`spend: $${getClient().getTotalCost().toFixed(4)}`)
     }
     return
   }
