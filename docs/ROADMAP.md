@@ -30,6 +30,12 @@ during M1→MP1 plus what deployment newly unblocks, in rough priority order.
 
 ## Next — gameplay quality (the M3 core)
 
+> **2026-07-23:** #5, #7, #8 are absorbed into
+> [design-evaluation.md](design-evaluation.md) — the eval/self-improvement framework design
+> (paired-seed role-forced sims, behavioral metrics, LLM judge, situation bank, promotion loop).
+> It also provides the measurement substrate #6 needs. The entries below stand as the original
+> motivation.
+
 5. **Model coherence harness.** Scripted golden-set game states with a known best action; score
    every roster model; drop or demote models that fallback >10% or play incoherently. This is the
    honest answer to "how much scaffolding before it stops being the model playing" and gates
