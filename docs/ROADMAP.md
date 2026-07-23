@@ -13,6 +13,8 @@ during M1→MP1 plus what deployment newly unblocks, in rough priority order.
    defs) to disk on every event append, restore on boot. Needs a Railway volume. Also persist the
    OpenRouter spend counter — the `OPENROUTER_MAX_SPEND_USD` ceiling currently resets per process,
    so today the only durable budget cap is the key-level limit on OpenRouter.
+   **Design scoped in [design-snapshots.md](design-snapshots.md)** (Session anatomy, write-through
+   at the pump chokepoint, boot restore, spend-counter durability, phasing).
 2. **AFK → Autopilot seat handoff.** Correspondence play *will* strand games on a vanished human.
    Host action: permanently convert a human seat to the heuristic agent (per-seat version of the
    existing per-decision degrade), marked in the feed and the reveal.
