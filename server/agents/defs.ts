@@ -129,8 +129,30 @@ export function parseTableSeat(raw: unknown, agentById: (id: string) => AgentDef
 }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-export const USER_AGENTS_DIR = path.join(__dirname, '..', '..', 'data', 'agents')
+
+// Curated agents ship WITH the repo — read-only, always baked into the deploy
+// image, so their home is fixed at the repo-relative path.
 export const CURATED_AGENTS_DIR = path.join(__dirname, '..', '..', 'agents')
+
+// User agents are LIVE STATE created at runtime. On a PaaS the container
+// filesystem is ephemeral (wiped every redeploy), so the store can be pointed
+// at a mounted persistent disk. The composition root (server startup) resolves
+// the target from the environment AFTER .env has loaded and calls useDataDir
+// ONCE; the whole module then reads this single value, so the boot library scan
+// and every later save/delete agree on one directory. Tests and the sim never
+// call the setter, so they always use the repo-local default regardless of any
+// ambient RAILWAY_*/AVALON_* vars in the developer's shell.
+let userAgentsDirPath = path.join(__dirname, '..', '..', 'data', 'agents')
+
+export function userAgentsDir(): string {
+  return userAgentsDirPath
+}
+
+// Point the user-agents store under `base` (…/agents is appended). Called once
+// at startup; an undefined/empty base keeps the repo-local default.
+export function useDataDir(base: string | undefined): void {
+  if (base) userAgentsDirPath = path.join(base, 'agents')
+}
 
 // Exported so the API payload can serve them — the client meter must display
 // the same caps the server enforces, not a hardcoded copy.
@@ -328,30 +350,31 @@ export function loadAgentLibrary(): AgentLibrary {
   const problems: LibraryProblem[] = []
   const seen = new Set(agents.map((d) => d.id))
   loadTier(CURATED_AGENTS_DIR, 'curated', seen, agents, problems)
-  loadTier(USER_AGENTS_DIR, 'user', seen, agents, problems)
+  loadTier(userAgentsDir(), 'user', seen, agents, problems)
   return { agents, problems }
 }
 
 // Atomic write (temp + rename): a Railway redeploy mid-write must not leave
 // truncated JSON that silently drops the agent from the next boot's library.
 export function saveCustomDef(def: AgentDef): void {
-  fs.mkdirSync(USER_AGENTS_DIR, { recursive: true })
+  const dir = userAgentsDir()
+  fs.mkdirSync(dir, { recursive: true })
   const { tier, unavailable, ...persisted } = def
-  const file = path.join(USER_AGENTS_DIR, `${def.id}.json`)
+  const file = path.join(dir, `${def.id}.json`)
   const tmp = `${file}.tmp`
   fs.writeFileSync(tmp, JSON.stringify(persisted, null, 2))
   fs.renameSync(tmp, file)
 }
 
 export function deleteCustomDef(id: string): void {
-  fs.rmSync(path.join(USER_AGENTS_DIR, `${id}.json`), { force: true })
+  fs.rmSync(path.join(userAgentsDir(), `${id}.json`), { force: true })
 }
 
 // Whether ANY file (including corrupt/skipped ones that never made it into
 // the library) already claims this id on disk — id allocation must not
 // silently clobber a broken file the user was told to fix.
 export function customDefFileExists(id: string): boolean {
-  return fs.existsSync(path.join(USER_AGENTS_DIR, `${id}.json`))
+  return fs.existsSync(path.join(userAgentsDir(), `${id}.json`))
 }
 
 export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicInfo {

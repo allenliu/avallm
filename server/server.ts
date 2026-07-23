@@ -27,7 +27,8 @@ import { createGame, applyDecision, expectedDecisions, renamePlayer } from './en
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
-import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
+import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, publicInfo, saveCustomDef, useDataDir, validateDef } from './agents/defs.ts'
+import { loadEnv } from './llm/env.ts'
 import type { AgentDef, AgentPublicInfo, LibraryProblem, LlmEngine, TableSeat } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE, TABLE_TALK_NORMS, OUTPUT_CONTRACTS, buildMessages } from './agents/prompts.ts'
 import { CALL_PARAMS } from './llm/call-params.ts'
@@ -50,6 +51,22 @@ const PORT = Number(process.env.AVALON_PORT || process.env.PORT) || 8787
 // edit takes effect without a restart.
 const inviteCode = () => process.env.AVALON_INVITE_CODE || ''
 const inviteOk = (body: any) => !inviteCode() || body?.invite === inviteCode()
+
+// Resolve where user-created agents live BEFORE the first library scan. Load
+// .env up front (the LLM client also loads it lazily, but the boot scan and
+// later saves must agree on one directory — real env vars still win, so this is
+// idempotent) and point the store at a persistent disk if one is configured.
+// AVALON_DATA_DIR wins, else Railway's injected RAILWAY_VOLUME_MOUNT_PATH.
+loadEnv(__dirname)
+const dataDirBase = process.env.AVALON_DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH
+if (dataDirBase && !fs.existsSync(dataDirBase)) {
+  // A configured base that doesn't exist means the volume almost certainly
+  // isn't mounted — mkdirSync would silently create it in the ephemeral
+  // container fs, so agents would "save" and then vanish on redeploy. Surface
+  // it instead of masking it.
+  console.warn(`[agents] data dir "${dataDirBase}" does not exist — is the persistent volume mounted? Custom agents written there will be LOST on redeploy.`)
+}
+useDataDir(dataDirBase)
 
 let library: AgentDef[] = []
 let libraryProblems: LibraryProblem[] = []

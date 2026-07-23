@@ -25,7 +25,7 @@ node server/server.ts                      # serve at http://localhost:8787
 
 - **Server requires Node ≥ 24** and runs TypeScript natively — there is no server build step, no server `node_modules`, and it must stay **zero-dependency** (plain `node:http`). Only the client has npm dependencies.
 - There is no Vite dev server: the game server serves the static `client/dist`, so client changes need a build (or the `--watch` variant) to show up. `.claude/launch.json` defines the `avalon` preview config (port 8787, autoPort).
-- Config comes from a `.env` found by walking up from cwd (`server/llm/env.ts`); real env vars win. Keys: `OPENROUTER_API_KEY`, `OPENROUTER_MAX_SPEND_USD` (spend ceiling), `AVALON_INVITE_CODE` (gates money-spending/disk-writing routes on public deploys), `AVALON_PORT`/`PORT`.
+- Config comes from a `.env` found by walking up from cwd (`server/llm/env.ts`); real env vars win. Keys: `OPENROUTER_API_KEY`, `OPENROUTER_MAX_SPEND_USD` (spend ceiling), `AVALON_INVITE_CODE` (gates money-spending/disk-writing routes on public deploys), `AVALON_PORT`/`PORT`, `AVALON_DATA_DIR` (parent dir for runtime-written user agents; defaults to `RAILWAY_VOLUME_MOUNT_PATH` then repo-local `./data` — point it at a mounted persistent disk so custom agents survive redeploys).
 
 ## Screenshot gallery (UI before/after)
 
