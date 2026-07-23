@@ -1,0 +1,335 @@
+<title>Mock G — Arcane Setup / Landing</title>
+<style>
+  :root {
+    --night: #14112a;
+    --night-2: #1b173a;
+    --panel: #201c42;
+    --panel-2: #262153;
+    --line: #363057;
+    --bone: #eae2d0;
+    --bone-dim: #a7a094;
+    --bone-faint: #6f6a84;
+    --gold: #c9a84c;
+    --gold-lt: #e0c26a;
+    --gold-deep: #8a7230;
+    --lapis: #6f8fd9;
+    --oxblood: #c25e54;
+    --ds: #6b83ff; --gm: #4fb39c; --hk: #e08a67; --km: #45c4d8; --gl: #a97fe6; --gp: #67b377;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--night); color: var(--bone);
+    font: 15px/1.55 Constantia, "Palatino Linotype", Georgia, serif;
+    background-image:
+      radial-gradient(2px 2px at 9% 8%, rgba(234,226,208,0.35), transparent 100%),
+      radial-gradient(1.5px 1.5px at 81% 5%, rgba(234,226,208,0.3), transparent 100%),
+      radial-gradient(1.5px 1.5px at 58% 12%, rgba(234,226,208,0.22), transparent 100%),
+      radial-gradient(2px 2px at 30% 4%, rgba(234,226,208,0.2), transparent 100%),
+      radial-gradient(1.5px 1.5px at 93% 22%, rgba(234,226,208,0.2), transparent 100%),
+      radial-gradient(1100px 460px at 50% 0%, rgba(201,168,76,0.12), transparent 62%);
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 22px 120px; }
+
+  /* ---------- hero ---------- */
+  .hero { text-align: center; padding: 44px 0 10px; }
+  .hero h1 { margin: 0; font: 700 46px/1.05 Constantia, Georgia, serif; letter-spacing: 0.04em; }
+  .hero h1 .llm { color: var(--gold); }
+  .hero .sub { font-style: italic; color: var(--bone-dim); margin: 10px 0 0; font-size: 16px; }
+  .hero .tag { color: var(--bone-dim); max-width: 52ch; margin: 6px auto 0; font-size: 14.5px; }
+  .hero .tag b { color: var(--bone); font-weight: 600; }
+
+  /* decorative dealt cards */
+  .deal { display: flex; justify-content: center; gap: 14px; margin: 26px 0 6px; }
+  .dcard {
+    width: 54px; height: 76px; border-radius: 5px; position: relative;
+    background:
+      repeating-linear-gradient(45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 8px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 8px),
+      linear-gradient(180deg, var(--night-2), var(--panel));
+    border: 1px solid var(--line);
+    box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold-deep), 0 8px 16px rgba(0,0,0,0.5);
+    display: grid; place-items: center;
+    color: var(--gold); font: 700 13px/1 Constantia, Georgia, serif;
+  }
+  .dcard:nth-child(1) { transform: rotate(-9deg) translateY(6px); }
+  .dcard:nth-child(2) { transform: rotate(-4deg); }
+  .dcard:nth-child(3) { transform: translateY(-4px); box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold), 0 0 18px rgba(201,168,76,0.35), 0 8px 16px rgba(0,0,0,0.5); }
+  .dcard:nth-child(4) { transform: rotate(4deg); }
+  .dcard:nth-child(5) { transform: rotate(9deg) translateY(6px); }
+  .rules-toggle {
+    margin-top: 18px; display: inline-block;
+    font: 600 10.5px/1 Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--bone-dim); background: transparent; border: 1px solid var(--line); border-radius: 2px;
+    padding: 9px 14px; cursor: pointer;
+  }
+  .rules-toggle:hover, .rules-toggle:focus-visible { color: var(--gold); border-color: var(--gold-deep); outline: none; }
+
+  /* ---------- steps grid ---------- */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 26px; align-items: start; }
+  .card-panel {
+    border: 1px solid var(--line); border-radius: 9px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(32,28,66,0.6), rgba(20,17,42,0.3));
+  }
+  .card-panel > h2 {
+    margin: 0; padding: 12px 18px 10px;
+    font: 700 13px/1.4 Constantia, Georgia, serif; letter-spacing: 0.24em; text-transform: uppercase;
+    color: var(--gold); border-bottom: 1px solid var(--line);
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .card-panel > h2 .n { font: 400 11px/1 Consolas, monospace; color: var(--bone-faint); letter-spacing: 0.1em; }
+  .card-panel .body { padding: 14px 18px 16px; }
+
+  label.field { display: block; font: 600 9.5px/1.6 Consolas, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bone-faint); }
+  .frow { display: flex; gap: 12px; }
+  .frow > label { flex: 1; }
+  .frow > label.wide { flex: 1.35; }
+  input[type="text"], select {
+    width: 100%; margin-top: 4px; padding: 10px 12px; border-radius: 4px;
+    background: var(--night-2); color: var(--bone);
+    border: 1px solid var(--line);
+    font: 14px/1.3 Constantia, Georgia, serif;
+  }
+  select {
+    appearance: none; -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%), linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%;
+    background-size: 5px 5px; background-repeat: no-repeat;
+    padding-right: 30px;
+  }
+  input[type="text"]:focus, select:focus { outline: none; border-color: var(--gold-deep); box-shadow: 0 0 0 2px rgba(201,168,76,0.18); }
+  input::placeholder { color: var(--bone-faint); }
+
+  /* seats list */
+  .fill-row { display: flex; align-items: center; gap: 8px; margin: 14px 0 8px; }
+  .fill-row .lbl { font: 600 9.5px/1 Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bone-faint); }
+  .fill-btn {
+    font: 600 10px/1 Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--bone-dim); background: var(--night-2); border: 1px solid var(--line); border-radius: 3px;
+    padding: 7px 10px; cursor: pointer;
+  }
+  .fill-btn:hover { color: var(--gold); border-color: var(--gold-deep); }
+  .seatrow { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .mini {
+    flex: 0 0 34px; width: 34px; height: 46px; border-radius: 4px;
+    display: grid; place-items: center;
+    font: 700 10px/1 Consolas, monospace; color: var(--bone);
+    background: linear-gradient(175deg, var(--panel), var(--night-2));
+    border: 1px solid var(--line);
+    box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px color-mix(in srgb, var(--mc) 50%, var(--line));
+  }
+  .seatrow select { flex: 0 0 54%; margin-top: 0; padding: 8px 26px 8px 10px; font-size: 13px; }
+  .seatrow .about { flex: 1; font-size: 12px; font-style: italic; color: var(--bone-faint); line-height: 1.4; }
+  .addagent {
+    margin-top: 10px; width: 100%; text-align: center;
+    font: 600 10px/1 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--bone-dim); background: transparent; border: 1px dashed var(--line); border-radius: 4px;
+    padding: 10px; cursor: pointer;
+  }
+  .addagent:hover { color: var(--gold); border-color: var(--gold-deep); }
+
+  /* roles */
+  .presets { display: flex; gap: 8px; margin-bottom: 14px; }
+  .preset {
+    flex: 1; text-align: center; padding: 9px 6px; cursor: pointer;
+    font: 700 12px/1.3 Constantia, Georgia, serif; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--bone-dim); background: var(--night-2); border: 1px solid var(--line); border-radius: 4px;
+  }
+  .preset.active {
+    color: var(--gold-lt); border-color: var(--gold);
+    background: linear-gradient(180deg, rgba(201,168,76,0.14), rgba(201,168,76,0.04));
+    box-shadow: 0 0 12px rgba(201,168,76,0.2);
+  }
+  .preset:hover { border-color: var(--gold-deep); }
+  .role { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid rgba(54,48,87,0.5); align-items: flex-start; cursor: pointer; }
+  .role:first-of-type { border-top: none; }
+  .gembox {
+    flex: 0 0 16px; width: 16px; height: 16px; margin-top: 3px;
+    transform: rotate(45deg); border: 1.5px solid var(--bone-faint); background: transparent;
+    transition: all 0.15s ease;
+  }
+  .role.checked .gembox.good { background: rgba(111,143,217,0.55); border-color: var(--lapis); box-shadow: 0 0 8px rgba(111,143,217,0.4); }
+  .role.checked .gembox.evil { background: rgba(194,94,84,0.55); border-color: var(--oxblood); box-shadow: 0 0 8px rgba(194,94,84,0.4); }
+  .role .rname { font-weight: 700; font-size: 15px; }
+  .role .rname.good { color: var(--lapis); }
+  .role .rname.evil { color: var(--oxblood); }
+  .role .rdesc { font-size: 12.5px; color: var(--bone-dim); line-height: 1.45; }
+  .fill-note { font-size: 12px; font-style: italic; color: var(--bone-faint); margin: 12px 0 0; line-height: 1.5; }
+  .fill-note b { color: var(--bone-dim); font-style: normal; }
+
+  /* ---------- CTA rail ---------- */
+  .cta-rail {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: linear-gradient(180deg, rgba(50,34,56,0.97), rgba(32,22,37,0.97));
+    box-shadow: inset 0 2px 0 rgba(201,168,76,0.3), 0 -10px 34px rgba(0,0,0,0.55);
+  }
+  .cta-rail::before {
+    content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,168,76,0.6), transparent);
+  }
+  .cta-inner { max-width: 1060px; margin: 0 auto; padding: 13px 22px; display: flex; align-items: center; gap: 18px; }
+  .inplay { font-size: 13px; color: var(--bone-dim); }
+  .inplay b { color: var(--gold); font-weight: 600; }
+  .inplay .good { color: var(--lapis); } .inplay .evil { color: var(--oxblood); }
+  .spacer { flex: 1; }
+  .cta {
+    font: 700 15px/1 Constantia, Georgia, serif; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #241c0e; cursor: pointer; border: 1px solid var(--gold-lt); border-radius: 5px;
+    padding: 15px 30px;
+    background: linear-gradient(180deg, var(--gold-lt), var(--gold));
+    box-shadow: 0 3px 16px rgba(201,168,76,0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+  }
+  .cta:hover { filter: brightness(1.07); }
+  .cta:focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 800px) {
+    .wrap { padding: 0 14px 150px; }
+    .hero { padding: 26px 0 6px; }
+    .hero h1 { font-size: 34px; }
+    .hero .tag { font-size: 13.5px; }
+    .deal { gap: 10px; margin: 20px 0 4px; }
+    .dcard { width: 42px; height: 60px; }
+    .grid { grid-template-columns: 1fr; gap: 12px; margin-top: 18px; }
+    .card-panel .body { padding: 12px 14px 14px; }
+    .frow { flex-wrap: wrap; }
+    .frow > label { flex: 1 1 40%; }
+    .seatrow { flex-wrap: wrap; }
+    .seatrow select { flex: 1; }
+    .seatrow .about { flex: 1 1 100%; padding-left: 44px; margin-top: -2px; }
+    .cta-inner { padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); flex-wrap: wrap; gap: 8px; }
+    .inplay { font-size: 11.5px; width: 100%; }
+    .cta { width: 100%; padding: 16px 10px; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Ava<span class="llm">LLM</span></h1>
+    <p class="sub">The Resistance: Avalon vs. the LLMs</p>
+    <p class="tag">Hidden roles, open models. Bluff <b>DeepSeek</b>, out-read <b>Gemini</b> — or invite friends and let the machines fill the empty chairs.</p>
+    <div class="deal" aria-hidden="true">
+      <div class="dcard">2</div><div class="dcard">3</div><div class="dcard">3</div><div class="dcard">4</div><div class="dcard">4</div>
+    </div>
+    <button class="rules-toggle">How do you play Avalon?</button>
+  </div>
+
+  <div class="grid">
+    <div class="col">
+      <div class="card-panel">
+        <h2><span class="n">I</span>The Table</h2>
+        <div class="body">
+          <div class="frow">
+            <label class="field">Your name
+              <input type="text" value="Allen" maxlength="24" placeholder="You">
+            </label>
+            <label class="field wide">Players
+              <select>
+                <option>5 — 3 good / 2 evil</option>
+                <option>6 — 4 good / 2 evil</option>
+                <option selected>7 — 4 good / 3 evil</option>
+                <option>8 — 5 good / 3 evil</option>
+                <option>9 — 6 good / 3 evil</option>
+              </select>
+            </label>
+            <label class="field">Humans
+              <select>
+                <option selected>just me</option>
+                <option>2 — invite link</option>
+                <option>3 — invite link</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-panel" style="margin-top: 14px;">
+        <h2><span class="n">II</span>The Seats</h2>
+        <div class="body">
+          <div class="fill-row">
+            <span class="lbl">Fill with</span>
+            <button class="fill-btn">LLM models</button>
+            <button class="fill-btn">Autopilot (free)</button>
+          </div>
+          <div class="seatrow" style="--mc: var(--ds)">
+            <div class="mini">DS</div>
+            <select><option>DeepSeek — deepseek-v4-flash</option></select>
+            <span class="about">Terse and punchy. Occasionally forgets it is playing a game.</span>
+          </div>
+          <div class="seatrow" style="--mc: var(--gm)">
+            <div class="mini">GM</div>
+            <select><option>Gemini — gemini-3.1-flash-lite</option></select>
+            <span class="about">Fast, steady, votes like a spreadsheet.</span>
+          </div>
+          <div class="seatrow" style="--mc: var(--hk)">
+            <div class="mini">HK</div>
+            <select><option>Haiku — claude-haiku-4.5</option></select>
+            <span class="about">The premium seat. Calm, deliberate, hard to rattle.</span>
+          </div>
+          <div class="seatrow" style="--mc: var(--km)">
+            <div class="mini">KM</div>
+            <select><option>Kimi — kimi-k2.5</option></select>
+            <span class="about">Warm and literary — watch for the knife in the metaphor.</span>
+          </div>
+          <div class="seatrow" style="--mc: var(--gl)">
+            <div class="mini">GL</div>
+            <select><option>GLM — glm-4.6</option></select>
+            <span class="about">Earnest. Takes every accusation personally.</span>
+          </div>
+          <div class="seatrow" style="--mc: var(--gp)">
+            <div class="mini">GP</div>
+            <select><option>GPT-OSS — gpt-oss-120b</option></select>
+            <span class="about">Open-weight workhorse; counts votes, not vibes.</span>
+          </div>
+          <button class="addagent">+ Inscribe your own agent</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card-panel">
+        <h2><span class="n">III</span>The Roles</h2>
+        <div class="body">
+          <div class="presets">
+            <button class="preset">Beginner</button>
+            <button class="preset active">Standard</button>
+            <button class="preset">Advanced</button>
+          </div>
+          <div class="role checked">
+            <span class="gembox good"></span>
+            <div><span class="rname good">Merlin &amp; Assassin</span>
+            <div class="rdesc">Merlin sees who is evil — but must hide it. If good wins three quests, the Assassin gets one shot at naming Merlin; a correct pick steals the game for evil.</div></div>
+          </div>
+          <div class="role checked">
+            <span class="gembox good"></span>
+            <div><span class="rname good">Percival</span>
+            <div class="rdesc">Sees Merlin and Morgana without knowing which is which. Protect the real Merlin — or impersonate them.</div></div>
+          </div>
+          <div class="role checked">
+            <span class="gembox evil"></span>
+            <div><span class="rname evil">Morgana</span>
+            <div class="rdesc">Appears to Percival as a possible Merlin, muddying his information.</div></div>
+          </div>
+          <div class="role">
+            <span class="gembox evil"></span>
+            <div><span class="rname evil">Mordred</span>
+            <div class="rdesc">Hidden from Merlin — evil's cleanest asset.</div></div>
+          </div>
+          <div class="role checked">
+            <span class="gembox evil"></span>
+            <div><span class="rname evil">Oberon</span>
+            <div class="rdesc">A lone wolf: unknown to the other evil, and does not know them either.</div></div>
+          </div>
+          <p class="fill-note">Remaining seats are filled with <b>Loyal Servants</b> (good, no knowledge) and <b>Minions</b> (evil, know each other). <b>3 of 7</b> players are evil.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cta-rail">
+  <div class="cta-inner">
+    <span class="inplay"><b>In play:</b> <span class="good">Merlin · Percival · Servant ×2</span> — <span class="evil">Assassin · Morgana · Oberon</span></span>
+    <span class="spacer"></span>
+    <button class="cta">Sit down at the table</button>
+  </div>
+</div>

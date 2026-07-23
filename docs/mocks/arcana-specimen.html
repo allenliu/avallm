@@ -1,0 +1,360 @@
+<title>The AvaLLM Arcana — card system specimen</title>
+<style>
+  :root {
+    --night: #14112a;
+    --night-2: #1b173a;
+    --panel: #201c42;
+    --line: #363057;
+    --bone: #eae2d0;
+    --bone-dim: #a7a094;
+    --bone-faint: #6f6a84;
+    --gold: #c9a84c;
+    --gold-lt: #e0c26a;
+    --gold-deep: #8a7230;
+    --lapis: #6f8fd9;
+    --lapis-deep: #3c548f;
+    --oxblood: #c25e54;
+    --oxblood-deep: #7e3a33;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--night); color: var(--bone);
+    font: 15.5px/1.6 Constantia, "Palatino Linotype", Georgia, serif;
+    background-image:
+      radial-gradient(2px 2px at 9% 6%, rgba(234,226,208,0.3), transparent 100%),
+      radial-gradient(1.5px 1.5px at 81% 4%, rgba(234,226,208,0.28), transparent 100%),
+      radial-gradient(1.5px 1.5px at 58% 10%, rgba(234,226,208,0.2), transparent 100%),
+      radial-gradient(2px 2px at 33% 15%, rgba(234,226,208,0.16), transparent 100%),
+      radial-gradient(1100px 480px at 50% 0%, rgba(201,168,76,0.11), transparent 62%);
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 22px 90px; }
+  header.mast { text-align: center; padding: 48px 0 8px; }
+  .eyebrow { font: 600 10.5px/1 Consolas, monospace; letter-spacing: 0.28em; text-transform: uppercase; color: var(--gold); }
+  h1 { font: 700 40px/1.1 Constantia, Georgia, serif; margin: 10px 0 8px; letter-spacing: 0.03em; }
+  .lede { color: var(--bone-dim); max-width: 58ch; margin: 0 auto; font-size: 15px; }
+  h2 {
+    font: 700 14px/1.4 Constantia, Georgia, serif; letter-spacing: 0.26em; text-transform: uppercase;
+    color: var(--gold); text-align: center; margin: 54px 0 6px;
+  }
+  h2::before, h2::after { content: " ✦ "; color: var(--gold-deep); letter-spacing: 0; }
+  .note { text-align: center; color: var(--bone-dim); font-size: 13.5px; font-style: italic; max-width: 62ch; margin: 0 auto 26px; }
+
+  .gallery { display: flex; flex-wrap: wrap; gap: 22px; justify-content: center; }
+
+  /* ---------- the card ---------- */
+  .tarot {
+    width: 148px; height: 246px; border-radius: 8px; position: relative;
+    background:
+      radial-gradient(120px 200px at 50% 30%, rgba(201,168,76,0.07), transparent 70%),
+      linear-gradient(175deg, var(--panel), var(--night-2));
+    border: 1px solid var(--gold-deep);
+    box-shadow:
+      inset 0 0 0 3px var(--night-2),
+      inset 0 0 0 4px var(--gold-deep),
+      0 10px 26px rgba(0,0,0,0.55);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 10px 10px;
+    transition: transform 0.2s ease;
+  }
+  .tarot:hover { transform: translateY(-7px); }
+  .tarot .corner { position: absolute; font-size: 9px; color: var(--gold-deep); }
+  .tarot .corner.tl { top: 7px; left: 9px; } .tarot .corner.tr { top: 7px; right: 9px; }
+  .tarot .corner.bl { bottom: 7px; left: 9px; } .tarot .corner.br { bottom: 7px; right: 9px; }
+  .tarot .numeral {
+    font: 700 12px/1 Constantia, Georgia, serif; letter-spacing: 0.24em; color: var(--gold);
+    padding: 3px 10px; border: 1px solid var(--gold-deep); border-radius: 2px;
+    background: rgba(201,168,76,0.06);
+  }
+  .tarot .emblem {
+    flex: 1; display: grid; place-items: center; width: 100%;
+    margin: 8px 0; position: relative;
+  }
+  .tarot .emblem::before {
+    content: ""; position: absolute; inset: 0 8px;
+    border: 1px solid rgba(201,168,76,0.22); border-radius: 50% / 32%;
+  }
+  .tarot .emblem svg { width: 74px; height: 74px; color: var(--em, var(--bone)); }
+  .tarot .plate {
+    width: 100%; text-align: center; padding: 7px 4px 5px;
+    border-top: 1px solid var(--gold-deep);
+  }
+  .tarot .plate .tname { font: 700 12.5px/1.25 Constantia, Georgia, serif; letter-spacing: 0.18em; text-transform: uppercase; }
+  .tarot .plate .tsub { font: 500 8px/1.6 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone-faint); }
+  .tarot.good { border-color: var(--lapis-deep); box-shadow: inset 0 0 0 3px var(--night-2), inset 0 0 0 4px var(--lapis-deep), 0 10px 26px rgba(0,0,0,0.55); }
+  .tarot.good .numeral { color: var(--lapis); border-color: var(--lapis-deep); background: rgba(111,143,217,0.07); }
+  .tarot.good .plate { border-top-color: var(--lapis-deep); }
+  .tarot.good .plate .tname { color: #d9e3f7; }
+  .tarot.good .corner { color: var(--lapis-deep); }
+  .tarot.good .emblem::before { border-color: rgba(111,143,217,0.25); }
+  .tarot.evil { border-color: var(--oxblood-deep); box-shadow: inset 0 0 0 3px var(--night-2), inset 0 0 0 4px var(--oxblood-deep), 0 10px 26px rgba(0,0,0,0.55); }
+  .tarot.evil .numeral { color: var(--oxblood); border-color: var(--oxblood-deep); background: rgba(194,94,84,0.07); }
+  .tarot.evil .plate { border-top-color: var(--oxblood-deep); }
+  .tarot.evil .plate .tname { color: #f2ddd8; }
+  .tarot.evil .corner { color: var(--oxblood-deep); }
+  .tarot.evil .emblem::before { border-color: rgba(194,94,84,0.25); }
+
+  .tarot.sun { background: radial-gradient(120px 200px at 50% 34%, rgba(201,168,76,0.16), transparent 72%), linear-gradient(175deg, #2c3c6e, #222c52); border-color: var(--lapis); box-shadow: inset 0 0 0 3px #222c52, inset 0 0 0 4px var(--lapis), 0 0 22px rgba(111,143,217,0.25), 0 10px 26px rgba(0,0,0,0.55); }
+  .tarot.tower { background: radial-gradient(120px 200px at 50% 34%, rgba(194,94,84,0.14), transparent 72%), linear-gradient(175deg, #6e3230, #4a2220); border-color: var(--oxblood); box-shadow: inset 0 0 0 3px #4a2220, inset 0 0 0 4px var(--oxblood), 0 0 22px rgba(194,94,84,0.25), 0 10px 26px rgba(0,0,0,0.55); }
+  .tarot.sun .plate, .tarot.tower .plate { border-top-color: rgba(234,226,208,0.3); }
+  .tarot.sun .numeral { color: #d9e3f7; border-color: rgba(217,227,247,0.4); }
+  .tarot.tower .numeral { color: #f2ddd8; border-color: rgba(242,221,216,0.4); }
+  .tarot.sun .corner, .tarot.tower .corner { color: rgba(234,226,208,0.5); }
+
+  .tarot.back {
+    background:
+      repeating-linear-gradient(45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.13) 0 2px, transparent 2px 9px),
+      linear-gradient(180deg, var(--night-2), var(--panel));
+    align-items: center; justify-content: center;
+  }
+  .tarot.back .bigring {
+    width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center;
+    border: 1px solid var(--gold-deep); color: var(--gold);
+    font: 700 26px/1 Constantia, Georgia, serif;
+    background: var(--night-2);
+  }
+  .tarot.back.glow { border-color: var(--gold); box-shadow: inset 0 0 0 3px var(--night-2), inset 0 0 0 4px var(--gold), 0 0 26px rgba(201,168,76,0.4), 0 10px 26px rgba(0,0,0,0.55); }
+
+  .cap { text-align: center; font: 500 10px/1.7 Consolas, monospace; letter-spacing: 0.1em; color: var(--bone-faint); margin-top: 9px; text-transform: uppercase; }
+  .cardcol { display: flex; flex-direction: column; align-items: center; }
+
+  .usage {
+    max-width: 640px; margin: 30px auto 0; padding: 16px 22px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: rgba(32,28,66,0.4); font-size: 13.5px; color: var(--bone-dim);
+  }
+  .usage b { color: var(--bone); }
+  .usage ul { margin: 8px 0 0; padding-left: 20px; }
+  .usage li { margin: 5px 0; }
+
+  @media (max-width: 720px) {
+    h1 { font-size: 30px; }
+    .gallery { gap: 14px; }
+    .tarot { width: 128px; height: 214px; }
+    .tarot .emblem svg { width: 60px; height: 60px; }
+  }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="em-eye" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 30 Q30 12 52 30 Q30 48 8 30 Z"/>
+      <circle cx="30" cy="30" r="7"/>
+      <circle cx="30" cy="30" r="2.4" fill="currentColor" stroke="none"/>
+      <path d="M30 6 v6 M30 48 v6 M12 12 l4 4 M48 12 l-4 4"/>
+    </g>
+    <g id="em-shield" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M30 8 L46 15 V30 C46 41 38 48 30 53 C22 48 14 41 14 30 V15 Z"/>
+      <path d="M23 27 l3.5 2.5 -1.3 -4.1 3.4 -2.5 h-4.2 L23 19 l-1.4 3.9 h-4.2 l3.4 2.5 -1.3 4.1 Z" transform="translate(9,3) scale(0.9)"/>
+      <path d="M23 27 l3.5 2.5 -1.3 -4.1 3.4 -2.5 h-4.2 L23 19 l-1.4 3.9 h-4.2 l3.4 2.5 -1.3 4.1 Z" transform="translate(-1,14) scale(0.75)"/>
+    </g>
+    <g id="em-chalice" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 16 H43 C43 30 37 36 30 36 C23 36 17 30 17 16 Z"/>
+      <path d="M30 36 V46 M22 50 H38 M26 46 h8"/>
+      <path d="M30 4 l1.6 3.4 3.4 0.5 -2.5 2.4 0.6 3.5 -3.1 -1.7 -3.1 1.7 0.6 -3.5 -2.5 -2.4 3.4 -0.5 Z" fill="currentColor" stroke="none" transform="translate(0,2) scale(0.8) translate(7,1)"/>
+    </g>
+    <g id="em-dagger" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M30 6 L34 34 H26 Z"/>
+      <path d="M20 38 H40 M30 38 V48"/>
+      <circle cx="30" cy="52" r="2.6"/>
+      <path d="M14 14 l6 6 M46 14 l-6 6" opacity="0.6"/>
+    </g>
+    <g id="em-moons" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 12 A18 18 0 1 0 20 48 A20 20 0 0 1 20 12 Z"/>
+      <path d="M20 12 A18 18 0 1 0 20 48 A20 20 0 0 1 20 12 Z" transform="translate(60,0) scale(-1,1)" opacity="0.55"/>
+      <path d="M30 18 V42" stroke-dasharray="2 4" opacity="0.6"/>
+      <circle cx="30" cy="8" r="1.4" fill="currentColor" stroke="none"/>
+    </g>
+    <g id="em-veil" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 40 L18 22 L26 32 L30 18 L34 32 L42 22 L46 40 Z"/>
+      <path d="M12 46 H48"/>
+      <path d="M10 12 Q20 18 30 12 Q40 6 50 12" opacity="0.55"/>
+      <path d="M10 12 L14 40 M50 12 L46 40" opacity="0.35"/>
+    </g>
+    <g id="em-lantern" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M24 22 Q30 10 36 22"/>
+      <rect x="22" y="22" width="16" height="20" rx="2"/>
+      <path d="M30 28 l3 4 -3 4 -3 -4 Z" fill="currentColor" stroke="none"/>
+      <path d="M26 46 H34 M30 42 V46"/>
+      <path d="M12 30 h4 M44 30 h4" opacity="0.5"/>
+    </g>
+    <g id="em-sun" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="30" cy="30" r="11"/>
+      <circle cx="30" cy="30" r="4.5" opacity="0.7"/>
+      <path d="M30 8 V15 M30 45 V52 M8 30 H15 M45 30 H52 M14.4 14.4 l5 5 M40.6 40.6 l5 5 M45.6 14.4 l-5 5 M19.4 40.6 l-5 5"/>
+    </g>
+    <g id="em-tower" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 22 L22 52 H38 L40 22"/>
+      <path d="M17 22 H43 M19 15 h5 v7 M36 15 h5 v7 M27 13 h6 v9"/>
+      <path d="M27 34 h6 M30 34 v8" opacity="0.6"/>
+      <path d="M46 4 L36 15 H42 L31 28" stroke-width="2.2"/>
+      <path d="M12 40 l5 -4 M48 36 l-5 -3" opacity="0.6"/>
+    </g>
+    <g id="em-crown" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 40 L19 24 L27 32 L30 18 L33 32 L41 24 L44 40 Z"/>
+      <path d="M16 46 H44"/>
+      <circle cx="30" cy="12" r="2" opacity="0.7"/>
+    </g>
+    <g id="em-laurel" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 12 C10 24 10 38 20 48"/>
+      <path d="M42 12 C50 24 50 38 40 48"/>
+      <path d="M16 20 q-5 1 -7 -3 q5 -2 7 3 Z M14 30 q-5 1 -7 -3 q5 -2 7 3 Z M16 40 q-5 2 -8 -1 q4 -4 8 1 Z" fill="currentColor" stroke="none" opacity="0.8"/>
+      <path d="M44 20 q5 1 7 -3 q-5 -2 -7 3 Z M46 30 q5 1 7 -3 q-5 -2 -7 3 Z M44 40 q5 2 8 -1 q-4 -4 -8 1 Z" fill="currentColor" stroke="none" opacity="0.8"/>
+      <path d="M30 22 l2 4.5 4.5 0.7 -3.3 3.2 0.8 4.6 -4 -2.2 -4 2.2 0.8 -4.6 -3.3 -3.2 4.5 -0.7 Z" fill="currentColor" stroke="none"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">AvaLLM · design language · specimen</div>
+    <h1>The AvaLLM Arcana</h1>
+    <p class="lede">A full tarot anatomy for every card the game deals: numeral cartouche, engraved emblem, title plate, corner stars. Roles become named arcana; quest results become The Sun and The Tower; votes are cards you play. Hover any card.</p>
+  </header>
+
+  <h2>The Roles</h2>
+  <p class="note">Your secret identity, dealt face-down at game start and flipped in the reveal. Numerals nod to the classical deck — Death is XIII, The Moon is XVIII, The Devil is XV, The Hermit is IX.</p>
+  <div class="gallery">
+    <div class="cardcol">
+      <div class="tarot good" style="--em: var(--lapis)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">I</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-eye"/></svg></span>
+        <span class="plate"><span class="tname">The Seer</span><br><span class="tsub">Merlin · sees all evil</span></span>
+      </div>
+      <div class="cap">merlin</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot good" style="--em: var(--lapis)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">II</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-shield"/></svg></span>
+        <span class="plate"><span class="tname">The Watcher</span><br><span class="tsub">Percival · sees two seers</span></span>
+      </div>
+      <div class="cap">percival</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot good" style="--em: var(--lapis)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">III</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-chalice"/></svg></span>
+        <span class="plate"><span class="tname">The Loyal</span><br><span class="tsub">Servant · trusts the record</span></span>
+      </div>
+      <div class="cap">loyal servant</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot evil" style="--em: var(--oxblood)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">XIII</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-dagger"/></svg></span>
+        <span class="plate"><span class="tname">The Knife</span><br><span class="tsub">Assassin · one shot at the seer</span></span>
+      </div>
+      <div class="cap">assassin</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot evil" style="--em: var(--oxblood)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">XVIII</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-moons"/></svg></span>
+        <span class="plate"><span class="tname">The Mirror</span><br><span class="tsub">Morgana · wears the seer's face</span></span>
+      </div>
+      <div class="cap">morgana</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot evil" style="--em: var(--oxblood)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">XV</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-veil"/></svg></span>
+        <span class="plate"><span class="tname">The Veiled</span><br><span class="tsub">Mordred · hidden from the seer</span></span>
+      </div>
+      <div class="cap">mordred</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot evil" style="--em: var(--oxblood)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">IX</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-lantern"/></svg></span>
+        <span class="plate"><span class="tname">The Stranger</span><br><span class="tsub">Oberon · alone among wolves</span></span>
+      </div>
+      <div class="cap">oberon</div>
+    </div>
+  </div>
+
+  <h2>Fortunes of the Quest</h2>
+  <p class="note">The quest line is a five-card spread. Future quests lie face-down; the current one glows; a resolved quest flips to its fortune — The Sun for success, The Tower for ruin. The flip is the game's core animation.</p>
+  <div class="gallery">
+    <div class="cardcol">
+      <div class="tarot sun" style="--em: #e8ecf8">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">XIX</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-sun"/></svg></span>
+        <span class="plate"><span class="tname">The Sun</span><br><span class="tsub">quest succeeded</span></span>
+      </div>
+      <div class="cap">success face</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot tower" style="--em: #f5e0db">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">XVI</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-tower"/></svg></span>
+        <span class="plate"><span class="tname">The Tower</span><br><span class="tsub">quest failed · 1 fail card</span></span>
+      </div>
+      <div class="cap">fail face</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot back glow">
+        <span class="bigring">3</span>
+      </div>
+      <div class="cap">current quest · face-down</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot back">
+        <span class="bigring">4</span>
+      </div>
+      <div class="cap">future quest · team of 4</div>
+    </div>
+  </div>
+
+  <h2>The Hand You Play</h2>
+  <p class="note">Votes and quest cards are played, not clicked. Approve carries the laurel; Reject carries the knife. In the engine's secret phase, good's forced Success card is the same laurel — one vocabulary everywhere.</p>
+  <div class="gallery">
+    <div class="cardcol">
+      <div class="tarot good" style="--em: var(--lapis)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">AYE</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-laurel"/></svg></span>
+        <span class="plate"><span class="tname">Approve</span><br><span class="tsub">send this team</span></span>
+      </div>
+      <div class="cap">vote · approve</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot evil" style="--em: var(--oxblood)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">NAY</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-dagger"/></svg></span>
+        <span class="plate"><span class="tname">Reject</span><br><span class="tsub">force a new leader</span></span>
+      </div>
+      <div class="cap">vote · reject</div>
+    </div>
+    <div class="cardcol">
+      <div class="tarot" style="--em: var(--gold)">
+        <span class="corner tl">✦</span><span class="corner tr">✦</span><span class="corner bl">✦</span><span class="corner br">✦</span>
+        <span class="numeral">♛</span>
+        <span class="emblem"><svg viewBox="0 0 60 60"><use href="#em-crown"/></svg></span>
+        <span class="plate"><span class="tname">The Leader</span><br><span class="tsub">marker · passes clockwise</span></span>
+      </div>
+      <div class="cap">leader marker</div>
+    </div>
+  </div>
+
+  <div class="usage">
+    <b>Where the deck shows up:</b>
+    <ul>
+      <li><b>Role reveal</b> — your arcana is dealt face-down at game start and flips on tap. The endgame reveal deals all seven face-down in seat order, then flips them one by one.</li>
+      <li><b>Quest resolution</b> — the current face-down card flips to The Sun or The Tower; the number of fail cards appears on the title plate.</li>
+      <li><b>Voting</b> — you play Approve or Reject from your hand; the public tally lays everyone's played cards in a row (a natural "vote record" visual).</li>
+      <li><b>Reversed cards (future idea)</b> — in tarot, a reversed card inverts its meaning. Long-press a seat to mark your private suspicion: their card renders upside-down for you alone.</li>
+      <li><b>Emblem system</b> — every emblem is a 60×60 stroke-only SVG, so they recolor with the palette and scale from 12px chips to full cards.</li>
+    </ul>
+  </div>
+</div>

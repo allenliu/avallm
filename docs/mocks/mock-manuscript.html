@@ -1,0 +1,333 @@
+<title>Mock D — The Illuminated Chronicle</title>
+<style>
+  :root {
+    --parchment: #ede3c8;
+    --parchment-lt: #f5eeda;
+    --parchment-dk: #e2d5b3;
+    --ink: #3b3122;
+    --ink-dim: #6d5f47;
+    --ink-faint: #99895f;
+    --rubric: #9e3527;
+    --lapis: #2f4d8a;
+    --gold: #a8801c;
+    --gold-lt: #c9a84c;
+    --rule: #c9b98f;
+    --ds: #3d55c4; --gm: #2a7a68; --hk: #b25a3c; --km: #1f8a9c; --gl: #6f4da8; --gp: #3f7a4c;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--parchment); color: var(--ink);
+    font: 15.5px/1.55 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+    background-image:
+      radial-gradient(1400px 800px at 50% -20%, rgba(255,252,240,0.7), transparent 60%),
+      radial-gradient(1000px 500px at 50% 115%, rgba(160,130,60,0.14), transparent 55%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0 0.22 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 12px 22px 10px; border-bottom: 3px double var(--rule);
+  }
+  .brand { font-size: 22px; font-weight: 700; letter-spacing: 0.02em; font-variant: small-caps; }
+  .brand .llm { color: var(--gold); }
+  .tableau { display: flex; align-items: center; gap: 16px; margin: 0 auto; }
+  .quests { display: flex; gap: 12px; }
+  .q {
+    width: 46px; height: 46px; border-radius: 50%; position: relative;
+    display: grid; place-items: center;
+    font: 700 17px/1 "Palatino Linotype", Georgia, serif; color: var(--ink-dim);
+    background: var(--parchment-lt);
+    border: 2px solid var(--rule);
+    box-shadow: inset 0 0 0 3px var(--parchment-lt), inset 0 0 0 4px var(--rule);
+  }
+  .q .label {
+    position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+    font: 700 9px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.14em;
+    color: var(--ink-faint); background: var(--parchment); padding: 0 4px;
+  }
+  .q.won {
+    color: #fff; border-color: var(--lapis);
+    background: radial-gradient(circle at 35% 30%, #4a6bad, var(--lapis));
+    box-shadow: inset 0 0 0 3px #d8e0f0, inset 0 0 0 4px var(--lapis), 0 1px 4px rgba(47,77,138,0.4);
+  }
+  .q.lost {
+    color: #fff; border-color: var(--rubric);
+    background: radial-gradient(circle at 35% 30%, #b95243, var(--rubric));
+    box-shadow: inset 0 0 0 3px #f0ddd8, inset 0 0 0 4px var(--rubric), 0 1px 4px rgba(158,53,39,0.4);
+  }
+  .q.active {
+    color: var(--gold); border-color: var(--gold);
+    box-shadow: inset 0 0 0 3px var(--parchment-lt), inset 0 0 0 4px var(--gold), 0 0 14px rgba(168,128,28,0.45);
+  }
+  .q .twofail {
+    position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%);
+    font: 600 8.5px/1 "Palatino Linotype", Georgia, serif; font-style: italic; color: var(--rubric); white-space: nowrap;
+  }
+  .prop-track { text-align: left; }
+  .prop-track .lbl { font: 700 9.5px/1.6 "Palatino Linotype", Georgia, serif; letter-spacing: 0.16em; color: var(--ink-faint); text-transform: uppercase; }
+  .pips { display: flex; gap: 5px; }
+  .pip { width: 10px; height: 10px; transform: rotate(45deg); background: var(--parchment-lt); border: 1px solid var(--rule); }
+  .pip.used { background: var(--rubric); border-color: var(--rubric); }
+  .pip.now { background: var(--gold); border-color: var(--gold); }
+  .pip.hammer { border-color: var(--rubric); }
+  .hbtns { display: flex; gap: 8px; }
+  .hbtn {
+    font: 700 11px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-dim); background: var(--parchment-lt); border: 1px solid var(--rule);
+    padding: 8px 13px; cursor: pointer;
+  }
+  .hbtn:hover, .hbtn:focus-visible { color: var(--gold); border-color: var(--gold); outline: none; }
+
+  /* seats as heraldic banners */
+  .seats { display: flex; gap: 10px; padding: 14px 22px 4px; overflow-x: auto; }
+  .banner {
+    flex: 1 1 0; min-width: 106px; position: relative; text-align: center;
+    background: var(--parchment-lt);
+    border: 1px solid var(--rule); border-top: 4px solid var(--mc, var(--rule));
+    padding: 9px 8px 12px;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), 50% 100%, 0 calc(100% - 9px));
+    box-shadow: 0 2px 4px rgba(90,70,30,0.18);
+  }
+  .banner .name { font-weight: 700; font-size: 14.5px; font-variant: small-caps; letter-spacing: 0.03em; }
+  .banner .model { font: 500 9px/1.4 Consolas, monospace; color: var(--ink-faint); }
+  .banner.you { border-color: var(--gold); border-top-color: var(--gold); background: #f7efd8; }
+  .banner.you .model { color: var(--gold); font-weight: 700; }
+  .banner .marks { min-height: 17px; margin-top: 5px; display: flex; gap: 4px; justify-content: center; align-items: center; flex-wrap: wrap; }
+  .mark {
+    font: 700 8.5px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 2.5px 6px; border: 1px solid;
+  }
+  .mark.quest { color: var(--gold); border-color: var(--gold); background: rgba(168,128,28,0.08); }
+  .mark.aye { color: var(--lapis); border-color: var(--lapis); background: rgba(47,77,138,0.07); }
+  .mark.nay { color: var(--rubric); border-color: var(--rubric); background: rgba(158,53,39,0.07); }
+  .mark.unsure { color: var(--ink-faint); border-color: var(--rule); }
+  .crown { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); font-size: 14px; color: var(--gold); }
+  .next-lbl { position: absolute; top: -9px; right: 6px; font: 700 8px/1 "Palatino Linotype", Georgia, serif; font-style: italic; color: var(--ink-faint); background: var(--parchment); padding: 0 3px; }
+
+  main { flex: 1; display: flex; gap: 20px; padding: 12px 22px; min-height: 0; }
+  .chronicle { flex: 1; min-height: 0; overflow-y: auto; padding-right: 6px; }
+
+  .moment {
+    margin: 14px 0; text-align: center; position: relative; padding: 10px 0 8px;
+    border-top: 1px solid var(--rubric); border-bottom: 1px solid var(--rubric);
+  }
+  .moment::before, .moment::after {
+    content: "❧"; position: absolute; top: 50%; transform: translateY(-50%);
+    color: var(--rubric); font-size: 15px;
+  }
+  .moment::before { left: 10px; } .moment::after { right: 10px; transform: translateY(-50%) scaleX(-1); }
+  .moment .t { font: 700 17px/1.25 "Palatino Linotype", Georgia, serif; font-variant: small-caps; letter-spacing: 0.2em; color: var(--rubric); }
+  .moment .d { font-size: 12.5px; font-style: italic; color: var(--ink-dim); }
+
+  .record {
+    font-size: 13px; font-style: italic; color: var(--ink-dim);
+    margin: 8px 0; padding: 6px 12px 6px 14px; border-left: 3px double var(--gold);
+    background: rgba(168,128,28,0.05);
+  }
+  .record b { color: var(--gold); font-style: normal; }
+  .record .aye { color: var(--lapis); font-style: normal; font-weight: 700; }
+  .record .nay { color: var(--rubric); font-style: normal; font-weight: 700; }
+
+  .say { display: flex; gap: 12px; margin: 10px 0; align-items: flex-start; }
+  .initial {
+    flex: 0 0 34px; width: 34px; height: 34px; display: grid; place-items: center;
+    font: 700 17px/1 "Palatino Linotype", Georgia, serif; color: #fff;
+    background: var(--mc, var(--ink-dim));
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35), 0 1px 3px rgba(90,70,30,0.3);
+  }
+  .say .body { flex: 1; }
+  .say .who { font-weight: 700; font-variant: small-caps; font-size: 14.5px; }
+  .say .who small { font: 500 9px/1 Consolas, monospace; color: var(--ink-faint); margin-left: 7px; font-variant: normal; }
+  .say .txt { max-width: 62ch; }
+  .say .txt .leanseal { font-size: 11px; font-weight: 700; font-style: normal; letter-spacing: 0.08em; padding: 1px 6px; border: 1px solid; margin-left: 7px; vertical-align: 1px; }
+  .leanseal.a { color: var(--lapis); border-color: var(--lapis); }
+  .leanseal.r { color: var(--rubric); border-color: var(--rubric); }
+  .quiet { margin: 6px 0 6px 46px; font-style: italic; color: var(--ink-faint); font-size: 13.5px; }
+
+  aside { flex: 0 0 238px; }
+  .rolecard {
+    border: 2px solid var(--lapis); padding: 3px; background: var(--parchment-lt);
+    box-shadow: 0 3px 10px rgba(90,70,30,0.25);
+  }
+  .rolecard .inner { border: 1px solid var(--lapis); padding: 12px 14px; }
+  .rolecard .lbl { font: 700 9px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint); display: flex; justify-content: space-between; }
+  .rolecard .lbl button { border: none; background: none; font: inherit; color: var(--ink-faint); cursor: pointer; letter-spacing: 0.18em; }
+  .rolecard .rname { font: 700 26px/1.15 "Palatino Linotype", Georgia, serif; font-variant: small-caps; margin-top: 6px; }
+  .rolecard .align { font: 700 10px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.26em; text-transform: uppercase; color: var(--lapis); margin-top: 4px; }
+  .rolecard .rdesc { font-size: 13px; font-style: italic; color: var(--ink-dim); margin-top: 9px; line-height: 1.5; }
+  .inplay { font-size: 11.5px; color: var(--ink-faint); margin-top: 10px; line-height: 1.6; font-style: italic; }
+  .inplay b { color: var(--ink-dim); font-style: normal; }
+
+  footer {
+    border-top: 3px double var(--rule); padding: 13px 22px 15px;
+    background: linear-gradient(180deg, rgba(168,128,28,0.07), transparent), var(--parchment-dk);
+  }
+  .ask { display: flex; align-items: center; gap: 18px; max-width: 1100px; margin: 0 auto; }
+  .ask .turn { font: 700 10px/1.5 "Palatino Linotype", Georgia, serif; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+  .ask .q-text { font-size: 16.5px; }
+  .ask .q-text b { color: var(--gold); font-variant: small-caps; }
+  .spacer { flex: 1; }
+  .seal-btn {
+    display: inline-grid; place-items: center; width: 84px; height: 84px; border-radius: 50%;
+    cursor: pointer; text-align: center; position: relative;
+    font: 700 12px/1.25 "Palatino Linotype", Georgia, serif; letter-spacing: 0.12em; text-transform: uppercase;
+    border: 2px solid; transition: transform 0.15s ease;
+  }
+  .seal-btn::before {
+    content: ""; position: absolute; inset: 5px; border-radius: 50%; border: 1px dashed;
+    opacity: 0.55;
+  }
+  .seal-btn.approve { color: #fff; border-color: #24407a; background: radial-gradient(circle at 35% 28%, #4a6bad, var(--lapis)); box-shadow: 0 3px 10px rgba(47,77,138,0.4); }
+  .seal-btn.approve::before { border-color: #cdd9ef; }
+  .seal-btn.reject { color: #fff; border-color: #7e281c; background: radial-gradient(circle at 35% 28%, #b95243, var(--rubric)); box-shadow: 0 3px 10px rgba(158,53,39,0.4); }
+  .seal-btn.reject::before { border-color: #f2d9d4; }
+  .seal-btn:hover { transform: scale(1.06) rotate(-2deg); }
+  .seal-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+  .seal-btn .sub { display: block; font: 500 8px/1.5 "Palatino Linotype", Georgia, serif; font-style: italic; letter-spacing: 0.06em; text-transform: none; opacity: 0.85; }
+
+  @media (prefers-reduced-motion: reduce) { .seal-btn { transition: none; } }
+
+  @media (max-width: 720px) {
+    header { flex-wrap: wrap; gap: 8px; padding: 10px 12px 8px; }
+    .brand { font-size: 18px; }
+    .tableau { order: 3; width: 100%; justify-content: center; }
+    .q { width: 38px; height: 38px; font-size: 14px; }
+    .hbtns { margin-left: auto; }
+    .seats { padding: 10px 12px 2px; }
+    .banner { flex: 0 0 auto; min-width: 94px; }
+    main { flex-direction: column; padding: 8px 12px; gap: 8px; }
+    aside { order: -1; flex: 0 0 auto; }
+    .rolecard .inner { padding: 8px 12px; }
+    .rolecard .rname { font-size: 19px; display: inline; margin-right: 8px; }
+    .rolecard .align { display: inline; }
+    .rolecard .rdesc, .inplay { display: none; }
+    .say .txt { font-size: 14px; }
+    footer { position: sticky; bottom: 0; }
+    .ask { flex-wrap: wrap; gap: 8px 12px; }
+    .ask .q-text { font-size: 14.5px; }
+    .ask .btns { display: flex; gap: 12px; width: 100%; justify-content: center; }
+    .seal-btn { width: 74px; height: 74px; font-size: 10.5px; }
+  }
+</style>
+
+<header>
+  <div class="brand">Ava<span class="llm">LLM</span></div>
+  <div class="tableau">
+    <div class="quests">
+      <div class="q won"><span class="label">Q·I</span>2</div>
+      <div class="q lost"><span class="label">Q·II</span>3</div>
+      <div class="q active"><span class="label">Q·III</span>3</div>
+      <div class="q"><span class="label">Q·IV</span>4<span class="twofail">two fails</span></div>
+      <div class="q"><span class="label">Q·V</span>4</div>
+    </div>
+    <div class="prop-track">
+      <div class="lbl">Proposal 2 of 5</div>
+      <div class="pips">
+        <span class="pip used"></span><span class="pip now"></span><span class="pip"></span><span class="pip"></span><span class="pip hammer"></span>
+      </div>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="hbtn">Record</button>
+    <button class="hbtn">Codex</button>
+  </div>
+</header>
+
+<div class="seats">
+  <div class="banner" style="--mc: var(--ds)">
+    <div class="name">DeepSeek</div><div class="model">deepseek-v4-flash</div>
+    <div class="marks"><span class="mark nay">Nay</span></div>
+  </div>
+  <div class="banner" style="--mc: var(--gm)">
+    <div class="name">Gemini</div><div class="model">gemini-3.1-flash</div>
+    <div class="marks"><span class="mark aye">Aye</span></div>
+  </div>
+  <div class="banner you">
+    <div class="name">Allen</div><div class="model">that's you</div>
+    <div class="marks"><span class="mark quest">On quest</span></div>
+  </div>
+  <div class="banner" style="--mc: var(--hk)">
+    <div class="name">Haiku</div><div class="model">claude-haiku-4.5</div>
+    <div class="marks"><span class="mark quest">On quest</span><span class="mark aye">Aye</span></div>
+  </div>
+  <div class="banner" style="--mc: var(--km)">
+    <span class="crown">♛</span>
+    <div class="name">Kimi</div><div class="model">kimi-k2.5</div>
+    <div class="marks"><span class="mark quest">On quest</span></div>
+  </div>
+  <div class="banner" style="--mc: var(--gl)">
+    <span class="next-lbl">next ♛</span>
+    <div class="name">GLM</div><div class="model">glm-4.6</div>
+    <div class="marks"><span class="mark unsure">Unsure</span></div>
+  </div>
+  <div class="banner" style="--mc: var(--gp)">
+    <div class="name">GPT-OSS</div><div class="model">gpt-oss-120b</div>
+    <div class="marks"><span class="mark aye">Aye</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="chronicle">
+    <div class="moment">
+      <div class="t">Quest the Second · Failed</div>
+      <div class="d">one fail among three cards — a spy walked among them</div>
+    </div>
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="say">
+      <span class="initial" style="--mc: var(--km)">K</span>
+      <div class="body">
+        <div class="who">Kimi<small>kimi-k2.5</small></div>
+        <div class="txt">Clean slate. Allen and Haiku both voted against the table that failed. I want them with me.</div>
+      </div>
+    </div>
+    <div class="say">
+      <span class="initial" style="--mc: var(--ds)">D</span>
+      <div class="body">
+        <div class="who">DeepSeek<small>deepseek-v4-flash</small></div>
+        <div class="txt">Kimi puts himself on every list. That is not nothing.<span class="leanseal r">Nay</span></div>
+      </div>
+    </div>
+    <p class="quiet">Gemini signals approve, says nothing.</p>
+    <div class="say">
+      <span class="initial" style="--mc: var(--hk)">H</span>
+      <div class="body">
+        <div class="who">Haiku<small>claude-haiku-4.5</small></div>
+        <div class="txt">The record backs this team. Allen has voted clean since quest one.<span class="leanseal a">Aye</span></div>
+      </div>
+    </div>
+    <p class="quiet">GLM passes.</p>
+    <div class="say">
+      <span class="initial" style="--mc: var(--gp)">G</span>
+      <div class="body">
+        <div class="who">GPT-OSS<small>gpt-oss-120b</small></div>
+        <div class="txt">Numbers look fine. Watch whether DeepSeek's nay is principle or theater.</div>
+      </div>
+    </div>
+    <div class="record">Votes on proposal 1: <span class="aye">DeepSeek ✓</span> · <span class="nay">Gemini ✕</span> · <span class="nay">Allen ✕</span> · <span class="nay">Haiku ✕</span> · <span class="aye">Kimi ✓</span> · <span class="nay">GLM ✕</span> · <span class="aye">GPT-OSS ✓</span> — <b>rejected, three to four</b></div>
+  </div>
+  <aside>
+    <div class="rolecard">
+      <div class="inner">
+        <div class="lbl"><span>Your secret</span><button>Hide</button></div>
+        <div class="rname">Servant</div>
+        <div class="align">Loyal · Good</div>
+        <p class="rdesc">No special knowledge. Deduce from quest results and the vote record — they never lie.</p>
+        <p class="inplay"><b>In play:</b> Merlin, Percival, Servant ×2, Assassin, Morgana, Oberon</p>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<footer>
+  <div class="ask">
+    <span class="turn">⟡ The chronicle waits</span>
+    <span class="q-text">Set your seal — approve <b>Kimi · Allen · Haiku</b> for quest 3?</span>
+    <span class="spacer"></span>
+    <span class="btns">
+      <button class="seal-btn approve">Approve<span class="sub">seal in lapis</span></button>
+      <button class="seal-btn reject">Reject<span class="sub">seal in oxblood</span></button>
+    </span>
+  </div>
+</footer>

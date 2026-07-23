@@ -1,0 +1,345 @@
+<title>Mock A+B — High Table</title>
+<style>
+  :root {
+    --night: #10131c;
+    --panel: #171b26;
+    --panel-2: #1e2331;
+    --line: #2a3042;
+    --wood: #37281a;
+    --wood-lit: #4d3823;
+    --felt: #1e2a24;
+    --text: #e4e4da;
+    --text-dim: #a2a396;
+    --text-faint: #6b6d63;
+    --gold: #d2a53c;
+    --gold-deep: #7e6520;
+    --good: #6494d2;
+    --evil: #c25a4e;
+    --ds: #5b76f7; --gm: #3fa08a; --hk: #d97757; --km: #2fb3c7; --gl: #9b6fd4; --gp: #58a06a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--night); color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+    background-image: radial-gradient(1100px 420px at 50% 0%, rgba(210,165,60,0.08), transparent 65%);
+  }
+  header.chrome {
+    display: flex; align-items: center; gap: 12px; padding: 9px 18px;
+  }
+  .brand { font: 700 19px/1 Cambria, Georgia, serif; }
+  .brand .llm { color: var(--gold); }
+  .spacer { flex: 1; }
+  .ghost {
+    font: 600 10.5px/1 "Cascadia Mono", Consolas, monospace; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--text-dim); background: transparent; border: 1px solid var(--line); border-radius: 3px;
+    padding: 7px 11px; cursor: pointer;
+  }
+  .ghost:hover, .ghost:focus-visible { color: var(--gold); border-color: var(--gold-deep); outline: none; }
+
+  /* ---------- the far side of the table ---------- */
+  .fartable {
+    position: relative; height: 252px; overflow: hidden; flex: 0 0 auto;
+  }
+  .fartable .surface {
+    position: absolute; left: 50%; top: 96px; transform: translateX(-50%);
+    width: 175%; height: 620px; border-radius: 50%;
+    background:
+      radial-gradient(closest-side, var(--felt) 0 78%, #16211c 78% 81%, var(--wood-lit) 81% 84%, var(--wood) 84% 100%);
+    box-shadow: inset 0 14px 40px rgba(0,0,0,0.55), 0 -2px 0 rgba(210,165,60,0.12);
+  }
+  .fartable .glow {
+    position: absolute; left: 50%; top: 120px; transform: translateX(-50%);
+    width: 60%; height: 300px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(210,165,60,0.13), transparent 70%);
+    pointer-events: none;
+  }
+  .farseats {
+    position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+    width: min(100%, 1080px); height: 100%;
+  }
+  .seat {
+    position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, 0);
+    display: flex; flex-direction: column; align-items: center; gap: 4px; width: 118px; text-align: center;
+  }
+  .medal {
+    width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; position: relative;
+    font: 700 13px/1 "Cascadia Mono", Consolas, monospace; color: var(--text);
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), transparent 42%),
+      linear-gradient(160deg, color-mix(in srgb, var(--mc) 52%, #0d1018), #121520);
+    border: 2px solid color-mix(in srgb, var(--mc) 65%, transparent);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.55);
+  }
+  .seat.onquest .medal { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .seat.leader .medal { box-shadow: 0 4px 10px rgba(0,0,0,0.55), 0 0 22px rgba(210,165,60,0.4); }
+  .crown { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); font-size: 14px; color: var(--gold); text-shadow: 0 0 7px rgba(210,165,60,0.8); }
+  .nm { font-weight: 700; font-size: 13px; text-shadow: 0 2px 5px rgba(0,0,0,0.9); }
+  .md { font: 500 8.5px/1.3 "Cascadia Mono", Consolas, monospace; color: var(--text-faint); }
+  .next-tag { font: 600 7.5px/1.4 "Cascadia Mono", Consolas, monospace; letter-spacing: 0.1em; color: var(--text-faint); text-transform: uppercase; }
+  .lean {
+    position: absolute; right: -6px; bottom: -3px; width: 17px; height: 17px; border-radius: 50%;
+    display: grid; place-items: center; font: 700 9px/1 "Cascadia Mono", monospace;
+    border: 1.5px solid; background: #0d1018;
+  }
+  .lean.a { color: #9cd0a4; border-color: #4d8a5c; }
+  .lean.r { color: #e6a49a; border-color: #a34a3e; }
+  .lean.u { color: var(--text-faint); border-color: var(--text-faint); }
+
+  /* tableau resting on the felt */
+  .tableau {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 26px; z-index: 2;
+  }
+  .quests { display: flex; gap: 12px; }
+  .tok {
+    width: 44px; height: 44px; border-radius: 50%; position: relative;
+    display: grid; place-items: center; font: 700 15px/1 Cambria, Georgia, serif; color: var(--text-dim);
+    background: radial-gradient(circle at 34% 28%, #2c3831, #1c2621);
+    border: 2px solid rgba(228,228,218,0.14);
+    box-shadow: 0 4px 9px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .tok small { position: absolute; top: -14px; font: 600 8px/1 "Cascadia Mono", monospace; letter-spacing: 0.12em; color: var(--text-faint); }
+  .tok.won { color: #d5e3f6; border-color: var(--good); background: radial-gradient(circle at 34% 28%, #314970, #22304a); box-shadow: 0 4px 9px rgba(0,0,0,0.6), 0 0 14px rgba(100,148,210,0.35); }
+  .tok.lost { color: #f4d8d3; border-color: var(--evil); background: radial-gradient(circle at 34% 28%, #66332b, #40211c); box-shadow: 0 4px 9px rgba(0,0,0,0.6), 0 0 14px rgba(194,90,78,0.35); }
+  .tok.active { color: var(--gold); border-color: var(--gold); background: radial-gradient(circle at 34% 28%, #413417, #292110); box-shadow: 0 4px 9px rgba(0,0,0,0.6), 0 0 18px rgba(210,165,60,0.45); }
+  .tok .twofail { position: absolute; bottom: -13px; font: 600 7.5px/1 "Cascadia Mono", monospace; color: var(--evil); white-space: nowrap; }
+  .prop { display: flex; flex-direction: column; gap: 4px; }
+  .prop .lbl { font: 600 8.5px/1 "Cascadia Mono", monospace; letter-spacing: 0.14em; color: var(--text-faint); text-transform: uppercase; }
+  .pips { display: flex; gap: 5px; }
+  .pip { width: 10px; height: 10px; transform: rotate(45deg); background: rgba(228,228,218,0.08); border: 1px solid rgba(228,228,218,0.18); }
+  .pip.used { background: var(--evil); border-color: var(--evil); opacity: 0.7; }
+  .pip.now { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 7px rgba(210,165,60,0.6); }
+  .pip.hammer { border-color: var(--evil); }
+
+  /* ---------- main: feed + role ---------- */
+  main { flex: 1; display: flex; gap: 16px; padding: 12px 18px; min-height: 0; }
+  .feed { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 4px; }
+  .moment {
+    margin: 10px 0; padding: 9px 16px; text-align: center;
+    border-top: 1px solid var(--evil); border-bottom: 1px solid var(--evil);
+    background: linear-gradient(90deg, transparent, rgba(194,90,78,0.12), transparent);
+  }
+  .moment .t { font: 700 15px/1.2 Cambria, Georgia, serif; letter-spacing: 0.16em; color: var(--evil); }
+  .moment .d { font: 500 10.5px/1.5 "Cascadia Mono", Consolas, monospace; color: var(--text-dim); letter-spacing: 0.05em; }
+  .record {
+    font: 500 12px/1.55 "Cascadia Mono", Consolas, monospace; color: var(--text-dim);
+    padding: 5px 10px 5px 13px; border-left: 2px solid var(--gold-deep);
+    background: rgba(210,165,60,0.045); border-radius: 0 3px 3px 0; margin: 5px 0;
+  }
+  .record b { color: var(--gold); font-weight: 600; }
+  .record .aye { color: #9cd0a4; } .record .nay { color: #e6a49a; }
+  .say { display: flex; gap: 10px; padding: 6px 4px; align-items: flex-start; }
+  .say .tick { flex: 0 0 3px; align-self: stretch; border-radius: 2px; background: var(--mc, var(--line)); opacity: 0.8; }
+  .say .body { flex: 1; }
+  .say .who { font: 700 12.5px/1.4 "Cascadia Mono", Consolas, monospace; letter-spacing: 0.02em; }
+  .say .who small { color: var(--text-faint); font-weight: 400; margin-left: 7px; letter-spacing: 0; }
+  .say .txt { color: var(--text); font-size: 14.5px; max-width: 60ch; }
+  .say .leanmark { font: 600 9px/1 "Cascadia Mono", monospace; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 2px; margin-left: 8px; vertical-align: 1px; }
+  .say .leanmark.r { color: #e6a49a; border: 1px solid rgba(194,90,78,0.4); }
+  .say .leanmark.a { color: #9cd0a4; border: 1px solid rgba(88,160,106,0.4); }
+  .quiet { padding: 3px 4px 3px 17px; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
+
+  aside { flex: 0 0 224px; display: flex; flex-direction: column; gap: 10px; }
+  .rolecard {
+    border: 1px solid var(--good); border-radius: 6px; overflow: hidden;
+    background:
+      linear-gradient(160deg, rgba(100,148,210,0.13), transparent 45%),
+      linear-gradient(180deg, var(--panel-2), var(--panel));
+  }
+  .rc-head {
+    display: flex; justify-content: space-between; padding: 7px 11px;
+    border-bottom: 1px solid var(--line);
+    font: 600 9px/1.2 "Cascadia Mono", Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-faint);
+  }
+  .rc-head button { background: none; border: none; color: var(--text-faint); cursor: pointer; font: inherit; }
+  .rc-head button:hover { color: var(--text); }
+  .rc-body { padding: 10px 13px 13px; }
+  .rname { font: 700 22px/1.1 Cambria, Georgia, serif; letter-spacing: 0.05em; }
+  .align { font: 600 9px/1 "Cascadia Mono", monospace; letter-spacing: 0.22em; text-transform: uppercase; color: var(--good); margin-top: 3px; }
+  .rdesc { font-size: 12.5px; color: var(--text-dim); margin-top: 8px; line-height: 1.5; }
+  .inplay { font: 500 10px/1.6 "Cascadia Mono", Consolas, monospace; color: var(--text-faint); padding: 0 2px; }
+  .inplay b { color: var(--text-dim); }
+
+  /* ---------- your edge of the table ---------- */
+  .youredge {
+    position: relative; flex: 0 0 auto; padding: 13px 18px 15px;
+    background: linear-gradient(180deg, var(--wood-lit), var(--wood));
+    box-shadow: inset 0 2px 0 rgba(210,165,60,0.25), inset 0 10px 24px rgba(0,0,0,0.35), 0 -8px 30px rgba(0,0,0,0.45);
+  }
+  .youredge::before {
+    content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(210,165,60,0.5), transparent);
+  }
+  .ask { display: flex; align-items: center; gap: 16px; max-width: 1080px; margin: 0 auto; }
+  .youchip { display: flex; align-items: center; gap: 9px; }
+  .youchip .medal { width: 38px; height: 38px; font-size: 11px; border-color: var(--gold);
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.16), transparent 42%), linear-gradient(160deg, #4d3f18, #21150a); }
+  .youchip .yn { font: 700 13.5px/1.3 "Segoe UI", sans-serif; color: #f3e9d2; }
+  .youchip .yr { font: 500 9px/1.3 "Cascadia Mono", monospace; letter-spacing: 0.12em; color: rgba(243,233,210,0.65); text-transform: uppercase; }
+  .ask .q-text { font-size: 15.5px; color: #f3e9d2; }
+  .ask .q-text b { color: var(--gold); }
+  .ask .turn { font: 600 9px/1.5 "Cascadia Mono", monospace; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .spacer2 { flex: 1; }
+  .vote-btn {
+    font: 700 13.5px/1 Cambria, Georgia, serif; letter-spacing: 0.09em; text-transform: uppercase;
+    padding: 12px 24px; border-radius: 4px; cursor: pointer; border: 1px solid;
+  }
+  .vote-btn.approve { color: #eef4fb; border-color: var(--good); background: linear-gradient(180deg, #45689c, #33507c); }
+  .vote-btn.reject { color: #fbeeec; border-color: var(--evil); background: linear-gradient(180deg, #8f4038, #6c302a); }
+  .vote-btn:hover { filter: brightness(1.13); }
+  .vote-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 720px) {
+    header.chrome { padding: 8px 12px; }
+    .fartable { height: 208px; }
+    .fartable .surface { top: 86px; width: 340%; }
+    .farseats > .seat:nth-child(1) { --x: 9%; --y: 108px; }
+    .farseats > .seat:nth-child(2) { --x: 24%; --y: 56px; }
+    .farseats > .seat:nth-child(5) { --x: 76%; --y: 56px; }
+    .farseats > .seat:nth-child(6) { --x: 91%; --y: 108px; }
+    .seat { width: 76px; }
+    .seat .md { display: none; }
+    .seat .nm { font-size: 10.5px; }
+    .medal { width: 38px; height: 38px; font-size: 11px; }
+    .tableau { gap: 12px; bottom: 10px; }
+    .tok { width: 34px; height: 34px; font-size: 12px; }
+    .tok small { display: none; }
+    .tok .twofail { display: none; }
+    .prop .lbl { font-size: 7.5px; }
+    main { padding: 8px 12px; gap: 8px; }
+    aside { display: none; }
+    .say .txt { font-size: 13.5px; }
+    .youredge { position: sticky; bottom: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+    .ask { flex-wrap: wrap; gap: 8px 10px; }
+    .youchip .yr { display: none; }
+    .ask .q-text { font-size: 13px; }
+    .vote-btn { flex: 1; text-align: center; padding: 13px 8px; }
+    .ask .btns { display: flex; gap: 10px; width: 100%; }
+  }
+</style>
+
+<header class="chrome">
+  <div class="brand">Ava<span class="llm">LLM</span></div>
+  <span class="spacer"></span>
+  <button class="ghost">Record</button>
+  <button class="ghost">Codex</button>
+</header>
+
+<div class="fartable">
+  <div class="surface"></div>
+  <div class="glow"></div>
+  <div class="farseats">
+    <div class="seat" style="--x: 8%; --y: 96px; --mc: var(--ds)">
+      <div class="medal">DS<span class="lean r">✕</span></div>
+      <div class="nm">DeepSeek</div><div class="md">deepseek-v4</div>
+    </div>
+    <div class="seat" style="--x: 23%; --y: 52px; --mc: var(--gm)">
+      <div class="medal">GM<span class="lean a">✓</span></div>
+      <div class="nm">Gemini</div><div class="md">gemini-3.1</div>
+    </div>
+    <div class="seat onquest" style="--x: 40%; --y: 26px; --mc: var(--hk)">
+      <div class="medal">HK<span class="lean a">✓</span></div>
+      <div class="nm">Haiku</div><div class="md">haiku-4.5</div>
+    </div>
+    <div class="seat onquest leader" style="--x: 60%; --y: 26px; --mc: var(--km)">
+      <div class="medal"><span class="crown">♛</span>KM</div>
+      <div class="nm">Kimi</div><div class="md">kimi-k2.5</div>
+    </div>
+    <div class="seat" style="--x: 77%; --y: 52px; --mc: var(--gl)">
+      <div class="medal">GL<span class="lean u">?</span></div>
+      <div class="nm">GLM</div><div class="md">glm-4.6</div><div class="next-tag">next ♛</div>
+    </div>
+    <div class="seat" style="--x: 92%; --y: 96px; --mc: var(--gp)">
+      <div class="medal">GP<span class="lean a">✓</span></div>
+      <div class="nm">GPT-OSS</div><div class="md">gpt-oss-120b</div>
+    </div>
+  </div>
+  <div class="tableau">
+    <div class="quests">
+      <div class="tok won"><small>Q1</small>2</div>
+      <div class="tok lost"><small>Q2</small>3</div>
+      <div class="tok active"><small>Q3</small>3</div>
+      <div class="tok"><small>Q4</small>4<span class="twofail">2 fails</span></div>
+      <div class="tok"><small>Q5</small>4</div>
+    </div>
+    <div class="prop">
+      <span class="lbl">Proposal 2/5</span>
+      <div class="pips">
+        <span class="pip used"></span><span class="pip now"></span><span class="pip"></span><span class="pip"></span><span class="pip hammer"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="feed">
+    <div class="moment">
+      <div class="t">QUEST 2 · FAILED</div>
+      <div class="d">one FAIL among three cards — a spy was on the team</div>
+    </div>
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="say" style="--mc: var(--km)">
+      <span class="tick"></span>
+      <div class="body">
+        <div class="who">Kimi<small>kimi-k2.5</small></div>
+        <div class="txt">Clean slate. Allen and Haiku both voted against the table that failed. I want them with me.</div>
+      </div>
+    </div>
+    <div class="say" style="--mc: var(--ds)">
+      <span class="tick"></span>
+      <div class="body">
+        <div class="who">DeepSeek<small>deepseek-v4-flash</small></div>
+        <div class="txt">Kimi puts himself on every list. That is not nothing.<span class="leanmark r">Nay</span></div>
+      </div>
+    </div>
+    <div class="quiet">Gemini signals approve, says nothing.</div>
+    <div class="say" style="--mc: var(--hk)">
+      <span class="tick"></span>
+      <div class="body">
+        <div class="who">Haiku<small>claude-haiku-4.5</small></div>
+        <div class="txt">The record backs this team. Allen has voted clean since quest one.<span class="leanmark a">Aye</span></div>
+      </div>
+    </div>
+    <div class="quiet">GLM passes.</div>
+    <div class="say" style="--mc: var(--gp)">
+      <span class="tick"></span>
+      <div class="body">
+        <div class="who">GPT-OSS<small>gpt-oss-120b</small></div>
+        <div class="txt">Numbers look fine. Watch whether DeepSeek's nay is principle or theater.</div>
+      </div>
+    </div>
+    <div class="record">Votes on proposal 1: <span class="aye">DeepSeek ✓</span> · <span class="nay">Gemini ✕</span> · <span class="nay">Allen ✕</span> · <span class="nay">Haiku ✕</span> · <span class="aye">Kimi ✓</span> · <span class="nay">GLM ✕</span> · <span class="aye">GPT-OSS ✓</span> → <b>REJECTED 3–4</b></div>
+  </div>
+  <aside>
+    <div class="rolecard">
+      <div class="rc-head"><span>Your secret</span><button>Hide</button></div>
+      <div class="rc-body">
+        <div class="rname">Servant</div>
+        <div class="align">Loyal · Good</div>
+        <p class="rdesc">No special knowledge. Deduce from quest results and the vote record — they never lie.</p>
+      </div>
+    </div>
+    <p class="inplay"><b>In play:</b> Merlin, Percival, Servant ×2, Assassin, Morgana, Oberon</p>
+  </aside>
+</main>
+
+<div class="youredge">
+  <div class="ask">
+    <div class="youchip">
+      <div class="medal">AL</div>
+      <div><div class="yn">Allen</div><div class="yr">Servant · your seat</div></div>
+    </div>
+    <div>
+      <div class="turn">⟡ Your vote</div>
+      <div class="q-text">Approve <b>Kimi · Allen · Haiku</b> for quest 3?</div>
+    </div>
+    <span class="spacer2"></span>
+    <span class="btns">
+      <button class="vote-btn approve">Approve</button>
+      <button class="vote-btn reject">Reject</button>
+    </span>
+  </div>
+</div>

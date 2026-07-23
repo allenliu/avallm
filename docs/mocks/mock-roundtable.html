@@ -1,0 +1,372 @@
+<title>Mock A — The Round Table</title>
+<style>
+  :root {
+    --night: #0a0810;
+    --candle: #e8c87a;
+    --candle-deep: #b98c34;
+    --wood: #3d2a18;
+    --wood-dark: #241708;
+    --felt: #1b2620;
+    --felt-edge: #141d18;
+    --ivory: #efe6d0;
+    --ivory-dim: #b0a68c;
+    --ivory-faint: #766d58;
+    --good: #6d9bd6;
+    --evil: #c65a4d;
+    --ds: #5b76f7; --gm: #3fa08a; --hk: #d97757; --km: #2fb3c7; --gl: #9b6fd4; --gp: #58a06a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; overflow: hidden; background: var(--night); color: var(--ivory);
+    font: 15px/1.5 Constantia, "Palatino Linotype", Georgia, serif;
+  }
+  .scene {
+    position: relative; height: 100vh; display: flex; flex-direction: column;
+    background:
+      radial-gradient(90vw 70vh at 50% 38%, rgba(232,200,122,0.12), transparent 62%),
+      radial-gradient(140vw 100vh at 50% 110%, rgba(232,200,122,0.05), transparent 50%),
+      var(--night);
+  }
+  .scene::after { /* grain */
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- chrome ---------- */
+  .chrome {
+    position: relative; z-index: 5; display: flex; align-items: center;
+    padding: 12px 18px 0; gap: 12px;
+  }
+  .brand { font-size: 19px; font-weight: 700; }
+  .brand .llm { color: var(--candle); }
+  .spacer { flex: 1; }
+  .ghost {
+    font: 600 10.5px/1 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ivory-dim); background: rgba(239,230,208,0.04);
+    border: 1px solid rgba(239,230,208,0.14); border-radius: 3px;
+    padding: 7px 11px; cursor: pointer;
+  }
+  .ghost:hover, .ghost:focus-visible { color: var(--candle); border-color: var(--candle-deep); outline: none; }
+
+  /* ---------- table zone ---------- */
+  .zone { position: relative; flex: 1; min-height: 0; z-index: 1; }
+  .table {
+    position: absolute; left: 47%; top: 54%; transform: translate(-50%, -50%);
+    width: min(74vw, 950px); aspect-ratio: 2.05 / 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(closest-side, var(--felt) 0 66%, var(--felt-edge) 66% 72%, var(--wood) 72% 86%, var(--wood-dark) 100%);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.75),
+      inset 0 6px 30px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(232,200,122,0.08),
+      0 0 120px rgba(232,200,122,0.06);
+  }
+  .table::before { /* candle pool on felt */
+    content: ""; position: absolute; inset: 12% 18%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(232,200,122,0.14), transparent 70%);
+  }
+
+  /* tokens on the felt */
+  .tokens {
+    position: absolute; left: 47%; top: 42%; transform: translate(-50%, -50%);
+    display: flex; gap: clamp(8px, 1.4vw, 18px); z-index: 2;
+  }
+  .tok {
+    width: clamp(38px, 4.6vw, 58px); aspect-ratio: 1; border-radius: 50%;
+    display: grid; place-items: center; position: relative;
+    font: 700 clamp(14px, 1.6vw, 20px)/1 Constantia, Georgia, serif;
+    color: var(--ivory-dim);
+    background: radial-gradient(circle at 35% 28%, #2e3a34, #1f2823);
+    border: 2px solid rgba(239,230,208,0.14);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .tok small {
+    position: absolute; bottom: -16px; font: 600 8.5px/1 Consolas, monospace;
+    letter-spacing: 0.12em; color: var(--ivory-faint);
+  }
+  .tok.won { color: #d7e5f7; border-color: var(--good); background: radial-gradient(circle at 35% 28%, #33507a, #24344e); box-shadow: 0 3px 10px rgba(0,0,0,0.6), 0 0 16px rgba(109,155,214,0.35); }
+  .tok.lost { color: #f5d9d4; border-color: var(--evil); background: radial-gradient(circle at 35% 28%, #6e352c, #46231e); box-shadow: 0 3px 10px rgba(0,0,0,0.6), 0 0 16px rgba(198,90,77,0.35); }
+  .tok.active {
+    color: var(--candle); border-color: var(--candle);
+    background: radial-gradient(circle at 35% 28%, #45391b, #2b2410);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.6), 0 0 22px rgba(232,200,122,0.45);
+    animation: flicker 3.4s ease-in-out infinite;
+  }
+  .tok.lost .x { position: absolute; font-size: clamp(22px, 2.6vw, 32px); color: rgba(198,90,77,0.55); }
+  .tok .twofail { position: absolute; top: -15px; font: 600 8px/1 Consolas, monospace; letter-spacing: 0.06em; color: var(--evil); white-space: nowrap; }
+  @keyframes flicker { 50% { box-shadow: 0 3px 10px rgba(0,0,0,0.6), 0 0 10px rgba(232,200,122,0.25); } }
+
+  .prop-plate {
+    position: absolute; left: 47%; top: 66%; transform: translateX(-50%);
+    text-align: center; z-index: 2; white-space: nowrap;
+  }
+  .prop-plate .line { font: 400 clamp(12px, 1.4vw, 15.5px)/1.5 Constantia, Georgia, serif; color: var(--ivory-dim); }
+  .prop-plate .line b { color: var(--candle); font-weight: 700; }
+  .pips { display: inline-flex; gap: 6px; margin-top: 6px; }
+  .pip { width: 9px; height: 9px; transform: rotate(45deg); background: rgba(239,230,208,0.1); border: 1px solid rgba(239,230,208,0.2); }
+  .pip.used { background: var(--evil); border-color: var(--evil); opacity: 0.7; }
+  .pip.now { background: var(--candle); border-color: var(--candle); box-shadow: 0 0 8px rgba(232,200,122,0.6); }
+  .pip.hammer { border-color: var(--evil); }
+  .pips-lbl { font: 600 8.5px/1 Consolas, monospace; letter-spacing: 0.14em; color: var(--ivory-faint); text-transform: uppercase; margin-top: 5px; }
+
+  /* ---------- seats ---------- */
+  .seat {
+    position: absolute; left: var(--x); top: var(--y); transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    z-index: 3; width: 110px; text-align: center;
+  }
+  .medal {
+    width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+    font: 700 15px/1 Consolas, monospace; letter-spacing: 0.02em;
+    color: var(--ivory); position: relative;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.14), transparent 40%),
+      linear-gradient(160deg, color-mix(in srgb, var(--mc) 55%, #0e0d14), #14121c);
+    border: 2px solid color-mix(in srgb, var(--mc) 70%, transparent);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  .seat.onquest .medal { outline: 2px solid var(--candle); outline-offset: 3px; }
+  .seat .plate { line-height: 1.25; }
+  .seat .plate .nm { font-weight: 700; font-size: 14px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+  .seat .plate .md { font: 500 8.5px/1.4 Consolas, monospace; color: var(--ivory-faint); letter-spacing: 0.04em; }
+  .crown {
+    position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+    font-size: 15px; color: var(--candle); text-shadow: 0 0 8px rgba(232,200,122,0.8);
+  }
+  .lean {
+    position: absolute; right: -7px; bottom: -4px; width: 19px; height: 19px; border-radius: 50%;
+    display: grid; place-items: center; font: 700 9.5px/1 Consolas, monospace;
+    border: 1.5px solid; background: #10131a;
+  }
+  .lean.a { color: #9fd0a6; border-color: #4d8a5c; }
+  .lean.r { color: #e6a49a; border-color: #a34a3e; }
+  .lean.u { color: var(--ivory-faint); border-color: var(--ivory-faint); }
+  .seat.leader .medal { box-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 26px rgba(232,200,122,0.35); }
+  .next-tag { font: 600 8px/1 Consolas, monospace; letter-spacing: 0.1em; color: var(--ivory-faint); text-transform: uppercase; }
+
+  /* speech bubble anchored to leader */
+  .bubble {
+    position: absolute; left: var(--bx); top: var(--by); transform: translate(-50%, 0);
+    max-width: 300px; z-index: 4; padding: 11px 14px 12px; border-radius: 8px;
+    background: linear-gradient(180deg, #221d2b, #191521);
+    border: 1px solid rgba(232,200,122,0.25);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    font-size: 14px; line-height: 1.5; text-align: left;
+  }
+  .bubble::after {
+    content: ""; position: absolute; left: 50%; top: -7px; transform: translateX(-50%) rotate(45deg);
+    width: 12px; height: 12px; background: #221d2b;
+    border-left: 1px solid rgba(232,200,122,0.25); border-top: 1px solid rgba(232,200,122,0.25);
+  }
+  .bubble .who { font: 600 9px/1 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--km); margin-bottom: 5px; }
+
+  /* ---------- chronicle drawer ---------- */
+  .chronicle {
+    position: absolute; right: 14px; top: 56px; bottom: auto; max-height: calc(100% - 200px); width: 252px; z-index: 4;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, rgba(16,13,22,0.92), rgba(16,13,22,0.85));
+    border: 1px solid rgba(239,230,208,0.1); border-radius: 8px;
+    backdrop-filter: blur(4px);
+  }
+  .chronicle h2 {
+    margin: 0; padding: 10px 14px 8px; font: 600 9.5px/1 Consolas, monospace;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--ivory-faint);
+    border-bottom: 1px solid rgba(239,230,208,0.08);
+  }
+  .chronicle .scroll { overflow-y: auto; padding: 8px 14px 12px; font-size: 12.5px; line-height: 1.55; }
+  .ev { margin: 8px 0; color: var(--ivory-dim); }
+  .ev .nm { font-weight: 700; color: var(--ivory); }
+  .ev.mark { font: 600 10px/1.5 Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--evil); text-align: center; margin: 12px 0; }
+  .ev.mark.gold { color: var(--candle); }
+  .ev.rec { font: 500 10.5px/1.6 Consolas, monospace; color: var(--ivory-faint); border-left: 2px solid var(--candle-deep); padding-left: 8px; }
+  .ev.rec .aye { color: #9fd0a6; } .ev.rec .nay { color: #e6a49a; }
+
+  /* ---------- your hand ---------- */
+  .hand {
+    position: relative; z-index: 6; display: flex; align-items: flex-end; gap: 22px;
+    padding: 0 24px 18px; margin-top: -30px;
+  }
+  .rolecard {
+    width: 148px; border-radius: 9px; padding: 13px 15px; flex: 0 0 auto;
+    transform: rotate(-3deg); transform-origin: bottom left;
+    background:
+      linear-gradient(155deg, rgba(109,155,214,0.16), transparent 50%),
+      linear-gradient(180deg, #1e2430, #161b25);
+    border: 1px solid var(--good);
+    box-shadow: 0 14px 34px rgba(0,0,0,0.65);
+    transition: transform 0.25s ease;
+  }
+  .rolecard:hover { transform: rotate(0deg) translateY(-8px); }
+  .rolecard .lbl { font: 600 8.5px/1 Consolas, monospace; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ivory-faint); }
+  .rolecard .rname { font: 700 23px/1.15 Constantia, Georgia, serif; letter-spacing: 0.04em; margin-top: 6px; }
+  .rolecard .align { font: 600 9px/1 Consolas, monospace; letter-spacing: 0.24em; text-transform: uppercase; color: var(--good); margin-top: 4px; }
+  .rolecard .hint { font-size: 11px; color: var(--ivory-dim); margin-top: 8px; line-height: 1.45; }
+
+  .ask { flex: 1; display: flex; align-items: center; gap: 20px; justify-content: center; padding-bottom: 6px; }
+  .ask .prompt { text-align: right; }
+  .ask .turn { font: 600 9.5px/1.6 Consolas, monospace; letter-spacing: 0.2em; text-transform: uppercase; color: var(--candle); }
+  .ask .q { font-size: 17px; }
+  .ask .q b { color: var(--candle); }
+  .votes { display: flex; gap: 16px; }
+  .vtok {
+    width: 92px; height: 92px; border-radius: 50%; cursor: pointer; position: relative;
+    display: grid; place-items: center; text-align: center;
+    font: 700 13px/1.2 Constantia, Georgia, serif; letter-spacing: 0.1em; text-transform: uppercase;
+    border: 2px solid; transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .vtok .sub { display: block; font: 500 8px/1.6 Consolas, monospace; letter-spacing: 0.16em; opacity: 0.75; }
+  .vtok.approve {
+    color: #0e1526; border-color: #d8e4f5;
+    background: radial-gradient(circle at 34% 28%, #f4f8ff, #b9cce8 65%, #8aa8d0);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.6), 0 0 24px rgba(109,155,214,0.25);
+  }
+  .vtok.reject {
+    color: #f3ded9; border-color: #7e3a30;
+    background: radial-gradient(circle at 34% 28%, #6e352c, #3c1f1a 70%, #2a1512);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.6), 0 0 24px rgba(198,90,77,0.2);
+  }
+  .vtok:hover { transform: translateY(-6px) rotate(2deg); }
+  .vtok:focus-visible { outline: 2px solid var(--candle); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tok.active { animation: none; }
+    .rolecard, .vtok { transition: none; }
+  }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 720px) {
+    body { overflow: auto; }
+    .scene { height: 100dvh; }
+    .chrome { padding: 10px 12px 0; }
+    .brand { font-size: 16px; }
+    .ghost { padding: 6px 8px; font-size: 9.5px; }
+    .zone { flex: 0 0 44vh; }
+    .table { left: 50%; width: 165vw; top: 42%; }
+    .tokens { left: 50%; top: 48%; }
+    .tok small { display: none; }
+    .tok .twofail { display: none; }
+    .seat { width: 78px; }
+    .seat .plate .md { display: none; }
+    .seat .plate .nm { font-size: 11.5px; }
+    .medal { width: 42px; height: 42px; font-size: 12px; }
+    .bubble { display: none; }
+    .prop-plate { left: 50%; top: 74%; }
+    .prop-plate .line { font-size: 12px; }
+    .zone > div:nth-child(4) { --x: 9%; --y: 68%; }
+    .zone > div:nth-child(5) { --x: 15%; --y: 32%; }
+    .zone > div:nth-child(6) { --x: 35%; --y: 12%; }
+    .zone > div:nth-child(7) { --x: 63%; --y: 12%; }
+    .zone > div:nth-child(8) { --x: 85%; --y: 32%; }
+    .zone > div:nth-child(9) { --x: 91%; --y: 68%; }
+    .chronicle {
+      position: static; inset: auto; width: auto; flex: 1; min-height: 0; max-height: none;
+      margin: 6px 10px; z-index: 2;
+    }
+    .hand {
+      margin-top: 0; padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+      gap: 12px; align-items: center;
+    }
+    .rolecard { width: 116px; padding: 10px 12px; }
+    .rolecard .rname { font-size: 18px; }
+    .rolecard .hint { display: none; }
+    .ask { flex-direction: column; gap: 10px; align-items: stretch; }
+    .ask .prompt { text-align: left; }
+    .ask .q { font-size: 14px; }
+    .votes { justify-content: stretch; }
+    .vtok { width: auto; flex: 1; height: 62px; border-radius: 31px; }
+  }
+</style>
+
+<div class="scene">
+  <div class="chrome">
+    <div class="brand">Ava<span class="llm">LLM</span></div>
+    <span class="spacer"></span>
+    <button class="ghost">Record</button>
+    <button class="ghost">Codex</button>
+  </div>
+
+  <div class="zone">
+    <div class="table"></div>
+
+    <div class="tokens">
+      <div class="tok won">2<small>Q1</small></div>
+      <div class="tok lost"><span class="x">✕</span>3<small>Q2</small></div>
+      <div class="tok active">3<small>Q3</small></div>
+      <div class="tok"><span class="twofail">2 fails</span>4<small>Q4</small></div>
+      <div class="tok">4<small>Q5</small></div>
+    </div>
+    <div class="prop-plate">
+      <div class="line"><b>Kimi</b> proposes <b>Kimi · Allen · Haiku</b> for quest 3</div>
+      <div class="pips">
+        <span class="pip used"></span><span class="pip now"></span><span class="pip"></span><span class="pip"></span><span class="pip hammer"></span>
+      </div>
+      <div class="pips-lbl">proposal 2 of 5</div>
+    </div>
+
+    <div class="seat" style="--x: 11%; --y: 62%; --mc: var(--ds)">
+      <div class="medal">DS<span class="lean r">✕</span></div>
+      <div class="plate"><div class="nm">DeepSeek</div><div class="md">deepseek-v4-flash</div></div>
+    </div>
+    <div class="seat" style="--x: 17%; --y: 26%; --mc: var(--gm)">
+      <div class="medal">GM<span class="lean a">✓</span></div>
+      <div class="plate"><div class="nm">Gemini</div><div class="md">gemini-3.1-flash</div></div>
+    </div>
+    <div class="seat onquest" style="--x: 35%; --y: 11%; --mc: var(--hk)">
+      <div class="medal">HK<span class="lean a">✓</span></div>
+      <div class="plate"><div class="nm">Haiku</div><div class="md">claude-haiku-4.5</div></div>
+    </div>
+    <div class="seat onquest leader" style="--x: 58%; --y: 11%; --mc: var(--km)">
+      <div class="medal"><span class="crown">♛</span>KM</div>
+      <div class="plate"><div class="nm">Kimi</div><div class="md">kimi-k2.5</div></div>
+    </div>
+    <div class="seat" style="--x: 72%; --y: 27%; --mc: var(--gl)">
+      <div class="medal">GL<span class="lean u">?</span></div>
+      <div class="plate"><div class="nm">GLM</div><div class="md">glm-4.6</div><div class="next-tag">next ♛</div></div>
+    </div>
+    <div class="seat" style="--x: 74%; --y: 66%; --mc: var(--gp)">
+      <div class="medal">GP<span class="lean a">✓</span></div>
+      <div class="plate"><div class="nm">GPT-OSS</div><div class="md">gpt-oss-120b</div></div>
+    </div>
+
+    <div class="bubble" style="--bx: 58%; --by: 21%;">
+      <div class="who">Kimi · leader</div>
+      Clean slate. Allen and Haiku both voted against the table that failed. I want them with me.
+    </div>
+  </div>
+
+  <div class="chronicle">
+    <h2>Chronicle</h2>
+    <div class="scroll">
+      <div class="ev mark">✕ Quest 2 failed — 1 fail card</div>
+      <div class="ev rec">Kimi ♛ proposes Kimi · Allen · Haiku (Q3, prop 2/5)</div>
+      <div class="ev"><span class="nm">DeepSeek</span> — “Kimi puts himself on every list. That is not nothing.”</div>
+      <div class="ev"><span class="nm">Gemini</span> signals approve, says nothing.</div>
+      <div class="ev"><span class="nm">Haiku</span> — “The record backs this team. Allen has voted clean since quest one.”</div>
+      <div class="ev"><span class="nm">GLM</span> passes.</div>
+      <div class="ev"><span class="nm">GPT-OSS</span> — “Numbers look fine. Watch whether DeepSeek's nay is principle or theater.”</div>
+      <div class="ev rec">Prop 1 votes: <span class="aye">DS✓</span> <span class="nay">GM✕</span> <span class="nay">Allen✕</span> <span class="nay">HK✕</span> <span class="aye">KM✓</span> <span class="nay">GL✕</span> <span class="aye">GP✓</span> → REJECTED 3–4</div>
+      <div class="ev mark gold">Your vote decides — 3 ayes locked</div>
+    </div>
+  </div>
+
+  <div class="hand">
+    <div class="rolecard">
+      <div class="lbl">Your secret</div>
+      <div class="rname">Servant</div>
+      <div class="align">Loyal · Good</div>
+      <div class="hint">The vote record never lies. Read it.</div>
+    </div>
+    <div class="ask">
+      <div class="prompt">
+        <div class="turn">⟡ The table waits on you</div>
+        <div class="q">Approve <b>Kimi · Allen · Haiku</b>?</div>
+      </div>
+      <div class="votes">
+        <button class="vtok approve">Approve<span class="sub">for the quest</span></button>
+        <button class="vtok reject">Reject<span class="sub">force a new leader</span></button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,327 @@
+<title>Mock F — The Reading</title>
+<style>
+  :root {
+    --indigo: #171331;
+    --indigo-2: #1f1a40;
+    --panel: #232048;
+    --line: #37325e;
+    --bone: #eae2d0;
+    --bone-dim: #a9a190;
+    --bone-faint: #6f6a80;
+    --gold: #c9a84c;
+    --gold-deep: #8a7230;
+    --lapis: #6f8fd9;
+    --oxblood: #c25e54;
+    --ds: #6b83ff; --gm: #4fb39c; --hk: #e08a67; --km: #45c4d8; --gl: #a97fe6; --gp: #67b377;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--indigo); color: var(--bone);
+    font: 15px/1.55 Constantia, "Palatino Linotype", Georgia, serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+    background-image:
+      radial-gradient(2px 2px at 12% 18%, rgba(234,226,208,0.35), transparent 100%),
+      radial-gradient(1.5px 1.5px at 78% 9%, rgba(234,226,208,0.3), transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 26%, rgba(234,226,208,0.22), transparent 100%),
+      radial-gradient(2px 2px at 91% 41%, rgba(234,226,208,0.2), transparent 100%),
+      radial-gradient(1.5px 1.5px at 6% 64%, rgba(234,226,208,0.2), transparent 100%),
+      radial-gradient(900px 500px at 50% 0%, rgba(201,168,76,0.09), transparent 60%);
+  }
+
+  header {
+    display: flex; align-items: center; gap: 14px; padding: 11px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { font-size: 21px; font-weight: 700; letter-spacing: 0.05em; }
+  .brand .llm { color: var(--gold); }
+  .spacer { flex: 1; }
+  .ghost {
+    font: 600 10.5px/1 Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--bone-dim); background: transparent; border: 1px solid var(--line); border-radius: 2px;
+    padding: 7px 12px; cursor: pointer;
+  }
+  .ghost:hover, .ghost:focus-visible { color: var(--gold); border-color: var(--gold-deep); outline: none; }
+
+  /* the spread: quest cards */
+  .spread { padding: 16px 20px 6px; text-align: center; }
+  .spread .cards { display: inline-flex; gap: 14px; align-items: flex-end; }
+  .qcard {
+    width: 64px; height: 92px; border-radius: 6px; position: relative;
+    display: grid; place-items: center;
+    border: 1px solid var(--line);
+  }
+  .qcard .qn {
+    position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font: 600 9px/1 Consolas, monospace; letter-spacing: 0.16em; color: var(--bone-faint);
+    white-space: nowrap;
+  }
+  .qcard.back {
+    background:
+      repeating-linear-gradient(45deg, rgba(201,168,76,0.12) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgba(201,168,76,0.12) 0 2px, transparent 2px 9px),
+      linear-gradient(180deg, var(--indigo-2), var(--panel));
+    box-shadow: inset 0 0 0 3px var(--indigo-2), inset 0 0 0 4px var(--gold-deep), 0 4px 10px rgba(0,0,0,0.5);
+  }
+  .qcard.back .sz {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    border: 1px solid var(--gold-deep); color: var(--gold); font: 700 14px/1 Constantia, Georgia, serif;
+    background: var(--indigo-2);
+  }
+  .qcard.current { border-color: var(--gold); box-shadow: inset 0 0 0 3px var(--indigo-2), inset 0 0 0 4px var(--gold), 0 0 20px rgba(201,168,76,0.4), 0 4px 10px rgba(0,0,0,0.5); transform: translateY(-8px); }
+  .qcard.face { flex-direction: column; gap: 3px; padding: 8px 6px; display: flex; align-items: center; justify-content: center; }
+  .qcard.face.won {
+    color: #dfe8fa; border-color: var(--lapis);
+    background: linear-gradient(170deg, #2c3c6e, #222c52);
+    box-shadow: inset 0 0 0 3px #222c52, inset 0 0 0 4px var(--lapis), 0 4px 10px rgba(0,0,0,0.5);
+  }
+  .qcard.face.lost {
+    color: #f5ddd8; border-color: var(--oxblood);
+    background: linear-gradient(170deg, #6e3230, #4a2220);
+    box-shadow: inset 0 0 0 3px #4a2220, inset 0 0 0 4px var(--oxblood), 0 4px 10px rgba(0,0,0,0.5);
+  }
+  .qcard.face .em { font-size: 24px; line-height: 1; }
+  .qcard.face .word { font: 700 8.5px/1 Consolas, monospace; letter-spacing: 0.18em; }
+  .qcard.face .n { font-size: 11px; opacity: 0.75; }
+  .qcard .twofail { position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font: 600 8px/1 Consolas, monospace; color: var(--oxblood); white-space: nowrap; letter-spacing: 0.06em; }
+  .prop-line { margin-top: 22px; font-size: 13.5px; color: var(--bone-dim); }
+  .prop-line b { color: var(--gold); }
+  .prop-pips { display: inline-flex; gap: 6px; margin-left: 12px; vertical-align: -1px; }
+  .ppip { width: 9px; height: 9px; transform: rotate(45deg); background: var(--panel); border: 1px solid var(--line); }
+  .ppip.used { background: var(--oxblood); border-color: var(--oxblood); }
+  .ppip.now { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 8px rgba(201,168,76,0.6); }
+  .ppip.hammer { border-color: var(--oxblood); }
+
+  /* seats: a row of arcana */
+  .arcana { display: flex; gap: 12px; justify-content: center; padding: 18px 20px 10px; overflow-x: auto; }
+  .pcard {
+    flex: 0 0 106px; height: 132px; border-radius: 7px; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    background: linear-gradient(175deg, var(--panel), var(--indigo-2));
+    border: 1px solid var(--line);
+    box-shadow: inset 0 0 0 3px var(--indigo-2), inset 0 0 0 4px color-mix(in srgb, var(--mc) 45%, var(--line)), 0 5px 12px rgba(0,0,0,0.45);
+    transition: transform 0.18s ease;
+  }
+  .pcard:hover { transform: translateY(-5px); }
+  .pcard .sigil {
+    width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+    font: 700 12.5px/1 Consolas, monospace; color: var(--bone);
+    background: radial-gradient(circle at 33% 28%, color-mix(in srgb, var(--mc) 60%, #14112a), #14112a);
+    border: 1.5px solid var(--mc);
+  }
+  .pcard .nm { font-weight: 700; font-size: 13.5px; }
+  .pcard .md { font: 500 8px/1.2 Consolas, monospace; color: var(--bone-faint); }
+  .pcard.you { box-shadow: inset 0 0 0 3px var(--indigo-2), inset 0 0 0 4px var(--gold), 0 5px 12px rgba(0,0,0,0.45); }
+  .pcard.you .md { color: var(--gold); }
+  .pcard.leader { transform: translateY(-7px); }
+  .pcard.leader:hover { transform: translateY(-11px); }
+  .pcard .crown { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); font-size: 15px; color: var(--gold); text-shadow: 0 0 8px rgba(201,168,76,0.7); }
+  .pcard .qmark {
+    position: absolute; top: 7px; right: 7px; font: 600 7.5px/1 Consolas, monospace;
+    letter-spacing: 0.08em; color: var(--gold); border: 1px solid var(--gold-deep); padding: 2px 4px; border-radius: 2px;
+  }
+  .pcard .gem {
+    position: absolute; bottom: 8px; width: 15px; height: 15px; transform: rotate(45deg);
+    border: 1.5px solid;
+  }
+  .pcard .gem.a { background: rgba(111,143,217,0.35); border-color: var(--lapis); }
+  .pcard .gem.r { background: rgba(194,94,84,0.35); border-color: var(--oxblood); }
+  .pcard .gem.u { background: transparent; border-color: var(--bone-faint); }
+  .pcard .next { position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); font: 600 7.5px/1 Consolas, monospace; letter-spacing: 0.12em; color: var(--bone-faint); background: var(--indigo); padding: 1px 5px; text-transform: uppercase; }
+
+  /* talk */
+  main { flex: 1; display: flex; gap: 16px; padding: 10px 20px; min-height: 0; }
+  .talk {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: linear-gradient(180deg, rgba(35,32,72,0.5), rgba(23,19,49,0.3));
+  }
+  .divider { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: var(--oxblood); }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--oxblood)); }
+  .divider::after { background: linear-gradient(90deg, var(--oxblood), transparent); }
+  .divider .t { font: 700 13px/1.4 Constantia, Georgia, serif; letter-spacing: 0.22em; text-transform: uppercase; white-space: nowrap; }
+  .divider small { display: block; font: 400 10.5px/1.4 Consolas, monospace; color: var(--bone-dim); letter-spacing: 0.04em; text-transform: none; text-align: center; }
+  .record {
+    font: 500 11.5px/1.6 Consolas, monospace; color: var(--bone-dim);
+    padding: 5px 10px; margin: 7px 0; border-left: 2px solid var(--gold-deep);
+    background: rgba(201,168,76,0.05);
+  }
+  .record b { color: var(--gold); }
+  .record .aye { color: var(--lapis); } .record .nay { color: var(--oxblood); }
+  .say { margin: 10px 0; }
+  .say .who { font-weight: 700; font-size: 14px; color: var(--mc, var(--bone)); }
+  .say .who small { font: 500 8.5px/1 Consolas, monospace; color: var(--bone-faint); margin-left: 8px; }
+  .say .txt { max-width: 62ch; margin-top: 1px; }
+  .say .leanmark { font: 600 9px/1 Consolas, monospace; letter-spacing: 0.1em; padding: 2px 6px; border: 1px solid; margin-left: 8px; vertical-align: 1px; }
+  .leanmark.a { color: var(--lapis); border-color: var(--lapis); }
+  .leanmark.r { color: var(--oxblood); border-color: var(--oxblood); }
+  .quiet { margin: 7px 0; font-style: italic; color: var(--bone-faint); font-size: 13px; }
+
+  /* your hand */
+  footer { padding: 12px 20px 16px; border-top: 1px solid var(--line); background: linear-gradient(180deg, rgba(201,168,76,0.05), transparent); }
+  .hand { display: flex; align-items: center; gap: 20px; max-width: 1080px; margin: 0 auto; }
+  .rolecard {
+    width: 138px; border-radius: 7px; padding: 12px 14px; transform: rotate(-2.5deg);
+    background: linear-gradient(175deg, var(--panel), var(--indigo-2));
+    border: 1px solid var(--lapis);
+    box-shadow: inset 0 0 0 3px var(--indigo-2), inset 0 0 0 4px var(--lapis), 0 8px 20px rgba(0,0,0,0.5);
+    transition: transform 0.2s ease;
+  }
+  .rolecard:hover { transform: rotate(0) translateY(-4px); }
+  .rolecard .lbl { font: 600 8px/1 Consolas, monospace; letter-spacing: 0.22em; color: var(--bone-faint); text-transform: uppercase; }
+  .rolecard .rn { font: 700 21px/1.15 Constantia, Georgia, serif; margin-top: 5px; }
+  .rolecard .al { font: 600 8.5px/1 Consolas, monospace; letter-spacing: 0.24em; color: var(--lapis); margin-top: 3px; text-transform: uppercase; }
+  .ask { flex: 1; text-align: right; }
+  .ask .turn { font: 600 9.5px/1.6 Consolas, monospace; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); }
+  .ask .q { font-size: 16.5px; }
+  .ask .q b { color: var(--gold); }
+  .playcards { display: flex; gap: 14px; }
+  .play {
+    width: 96px; height: 128px; border-radius: 7px; cursor: pointer; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px;
+    font: 700 12px/1.3 Constantia, Georgia, serif; letter-spacing: 0.14em; text-transform: uppercase;
+    border: 1px solid; transition: transform 0.16s ease;
+  }
+  .play .em { font-size: 26px; line-height: 1; }
+  .play .sub { font: 400 8px/1.5 Consolas, monospace; letter-spacing: 0.1em; opacity: 0.8; text-transform: none; }
+  .play.approve {
+    color: #e6ecfa; border-color: var(--lapis);
+    background: linear-gradient(175deg, #2e3f72, #232c52);
+    box-shadow: inset 0 0 0 3px #232c52, inset 0 0 0 4px var(--lapis), 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .play.reject {
+    color: #f7e2dd; border-color: var(--oxblood);
+    background: linear-gradient(175deg, #703431, #4c2321);
+    box-shadow: inset 0 0 0 3px #4c2321, inset 0 0 0 4px var(--oxblood), 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .play:hover { transform: translateY(-8px) rotate(1.5deg); }
+  .play:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { .pcard, .play, .rolecard { transition: none; } }
+
+  @media (max-width: 720px) {
+    header { padding: 9px 12px; }
+    .brand { font-size: 17px; }
+    .spread { padding: 26px 12px 4px; }
+    .qcard { width: 46px; height: 66px; }
+    .qcard.face .em { font-size: 17px; }
+    .qcard.face .word { font-size: 7px; }
+    .qcard .twofail { display: none; }
+    .prop-line { margin-top: 18px; font-size: 12px; }
+    .arcana { justify-content: flex-start; padding: 14px 12px 8px; }
+    .pcard { flex: 0 0 88px; height: 112px; }
+    .pcard .md { display: none; }
+    main { padding: 8px 12px; }
+    aside { display: none; }
+    .talk { padding: 10px 12px; }
+    footer { position: sticky; bottom: 0; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); }
+    .hand { flex-wrap: wrap; gap: 10px; }
+    .rolecard { width: auto; flex: 1; transform: none; padding: 9px 12px; display: flex; align-items: baseline; gap: 9px; }
+    .rolecard .rn { font-size: 16px; margin: 0; }
+    .ask { flex: 1 1 100%; text-align: left; order: -1; }
+    .ask .q { font-size: 14px; }
+    .playcards { flex: 2; gap: 10px; }
+    .play { width: auto; flex: 1; height: 64px; flex-direction: row; gap: 9px; }
+    .play .em { font-size: 19px; }
+    .play .sub { display: none; }
+  }
+</style>
+
+<header>
+  <div class="brand">Ava<span class="llm">LLM</span></div>
+  <span class="spacer"></span>
+  <button class="ghost">Record</button>
+  <button class="ghost">Codex</button>
+</header>
+
+<div class="spread">
+  <div class="cards">
+    <div class="qcard face won"><span class="qn">QUEST I</span><span class="em">🛡</span><span class="word">SUCCESS</span><span class="n">2 went</span></div>
+    <div class="qcard face lost"><span class="qn">QUEST II</span><span class="em">🗡</span><span class="word">FAIL ·1</span><span class="n">3 went</span></div>
+    <div class="qcard back current"><span class="qn">QUEST III</span><span class="sz">3</span></div>
+    <div class="qcard back"><span class="qn">QUEST IV</span><span class="sz">4</span><span class="twofail">needs 2 fails</span></div>
+    <div class="qcard back"><span class="qn">QUEST V</span><span class="sz">4</span></div>
+  </div>
+  <div class="prop-line">
+    <b>Kimi</b> proposes <b>Kimi · Allen · Haiku</b> — proposal 2 of 5
+    <span class="prop-pips">
+      <span class="ppip used"></span><span class="ppip now"></span><span class="ppip"></span><span class="ppip"></span><span class="ppip hammer"></span>
+    </span>
+  </div>
+</div>
+
+<div class="arcana">
+  <div class="pcard" style="--mc: var(--ds)">
+    <div class="sigil">DS</div><div class="nm">DeepSeek</div><div class="md">deepseek-v4</div>
+    <span class="gem r" title="leans reject"></span>
+  </div>
+  <div class="pcard" style="--mc: var(--gm)">
+    <div class="sigil">GM</div><div class="nm">Gemini</div><div class="md">gemini-3.1</div>
+    <span class="gem a" title="leans approve"></span>
+  </div>
+  <div class="pcard you" style="--mc: var(--gold)">
+    <div class="sigil" style="--mc: var(--gold)">AL</div><div class="nm">Allen</div><div class="md">that's you</div>
+    <span class="qmark">QUEST</span>
+  </div>
+  <div class="pcard" style="--mc: var(--hk)">
+    <div class="sigil">HK</div><div class="nm">Haiku</div><div class="md">haiku-4.5</div>
+    <span class="qmark">QUEST</span><span class="gem a"></span>
+  </div>
+  <div class="pcard leader" style="--mc: var(--km)">
+    <span class="crown">♛</span>
+    <div class="sigil">KM</div><div class="nm">Kimi</div><div class="md">kimi-k2.5</div>
+    <span class="qmark">QUEST</span>
+  </div>
+  <div class="pcard" style="--mc: var(--gl)">
+    <div class="sigil">GL</div><div class="nm">GLM</div><div class="md">glm-4.6</div>
+    <span class="gem u"></span><span class="next">next ♛</span>
+  </div>
+  <div class="pcard" style="--mc: var(--gp)">
+    <div class="sigil">GP</div><div class="nm">GPT-OSS</div><div class="md">gpt-oss-120b</div>
+    <span class="gem a"></span>
+  </div>
+</div>
+
+<main>
+  <div class="talk">
+    <div class="divider"><span class="t">Quest II · Fail<small>one fail among three cards — a spy was on the team</small></span></div>
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="say" style="--mc: var(--km)">
+      <div class="who">Kimi<small>kimi-k2.5</small></div>
+      <div class="txt">Clean slate. Allen and Haiku both voted against the table that failed. I want them with me.</div>
+    </div>
+    <div class="say" style="--mc: var(--ds)">
+      <div class="who">DeepSeek<small>deepseek-v4-flash</small></div>
+      <div class="txt">Kimi puts himself on every list. That is not nothing.<span class="leanmark r">Nay</span></div>
+    </div>
+    <p class="quiet">Gemini signals approve, says nothing.</p>
+    <div class="say" style="--mc: var(--hk)">
+      <div class="who">Haiku<small>claude-haiku-4.5</small></div>
+      <div class="txt">The record backs this team. Allen has voted clean since quest one.<span class="leanmark a">Aye</span></div>
+    </div>
+    <p class="quiet">GLM passes.</p>
+    <div class="say" style="--mc: var(--gp)">
+      <div class="who">GPT-OSS<small>gpt-oss-120b</small></div>
+      <div class="txt">Numbers look fine. Watch whether DeepSeek's nay is principle or theater.</div>
+    </div>
+    <div class="record">Votes on proposal 1: <span class="aye">DeepSeek ✓</span> · <span class="nay">Gemini ✕</span> · <span class="nay">Allen ✕</span> · <span class="nay">Haiku ✕</span> · <span class="aye">Kimi ✓</span> · <span class="nay">GLM ✕</span> · <span class="aye">GPT-OSS ✓</span> → <b>REJECTED 3–4</b></div>
+  </div>
+</main>
+
+<footer>
+  <div class="hand">
+    <div class="rolecard">
+      <div class="lbl">Your secret</div>
+      <div class="rn">Servant</div>
+      <div class="al">Loyal · Good</div>
+    </div>
+    <div class="ask">
+      <div class="turn">⟡ Play a card</div>
+      <div class="q">Approve <b>Kimi · Allen · Haiku</b> for quest 3?</div>
+    </div>
+    <div class="playcards">
+      <button class="play approve"><span class="em">🛡</span>Approve<span class="sub">send them</span></button>
+      <button class="play reject"><span class="em">🗡</span>Reject<span class="sub">force a new leader</span></button>
+    </div>
+  </div>
+</footer>

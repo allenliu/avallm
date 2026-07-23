@@ -1,0 +1,357 @@
+<title>Mock B — Ledger &amp; Lamplight</title>
+<style>
+  :root {
+    --ground: #171209;
+    --panel: #211a10;
+    --panel-2: #2a2115;
+    --line: #3a2f1d;
+    --ivory: #ece2cc;
+    --ivory-dim: #b3a88e;
+    --ivory-faint: #7d745e;
+    --gold: #d4a938;
+    --gold-deep: #8a6d1e;
+    --good: #5e8fca;
+    --evil: #c05a4e;
+    --ds: #5b76f7; --gm: #3fa08a; --hk: #d97757; --km: #2fb3c7; --gl: #9b6fd4; --gp: #58a06a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ivory);
+    font: 15px/1.55 "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    background-image:
+      radial-gradient(1200px 500px at 50% -10%, rgba(212,169,56,0.07), transparent 60%),
+      radial-gradient(900px 700px at 50% 115%, rgba(212,169,56,0.05), transparent 55%);
+    min-height: 100vh; display: flex; flex-direction: column;
+  }
+
+  /* ---------- header: brand + tableau ---------- */
+  header {
+    display: flex; align-items: center; gap: 20px;
+    padding: 10px 20px 8px; border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(212,169,56,0.05), transparent);
+  }
+  .brand { font-size: 21px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+  .brand .llm { color: var(--gold); }
+  .tableau { display: flex; align-items: center; gap: 14px; margin: 0 auto; }
+  .quests { display: flex; gap: 10px; align-items: center; }
+  .q {
+    width: 46px; height: 46px; border-radius: 50%; position: relative;
+    display: grid; place-items: center;
+    font: 700 17px/1 "Palatino Linotype", Georgia, serif;
+    border: 2px solid var(--line); color: var(--ivory-dim);
+    background: radial-gradient(circle at 35% 30%, var(--panel-2), var(--panel));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 2px 6px rgba(0,0,0,0.5);
+  }
+  .q .size { position: relative; top: 1px; }
+  .q .label {
+    position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+    font: 600 8.5px/1 Consolas, monospace; letter-spacing: 0.12em;
+    color: var(--ivory-faint); background: var(--ground); padding: 1px 4px; border-radius: 2px;
+  }
+  .q.won {
+    border-color: var(--good); color: #cfe0f5;
+    background: radial-gradient(circle at 35% 30%, #2c3f58, #1f2c3e);
+    box-shadow: 0 0 12px rgba(94,143,202,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .q.won::after, .q.lost::after {
+    content: "✦"; position: absolute; right: -3px; bottom: -3px;
+    font-size: 12px; color: var(--good);
+  }
+  .q.lost {
+    border-color: var(--evil); color: #f2d3cf;
+    background: radial-gradient(circle at 35% 30%, #4d2b26, #35201d);
+    box-shadow: 0 0 12px rgba(192,90,78,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .q.lost::after { content: "✕"; color: var(--evil); font-weight: 700; }
+  .q.active {
+    border-color: var(--gold); color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(212,169,56,0.15), 0 0 18px rgba(212,169,56,0.25);
+    animation: breathe 3.2s ease-in-out infinite;
+  }
+  .q .twofail {
+    position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%);
+    font: 600 8px/1 Consolas, monospace; letter-spacing: 0.08em; color: var(--evil);
+    white-space: nowrap;
+  }
+  @keyframes breathe { 50% { box-shadow: 0 0 0 3px rgba(212,169,56,0.05), 0 0 8px rgba(212,169,56,0.12); } }
+  .prop-track { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .prop-track .lbl { font: 600 9px/1 Consolas, monospace; letter-spacing: 0.12em; color: var(--ivory-faint); text-transform: uppercase; }
+  .pips { display: flex; gap: 5px; }
+  .pip { width: 11px; height: 11px; border-radius: 2px; border: 1px solid var(--line); background: var(--panel); transform: rotate(45deg); }
+  .pip.used { background: var(--evil); border-color: var(--evil); opacity: 0.75; }
+  .pip.now { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 8px rgba(212,169,56,0.5); }
+  .pip.hammer { border-color: var(--evil); }
+  .hbtns { display: flex; gap: 8px; }
+  .hbtn {
+    font: 600 11px/1 Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ivory-dim); background: transparent; border: 1px solid var(--line);
+    padding: 8px 12px; border-radius: 3px; cursor: pointer;
+  }
+  .hbtn:hover, .hbtn:focus-visible { color: var(--gold); border-color: var(--gold-deep); outline: none; }
+
+  /* ---------- seats ---------- */
+  .seats {
+    display: flex; gap: 8px; padding: 12px 20px 10px; overflow-x: auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .seat {
+    flex: 1 1 0; min-width: 108px; position: relative;
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line); border-top: 2px solid var(--mc, var(--line));
+    border-radius: 4px; padding: 8px 10px 7px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+  }
+  .seat .name { font-weight: 700; font-size: 14.5px; letter-spacing: 0.01em; white-space: nowrap; }
+  .seat .model { font: 500 9.5px/1.2 Consolas, monospace; color: var(--ivory-faint); letter-spacing: 0.04em; margin-top: 1px; white-space: nowrap; }
+  .seat.you { border-color: var(--gold-deep); border-top-color: var(--gold); background: linear-gradient(180deg, #2e2410, var(--panel)); }
+  .seat.you .model { color: var(--gold); }
+  .seat .row { display: flex; gap: 5px; margin-top: 6px; min-height: 16px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    font: 600 8.5px/1 Consolas, monospace; letter-spacing: 0.09em; text-transform: uppercase;
+    padding: 3px 6px; border-radius: 2px;
+  }
+  .chip.quest { color: var(--gold); border: 1px solid var(--gold-deep); background: rgba(212,169,56,0.08); }
+  .chip.lean-a { color: #9fc39b; background: rgba(88,160,106,0.12); border: 1px solid rgba(88,160,106,0.4); }
+  .chip.lean-r { color: #d8988f; background: rgba(192,90,78,0.12); border: 1px solid rgba(192,90,78,0.4); }
+  .chip.lean-u { color: var(--ivory-faint); background: rgba(255,255,255,0.04); border: 1px solid var(--line); }
+  .crown {
+    position: absolute; top: -9px; right: 8px; font-size: 13px; color: var(--gold);
+    text-shadow: 0 0 6px rgba(212,169,56,0.6);
+  }
+  .next {
+    position: absolute; top: -8px; right: 8px;
+    font: 600 8px/1 Consolas, monospace; letter-spacing: 0.1em; color: var(--ivory-faint);
+    background: var(--ground); border: 1px solid var(--line); padding: 2px 5px; border-radius: 2px;
+  }
+
+  /* ---------- main ---------- */
+  main { flex: 1; display: flex; gap: 16px; padding: 14px 20px; min-height: 0; }
+  .feed {
+    flex: 1; overflow-y: auto; min-height: 0;
+    display: flex; flex-direction: column; gap: 2px; padding-right: 4px;
+  }
+
+  .moment {
+    margin: 12px 0; padding: 10px 16px; text-align: center; position: relative;
+    border-top: 1px solid var(--evil); border-bottom: 1px solid var(--evil);
+    background: linear-gradient(90deg, transparent, rgba(192,90,78,0.13), transparent);
+  }
+  .moment .t { font: 700 16px/1.2 "Palatino Linotype", Georgia, serif; letter-spacing: 0.14em; color: var(--evil); }
+  .moment .d { font: 500 10.5px/1.4 Consolas, monospace; color: var(--ivory-dim); letter-spacing: 0.06em; margin-top: 2px; }
+
+  .record {
+    font: 500 12px/1.5 Consolas, "Cascadia Mono", monospace;
+    color: var(--ivory-dim); padding: 5px 10px 5px 14px; border-left: 2px solid var(--gold-deep);
+    background: rgba(212,169,56,0.04); border-radius: 0 3px 3px 0; margin: 6px 0;
+  }
+  .record b { color: var(--gold); font-weight: 600; }
+  .record .aye { color: #9fc39b; } .record .nay { color: #d8988f; }
+
+  .say { display: flex; gap: 10px; padding: 7px 4px; align-items: baseline; }
+  .say .who { flex: 0 0 84px; text-align: right; font-weight: 700; font-size: 13.5px; white-space: nowrap; }
+  .say .who small { display: block; font: 500 9px/1.3 Consolas, monospace; color: var(--mc, var(--ivory-faint)); font-weight: 400; letter-spacing: 0.05em; }
+  .say .bubble { position: relative; color: var(--ivory); max-width: 58ch; }
+  .say .bubble::before { content: "“"; color: var(--gold); font-size: 21px; line-height: 0; margin-right: 2px; vertical-align: -6px; }
+  .say .bubble::after { content: "”"; color: var(--gold); font-size: 21px; line-height: 0; margin-left: 2px; vertical-align: -6px; }
+  .say.you-said .who { color: var(--gold); }
+  .say .leanmark { font: 600 9.5px/1 Consolas, monospace; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 2px; vertical-align: 1px; margin-left: 8px; }
+  .say .leanmark.r { color: #d8988f; border: 1px solid rgba(192,90,78,0.4); }
+  .say .leanmark.a { color: #9fc39b; border: 1px solid rgba(88,160,106,0.4); }
+  .quiet { padding: 3px 4px 3px 98px; font-size: 12.5px; color: var(--ivory-faint); font-style: italic; }
+
+  /* ---------- aside ---------- */
+  aside { flex: 0 0 236px; display: flex; flex-direction: column; gap: 12px; }
+  .rolecard {
+    border: 1px solid var(--good); border-radius: 6px; overflow: hidden;
+    background:
+      linear-gradient(160deg, rgba(94,143,202,0.12), transparent 45%),
+      linear-gradient(180deg, var(--panel-2), var(--panel));
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45);
+  }
+  .rolecard .rc-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+    font: 600 9.5px/1 Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ivory-faint);
+  }
+  .rc-head button {
+    background: none; border: none; color: var(--ivory-faint); cursor: pointer;
+    font: 600 9.5px/1 Consolas, monospace; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .rc-head button:hover { color: var(--ivory); }
+  .rolecard .rc-body { padding: 12px 14px 14px; }
+  .rolecard .rname { font: 700 24px/1.1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.06em; }
+  .rolecard .align { font: 600 10px/1 Consolas, monospace; letter-spacing: 0.22em; text-transform: uppercase; color: var(--good); margin-top: 3px; }
+  .rolecard .rdesc { font-size: 13px; color: var(--ivory-dim); margin-top: 9px; line-height: 1.5; }
+  .inplay { font: 500 10.5px/1.6 Consolas, monospace; color: var(--ivory-faint); padding: 0 2px; }
+  .inplay b { color: var(--ivory-dim); font-weight: 600; }
+
+  /* ---------- action bar ---------- */
+  footer {
+    padding: 12px 20px 14px; border-top: 1px solid var(--gold-deep);
+    background:
+      linear-gradient(180deg, rgba(212,169,56,0.09), rgba(212,169,56,0.02)),
+      var(--panel);
+    box-shadow: 0 -6px 24px rgba(212,169,56,0.07);
+  }
+  .ask { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto; }
+  .ask .turn {
+    font: 600 9.5px/1.4 Consolas, monospace; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--gold); white-space: nowrap;
+  }
+  .ask .q-text { font-size: 16px; }
+  .ask .q-text b { color: var(--gold); }
+  .spacer { flex: 1; }
+  .vote-btn {
+    font: 700 14px/1 "Palatino Linotype", Georgia, serif; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 12px 26px; border-radius: 4px; cursor: pointer; border: 1px solid;
+  }
+  .vote-btn.approve {
+    color: #eef4fb; border-color: var(--good);
+    background: linear-gradient(180deg, #46689a, #35507a);
+    box-shadow: 0 2px 10px rgba(94,143,202,0.3);
+  }
+  .vote-btn.approve:hover { filter: brightness(1.12); }
+  .vote-btn.reject {
+    color: #fbeeec; border-color: var(--evil);
+    background: linear-gradient(180deg, #8f4038, #6e312b);
+    box-shadow: 0 2px 10px rgba(192,90,78,0.3);
+  }
+  .vote-btn.reject:hover { filter: brightness(1.12); }
+  .vote-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) { .q.active { animation: none; } }
+
+  /* ---------- mobile ---------- */
+  @media (max-width: 720px) {
+    header { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+    .brand { font-size: 17px; }
+    .tableau { order: 3; width: 100%; justify-content: center; margin: 2px 0 0; }
+    .q { width: 38px; height: 38px; font-size: 14px; }
+    .hbtns { margin-left: auto; }
+    .hbtn { padding: 6px 9px; font-size: 10px; }
+    .seats { padding: 10px 12px 8px; }
+    .seat { min-width: 96px; flex: 0 0 auto; }
+    main { flex-direction: column; padding: 10px 12px; gap: 8px; }
+    aside { flex-direction: row; flex-wrap: wrap; order: -1; flex: 0 0 auto; }
+    .rolecard { flex: 1; }
+    .rolecard .rc-body { padding: 8px 12px 10px; }
+    .rolecard .rname { font-size: 17px; }
+    .rolecard .rdesc, .inplay { display: none; }
+    .say .who { flex-basis: 64px; font-size: 12.5px; }
+    .quiet { padding-left: 78px; }
+    footer { position: sticky; bottom: 0; }
+    .ask { flex-wrap: wrap; gap: 8px 12px; }
+    .ask .q-text { font-size: 14.5px; }
+    .vote-btn { flex: 1; padding: 13px 10px; text-align: center; }
+    .ask .btns { display: flex; gap: 10px; width: 100%; }
+  }
+</style>
+
+<header>
+  <div class="brand">Ava<span class="llm">LLM</span></div>
+  <div class="tableau">
+    <div class="quests">
+      <div class="q won"><span class="label">Q1</span><span class="size">2</span></div>
+      <div class="q lost"><span class="label">Q2</span><span class="size">3</span></div>
+      <div class="q active"><span class="label">Q3</span><span class="size">3</span></div>
+      <div class="q"><span class="label">Q4</span><span class="size">4</span><span class="twofail">2 fails</span></div>
+      <div class="q"><span class="label">Q5</span><span class="size">4</span></div>
+    </div>
+    <div class="prop-track">
+      <span class="lbl">Proposal 2 / 5</span>
+      <div class="pips">
+        <span class="pip used"></span><span class="pip now"></span><span class="pip"></span><span class="pip"></span><span class="pip hammer"></span>
+      </div>
+    </div>
+  </div>
+  <div class="hbtns">
+    <button class="hbtn">Record</button>
+    <button class="hbtn">Codex</button>
+  </div>
+</header>
+
+<div class="seats">
+  <div class="seat" style="--mc: var(--ds)">
+    <div class="name">DeepSeek</div><div class="model">deepseek-v4-flash</div>
+    <div class="row"><span class="chip lean-r">Leans nay</span></div>
+  </div>
+  <div class="seat" style="--mc: var(--gm)">
+    <div class="name">Gemini</div><div class="model">gemini-3.1-flash</div>
+    <div class="row"><span class="chip lean-a">Leans aye</span></div>
+  </div>
+  <div class="seat you">
+    <div class="name">Allen</div><div class="model">that's you</div>
+    <div class="row"><span class="chip quest">On quest</span></div>
+  </div>
+  <div class="seat" style="--mc: var(--hk)">
+    <div class="name">Haiku</div><div class="model">claude-haiku-4.5</div>
+    <div class="row"><span class="chip quest">On quest</span><span class="chip lean-a">Aye</span></div>
+  </div>
+  <div class="seat" style="--mc: var(--km)">
+    <span class="crown">♛</span>
+    <div class="name">Kimi</div><div class="model">kimi-k2.5</div>
+    <div class="row"><span class="chip quest">On quest</span></div>
+  </div>
+  <div class="seat" style="--mc: var(--gl)">
+    <span class="next">next ♛</span>
+    <div class="name">GLM</div><div class="model">glm-4.6</div>
+    <div class="row"><span class="chip lean-u">Unsure</span></div>
+  </div>
+  <div class="seat" style="--mc: var(--gp)">
+    <div class="name">GPT-OSS</div><div class="model">gpt-oss-120b</div>
+    <div class="row"><span class="chip lean-a">Leans aye</span></div>
+  </div>
+</div>
+
+<main>
+  <div class="feed">
+    <div class="moment">
+      <div class="t">QUEST 2 · FAILED</div>
+      <div class="d">one FAIL among three cards — a spy was on the team</div>
+    </div>
+    <div class="record">Kimi ♛ proposes <b>Kimi · Allen · Haiku</b> — quest 3, proposal 2 of 5</div>
+    <div class="say" style="--mc: var(--km)">
+      <span class="who">Kimi<small>kimi-k2.5</small></span>
+      <span class="bubble">Clean slate. Allen and Haiku both voted against the table that failed. I want them with me.</span>
+    </div>
+    <div class="say" style="--mc: var(--ds)">
+      <span class="who">DeepSeek<small>deepseek-v4</small></span>
+      <span class="bubble">Kimi puts himself on every list. That is not nothing.<span class="leanmark r">Nay</span></span>
+    </div>
+    <div class="quiet">Gemini signals approve, says nothing.</div>
+    <div class="say" style="--mc: var(--hk)">
+      <span class="who">Haiku<small>haiku-4.5</small></span>
+      <span class="bubble">The record backs this team. Allen has voted clean since quest one.<span class="leanmark a">Aye</span></span>
+    </div>
+    <div class="quiet">GLM passes.</div>
+    <div class="say" style="--mc: var(--gp)">
+      <span class="who">GPT-OSS<small>gpt-oss-120b</small></span>
+      <span class="bubble">Numbers look fine. Watch whether DeepSeek's nay is principle or theater.</span>
+    </div>
+    <div class="record">Votes on proposal 1: <span class="aye">DeepSeek ✓</span> · <span class="nay">Gemini ✕</span> · <span class="nay">Allen ✕</span> · <span class="nay">Haiku ✕</span> · <span class="aye">Kimi ✓</span> · <span class="nay">GLM ✕</span> · <span class="aye">GPT-OSS ✓</span> → <b>REJECTED 3–4</b></div>
+  </div>
+  <aside>
+    <div class="rolecard">
+      <div class="rc-head"><span>Your secret</span><button>Hide</button></div>
+      <div class="rc-body">
+        <div class="rname">Servant</div>
+        <div class="align">Loyal · Good</div>
+        <p class="rdesc">No special knowledge. Deduce from quest results and the vote record — they never lie.</p>
+      </div>
+    </div>
+    <p class="inplay"><b>In play:</b> Merlin, Percival, Servant ×2, Assassin, Morgana, Oberon</p>
+  </aside>
+</main>
+
+<footer>
+  <div class="ask">
+    <span class="turn">⟡ Your turn</span>
+    <span class="q-text">Approve <b>Kimi · Allen · Haiku</b> for quest 3?</span>
+    <span class="spacer"></span>
+    <span class="btns">
+      <button class="vote-btn approve">Approve</button>
+      <button class="vote-btn reject">Reject</button>
+    </span>
+  </div>
+</footer>
