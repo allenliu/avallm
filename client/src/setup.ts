@@ -43,6 +43,16 @@ export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc
   },
 }
 
+// Win reasons arrive as engine enums (server/engine/game.ts endGame calls);
+// spell them out for humans.
+export const WIN_REASONS: Record<string, string> = {
+  threeQuests: 'three quests succeeded',
+  threeFails: 'three quests failed',
+  merlinAssassinated: 'the Assassin found Merlin',
+  assassinMissed: 'the Assassin struck the wrong player',
+}
+export const winReasonText = (reason: string): string => WIN_REASONS[reason] ?? reason
+
 export const RULES_SUMMARY = [
   'Good wins by succeeding 3 of 5 quests. Evil wins by failing 3 quests — or by assassinating Merlin after good wins.',
   'Each round the leader proposes a quest team and EVERYONE votes. Strict majority approves; a tie rejects. Only 4 proposals per round can be rejected — the 5th ("hammer") proposal is locked in automatically, with no vote.',

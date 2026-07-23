@@ -3,6 +3,7 @@ import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPaylo
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
+import { ARCANA } from './components/Arcana.tsx'
 import { Feed } from './components/Feed.tsx'
 import { HistoryGrid } from './components/HistoryGrid.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
@@ -261,25 +262,34 @@ export function App() {
   const { view, ask, acting, bots } = payload
   const myAsk: DecisionRequest | undefined = ask[0]
 
+  const roleTitle = payload.spectator
+    ? 'Spectator'
+    : `${ARCANA[view.role as Role]?.title ?? view.role} · ${view.alignment}`
+
   return (
     <div className="game">
-      <header>
+      <header className="chrome">
         <h1 className="small"><Brand /></h1>
-        <QuestBoard view={view} />
+        <span className="chrome-spacer" />
         <span className="header-buttons">
-          <button className="secondary" onClick={() => setShowHistory(true)}>📊 History</button>
-          <button className="secondary" onClick={() => setShowRef(true)}>📖 Reference</button>
+          <button className="ghost" onClick={() => setShowHistory(true)}>Record</button>
+          <button className="ghost" onClick={() => setShowRef(true)}>Codex</button>
         </span>
       </header>
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
       {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
-      <TableSeats view={view} bots={bots} acting={acting} />
+      <div className="fartable">
+        <div className="surface" />
+        <div className="table-glow" />
+        <TableSeats view={view} bots={bots} acting={acting} />
+        <QuestBoard view={view} />
+      </div>
       <main>
         <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
         <aside>
           {payload.spectator
             ? <div className="role-card"><div className="role-body">
-                <div className="role-name">SPECTATOR</div>
+                <div className="role-name">Spectator</div>
                 <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
               </div></div>
             : <RoleCard view={view} />}
@@ -303,14 +313,25 @@ export function App() {
           )}
         </aside>
       </main>
-      <footer>
+      <footer className={gameOver ? 'endstage' : 'youredge'}>
         {gameOver
           ? <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} />
-          : payload.spectator
-            ? <div className="action-bar waiting">
-                Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
+          : (
+            <div className="edge-inner">
+              <div className="youchip" title={roleTitle}>
+                <span className="you-sigil">{payload.spectator ? '👁' : view.name.slice(0, 2).toUpperCase()}</span>
+                <span className="you-meta">
+                  <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
+                  <span className="you-role">{roleTitle} · your seat</span>
+                </span>
               </div>
-            : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
+              {payload.spectator
+                ? <div className="action-bar waiting">
+                    Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
+                  </div>
+                : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
+            </div>
+          )}
         {error && <p className="error">{error}</p>}
       </footer>
     </div>
@@ -472,7 +493,7 @@ function NameEditor({ current, rename }: {
   if (!open) {
     return (
       <button className="secondary name-edit-toggle" onClick={() => { setName(current); setOpen(true) }}>
-        ✎ Change name
+        Change name
       </button>
     )
   }

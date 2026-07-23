@@ -92,24 +92,30 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
 
 ### Core (the redesign proper)
 
-- [ ] **M1 bug: mobile in-game horizontal overflow/clipping** — fix first, independent of
-  skinning (likely `scrollIntoView` dragging the page sideways, or an unwrapped row).
-- [ ] Extract tokens above into `client/src/styles.css`; add the emblem SVG sprite.
-- [ ] **Game screen** (G game mock): table arc + seat cards (G4), quest spread (G2),
-  differentiated feed — speech/record/moment (G3), role card as arcana (G6), play-card
-  action bar with your-turn signal (G5), mobile pinned action bar + seat arc (M2).
+- [x] **M1 bug: mobile in-game horizontal overflow/clipping** — fixed structurally:
+  `html, body { overflow-x: clip }` plus `min-width: 0` on flex children in the rebuilt
+  layout; verified via full playthrough at 390×844.
+- [x] Extract tokens into `client/src/styles.css`; emblem sprite + role mapping live in
+  `client/src/components/Arcana.tsx` (rendered once from `main.tsx`).
+- [x] **Game screen**: table arc + arc-positioned seat cards (G4), quest spread with
+  Sun/Tower faces (G2), differentiated feed — speech/record/moment, win reasons in plain
+  words (G3), role card as arcana (G6), play-card vote/quest actions with turn tags (G5),
+  mobile pinned your-edge bar + compact role strip (M2). Seat arc positions are
+  percentages of the zone, so the arrangement compresses with the viewport.
 - [ ] **Setup/landing** (G setup mock): dealt-cards hero, three numbered panels, gem role
-  toggles, sticky gold CTA rail (S1–S5 all addressed in mock).
+  toggles, sticky gold CTA rail (S1–S5 all addressed in mock). Currently wearing an
+  interim token skin only — layout still the old single column.
 - [ ] **Endgame reveal** (E1/E2, M3): reveal takes over the stage; seven arcana dealt
   face-down in seat order, flipped one by one; winner banner in plain words; thinking
   timeline restyled (scratchpad/notes rows). The card-flip is the core animation.
-- [ ] **History grid + Reference modals** (G7): restyle as parchment-on-indigo sheets;
-  steal Machine Court's flag-chip density for the grid; replace emoji header buttons
-  (📊 📖 → Record / Codex ghost buttons, X3).
-- [ ] Motion pass (X4): card flips (quest + reveal), vote tally lay-down, your-turn pulse.
-  Respect `prefers-reduced-motion`.
-- [ ] Verify with a real playthrough via the screenshot harness (see Tooling); re-check
-  M1 fixed at 390×844.
+- [ ] **History grid + Reference modals** (G7): header buttons are now Record / Codex
+  ghost buttons (X3 partly done) and the sheets inherit the tokens; the grid's
+  flag-chip density pass is still open.
+- [ ] Motion pass (X4): current-card glow, thinking pulse, and play-card hover lifts are
+  in (all behind `prefers-reduced-motion`); card flips (quest + reveal) and vote tally
+  lay-down still open.
+- [x] Verify with a real playthrough via the screenshot harness — done for the game
+  screen at 1280×800 and 390×844 (autopilot game, all phases through reveal).
 
 ### Lower priority
 

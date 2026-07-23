@@ -10,6 +10,18 @@ export function ModelBadge({ info }: { info: AgentInfo | undefined }) {
   )
 }
 
+// Everyone but the viewer, seated as small arcana cards along the far side of
+// the table. Positions are computed along the arc: edges sit low, the middle
+// seats stand behind the table's crest. Both axes are percentages of the arc
+// zone so the whole arrangement compresses with the zone on small screens.
+function arcPosition(i: number, n: number): { x: number; y: number } {
+  const t = n === 1 ? 0.5 : i / (n - 1)
+  return {
+    x: 7 + 86 * t,
+    y: 38 - 28 * Math.sin(Math.PI * t),
+  }
+}
+
 export function TableSeats({ view, bots, acting }: {
   view: PlayerView
   bots: Record<number, AgentInfo>
@@ -18,32 +30,58 @@ export function TableSeats({ view, bots, acting }: {
   const lastVoted = [...view.proposals].reverse().find((p) => p.votes)
   const votesVisible = view.phase !== 'vote' && lastVoted
   const leans = latestLeans(view)
+  // Spectators (seat < 0) watch every chair; players see themselves at the
+  // near edge (the footer chip), not on the arc.
+  const others = view.players.filter((p) => p.seat !== view.seat)
+  const nextLeader = view.players.length
+    ? ((view.leaderSeat + 1) % view.players.length) as Seat
+    : undefined
   return (
-    <div className="table-seats">
-      {view.players.map((p) => {
+    <div className="farseats">
+      {others.map((p, i) => {
         const isLeader = p.seat === view.leaderSeat
         const onTeam = view.currentTeam?.includes(p.seat)
         const isActing = acting.includes(p.seat)
         const lean = leans.get(p.seat)
         const vote = votesVisible ? lastVoted!.votes!.find((v) => v.seat === p.seat)?.vote : undefined
+        const bot = bots[p.seat]
+        const pos = arcPosition(i, others.length)
+        const mc = bot?.color ?? 'var(--gold)'
         return (
-          <div key={p.seat} className={`seat${p.seat === view.seat ? ' me' : ''}${onTeam ? ' on-team' : ''}`}>
-            <div className="seat-top">
+          <div
+            key={p.seat}
+            className={`seat${isLeader ? ' leader' : ''}${onTeam ? ' onquest' : ''}`}
+            style={{ left: `${pos.x}%`, top: `${pos.y}%`, ['--mc' as string]: mc }}
+            title={bot ? `${p.name} — ${bot.model}` : p.name}
+          >
+            <div className="seat-card">
               {isLeader && <span className="crown" title="Leader">♛</span>}
-              <ModelBadge info={bots[p.seat]} />
-              <span className="seat-name">{p.seat === view.seat ? 'You' : p.name}</span>
+              <span className="sigil">{bot?.monogram ?? p.name.slice(0, 2).toUpperCase()}</span>
+              <span className="seat-nm">{p.name}</span>
+              {lean && (
+                <span className={`gem ${lean === 'approve' ? 'a' : lean === 'reject' ? 'r' : 'u'}`}
+                  title={`leaning ${lean}`} />
+              )}
+              {vote && (
+                <span className={`votechip ${vote}`} title={`voted ${vote}`}>
+                  {vote === 'approve' ? '✓' : '✕'}
+                </span>
+              )}
             </div>
-            <div className="seat-bottom">
-              {onTeam && <span className="chip team-chip" title="Proposed for the current quest (says nothing about loyalty)">on quest</span>}
-              {lean && <span className={`chip lean-chip ${lean}`} title={`leaning ${lean}`}>
-                {lean === 'approve' ? '👍' : lean === 'reject' ? '👎' : '🤔'}
-              </span>}
-              {vote && <span className={`chip vote-chip ${vote}`}>{vote === 'approve' ? 'Y' : 'N'}</span>}
-              {isActing && <span className="thinking-dots" title="deciding…">●●●</span>}
+            <div className="seat-under">
+              {isActing
+                ? <span className="thinking-dots" title="deciding…">●●●</span>
+                : p.seat === nextLeader && !isLeader
+                  ? <span className="next-tag">next ♛</span>
+                  : <span className="seat-md">{bot ? shortModel(bot.model) : 'human'}</span>}
             </div>
           </div>
         )
       })}
     </div>
   )
+}
+
+function shortModel(model: string): string {
+  return model.includes('/') ? model.split('/')[1] : model
 }

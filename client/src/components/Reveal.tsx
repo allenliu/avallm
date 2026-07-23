@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { AgentInfo, PlayerView, RevealPayload } from '../types.ts'
 import { ModelBadge } from './TableSeats.tsx'
+import { winReasonText } from '../setup.ts'
 
 export function Reveal({ view, reveal, bots, onNewGame }: {
   view: PlayerView
@@ -13,7 +14,7 @@ export function Reveal({ view, reveal, bots, onNewGame }: {
   return (
     <div className="reveal">
       <div className={`winner-banner ${winnerCls}`}>
-        {view.winner?.toUpperCase()} WINS <span className="reason">({view.winReason})</span>
+        {view.winner?.toUpperCase()} WINS <span className="reason">— {winReasonText(view.winReason ?? '')}</span>
       </div>
       {reveal && (
         <div className="reveal-roles">

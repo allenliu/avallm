@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { DecisionRequest, PlayerView, Seat } from '../types.ts'
 import { latestLeans } from '../leans.ts'
+import { Emblem } from './Arcana.tsx'
 
 export function ActionBar({ view, ask, onDecide, waitingOn }: {
   view: PlayerView
@@ -27,6 +28,10 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
   }
 }
 
+const TurnTag = ({ children }: { children: string }) => (
+  <span className="turn-tag">⟡ {children}</span>
+)
+
 function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const [say, setSay] = useState('')
   // Seed the picker from the lean you last signalled on this proposal so it
@@ -43,14 +48,15 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
     setSay('')
   }
   return (
-    <div className="action-bar">
+    <div className="action-bar your-turn">
       {leadOpening && (
         <span className="action-hint">
-          👑 You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
+          ♛ You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
         </span>
       )}
+      <TurnTag>Your turn to speak</TurnTag>
       <span className="action-label">
-        Your turn to speak{round > 1 ? ` (round ${round})` : ''}
+        {round > 1 ? `Round ${round}` : teamPending ? 'React to the team' : 'Address the table'}
       </span>
       <input
         autoFocus value={say} maxLength={300}
@@ -63,9 +69,10 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
           {(['approve', 'reject', 'unsure'] as const).map((l) => (
             <button
               key={l}
-              className={`secondary lean-btn${lean === l ? ` active ${l}` : ''}`}
-              onClick={() => setLean(lean === l ? null : l)}
-            >{l === 'approve' ? '👍' : l === 'reject' ? '👎' : '🤔'}</button>
+              className={`lean-btn ${l}${lean === l ? ' active' : ''}`}
+              title={`lean ${l}`}
+            onClick={() => setLean(lean === l ? null : l)}
+            >{l === 'approve' ? '✓' : l === 'reject' ? '✕' : '?'}</button>
           ))}
         </span>
       )}
@@ -81,15 +88,18 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   const [pitch, setPitch] = useState('')
   const toggle = (s: Seat) => setTeam((t) => t.includes(s) ? t.filter((x) => x !== s) : t.length < size ? [...t, s] : t)
   return (
-    <div className="action-bar column">
-      <span className="action-label">You lead quest {view.round} — pick {size} players ({team.length}/{size})</span>
+    <div className="action-bar your-turn column">
+      <div className="row">
+        <TurnTag>You lead</TurnTag>
+        <span className="action-label">Quest {view.round} — pick {size} players ({team.length}/{size})</span>
+      </div>
       <div className="seat-picker">
         {view.players.map((p) => (
           <button
             key={p.seat}
             className={`pick${team.includes(p.seat) ? ' picked' : ''}`}
             onClick={() => toggle(p.seat)}
-          >{p.name}</button>
+          >{p.seat === view.seat ? 'You' : p.name}</button>
         ))}
       </div>
       <div className="row">
@@ -110,14 +120,20 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
 // Votes only happen on proposals 1-4 — the 5th ("hammer") proposal is
 // approved automatically by the engine, so no hammer warning is needed here.
 function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
-  const team = (view.currentTeam ?? []).map((s) => view.players[s].name).join(', ')
+  const team = (view.currentTeam ?? []).map((s) => s === view.seat ? 'You' : view.players[s].name).join(' · ')
   return (
-    <div className="action-bar">
-      <span className="action-label">
-        Vote on [{team}]
-      </span>
-      <button onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>Approve</button>
-      <button className="danger" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>Reject</button>
+    <div className="action-bar your-turn">
+      <TurnTag>Play a card</TurnTag>
+      <span className="action-label">Approve <b className="team-gold">{team}</b> for quest {view.round}?</span>
+      <span className="bar-spacer" />
+      <div className="playcards">
+        <button className="play approve" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
+          <Emblem id="laurel" className="pem" /><span className="pt">Approve</span><span className="ps">send them</span>
+        </button>
+        <button className="play reject" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
+          <Emblem id="dagger" className="pem" /><span className="pt">Reject</span><span className="ps">force a new leader</span>
+        </button>
+      </div>
     </div>
   )
 }
@@ -125,10 +141,22 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
 function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const good = view.alignment === 'good'
   return (
-    <div className="action-bar">
-      <span className="action-label">You are on the quest. Play your card{good ? ' (good must play Success)' : ''}:</span>
-      <button onClick={() => onDecide({ kind: 'quest', card: 'success' })}>Success</button>
-      {!good && <button className="danger" onClick={() => onDecide({ kind: 'quest', card: 'fail' })}>Fail</button>}
+    <div className="action-bar your-turn">
+      <TurnTag>The quest</TurnTag>
+      <span className="action-label">
+        Play your card in secret{good ? ' — good must play Success' : ''}:
+      </span>
+      <span className="bar-spacer" />
+      <div className="playcards">
+        <button className="play approve" onClick={() => onDecide({ kind: 'quest', card: 'success' })}>
+          <Emblem id="laurel" className="pem" /><span className="pt">Success</span>
+        </button>
+        {!good && (
+          <button className="play reject" onClick={() => onDecide({ kind: 'quest', card: 'fail' })}>
+            <Emblem id="dagger" className="pem" /><span className="pt">Fail</span>
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -136,21 +164,26 @@ function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<
 function Assassinate({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const [target, setTarget] = useState<Seat | null>(null)
   return (
-    <div className="action-bar column">
-      <span className="action-label">Good has three quests — but you are the Assassin. Who is Merlin?</span>
-      <div className="seat-picker">
-        {view.players.filter((p) => p.seat !== view.seat).map((p) => (
-          <button
-            key={p.seat}
-            className={`pick${target === p.seat ? ' picked danger-pick' : ''}`}
-            onClick={() => setTarget(p.seat)}
-          >{p.name}</button>
-        ))}
+    <div className="action-bar your-turn column">
+      <div className="row">
+        <TurnTag>The Knife</TurnTag>
+        <span className="action-label">Good has three quests — but you are the Assassin. Who is Merlin?</span>
       </div>
-      <button className="danger" disabled={target === null}
-        onClick={() => onDecide({ kind: 'assassinate', target })}>
-        Assassinate
-      </button>
+      <div className="row">
+        <div className="seat-picker">
+          {view.players.filter((p) => p.seat !== view.seat).map((p) => (
+            <button
+              key={p.seat}
+              className={`pick${target === p.seat ? ' picked danger-pick' : ''}`}
+              onClick={() => setTarget(p.seat)}
+            >{p.name}</button>
+          ))}
+        </div>
+        <button className="play reject compact" disabled={target === null}
+          onClick={() => onDecide({ kind: 'assassinate', target })}>
+          <Emblem id="dagger" className="pem" /><span className="pt">Assassinate</span>
+        </button>
+      </div>
     </div>
   )
 }
