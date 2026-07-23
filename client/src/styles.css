@@ -30,6 +30,19 @@
 
 html, body { overflow-x: clip; } /* nothing may widen the page sideways (audit M1) */
 
+/* scrollbars in the house style: thin, quiet, gold on grab */
+* { scrollbar-width: thin; scrollbar-color: #3b3560 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #3b3560;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--gold-deep); }
+::-webkit-scrollbar-corner { background: transparent; }
+
 body {
   background: var(--night);
   color: var(--text);
