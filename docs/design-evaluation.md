@@ -203,6 +203,15 @@ loop is only as good as the reward signal under it.
 
 ## 9. Build order
 
+> **Status 2026-07-23:** steps 1–3 built in `server/eval/` (artifact.ts, ledger.ts, metrics.ts,
+> bench.ts, report.ts; tests in `test/eval.test.ts`). `npm run bench -- --candidate <agentId>`
+> plays paired role-forced games (heuristic table free; `--table llm` spends);
+> `npm run report -- <jsonl>` prints per-agent, Merlin-detectability, and paired-delta sections;
+> `npm run sim -- --out <jsonl>` archives ordinary sim games. Role-forcing needed no engine
+> change: the deal depends only on the seed, so the bench seats the agent-under-test at
+> whichever seat drew the role. First real result: the heuristic Merlin ranks #1 (most
+> truth-aligned good player) in 16/16 smoke games — maximally conspicuous, as suspected.
+
 1. **Game artifacts** — persist full event log + agent configs + seed as JSONL per sim game
    (plumbing; the data already exists in `game.log`).
 2. **`--forceRole` + paired-seed mode** in `server/sim/sim.ts`.

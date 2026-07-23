@@ -7,6 +7,8 @@
   "scripts": {
     "test": "node --test \"test/*.test.ts\"",
     "sim": "node server/sim/sim.ts",
-    "play": "node server/sim/play.ts"
+    "play": "node server/sim/play.ts",
+    "bench": "node server/eval/bench.ts",
+    "report": "node server/eval/report.ts"
   }
 }

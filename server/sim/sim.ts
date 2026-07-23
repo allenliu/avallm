@@ -8,6 +8,7 @@ import { createAgent } from '../agents/registry.ts'
 import { ROSTER } from '../llm/roster.ts'
 import { runGame } from './runner.ts'
 import { renderEvent, revealRoles } from './render.ts'
+import { appendArtifact, toArtifact } from '../eval/artifact.ts'
 import type { AgentSpec, AvalonAgent } from '../agents/types.ts'
 import type { Seat } from '../engine/types.ts'
 
@@ -18,6 +19,7 @@ const { values } = parseArgs({
     games: { type: 'string', default: '1' },
     agents: { type: 'string', default: 'heuristic' }, // heuristic | random | mixed | llm
     talk: { type: 'string', default: '1,0' },         // pre,post rounds
+    out: { type: 'string' },                          // append game artifacts (JSONL) for eval tooling
     quiet: { type: 'boolean', default: false },
   },
 })
@@ -63,6 +65,17 @@ for (let i = 0; i < games; i++) {
   tally[result.game.winner!]++
   tally.reasons.set(result.game.winReason!, (tally.reasons.get(result.game.winReason!) ?? 0) + 1)
   tally.degraded += result.degraded.length
+  if (values.out) {
+    const descriptor = (seat: Seat) => {
+      const spec = specFor(seat)
+      return spec.type === 'llm' ? `llm:${spec.model}` : spec.type
+    }
+    appendArtifact(values.out, toArtifact(game, {
+      agents: game.players.map((p) => descriptor(p.seat)),
+      degraded: result.degraded,
+      steps: result.steps,
+    }))
+  }
   if (verbose) {
     console.log('\n' + revealRoles(game))
     console.log(`\nWinner: ${game.winner} (${game.winReason})  [seed ${seed}]`)
