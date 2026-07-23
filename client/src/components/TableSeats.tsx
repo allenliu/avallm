@@ -51,10 +51,11 @@ export function TableSeats({ view, bots, acting }: {
           <div
             key={p.seat}
             className={`seat${isLeader ? ' leader' : ''}${onTeam ? ' onquest' : ''}`}
-            style={{ left: `${pos.x}%`, top: `${pos.y}%`, ['--mc' as string]: mc }}
+            style={{ left: `${pos.x}%`, top: `${pos.y}%`, animationDelay: `${i * 0.85}s`, ['--mc' as string]: mc }}
             title={bot ? `${p.name} — ${bot.model}` : p.name}
           >
             <div className="seat-card">
+              {isLeader && <span className="halo" />}
               {isLeader && <span className="crown" title="Leader">♛</span>}
               <span className="sigil">{bot?.monogram ?? p.name.slice(0, 2).toUpperCase()}</span>
               <span className="seat-nm">{p.name}</span>

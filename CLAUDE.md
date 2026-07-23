@@ -27,6 +27,24 @@ node server/server.ts                      # serve at http://localhost:8787
 - There is no Vite dev server: the game server serves the static `client/dist`, so client changes need a build (or the `--watch` variant) to show up. `.claude/launch.json` defines the `avalon` preview config (port 8787, autoPort).
 - Config comes from a `.env` found by walking up from cwd (`server/llm/env.ts`); real env vars win. Keys: `OPENROUTER_API_KEY`, `OPENROUTER_MAX_SPEND_USD` (spend ceiling), `AVALON_INVITE_CODE` (gates money-spending/disk-writing routes on public deploys), `AVALON_PORT`/`PORT`.
 
+## Screenshot gallery (UI before/after)
+
+`docs/screens/` holds committed screenshots of hard-to-reach UI states — setup variants,
+every game phase, the Record/Codex sheets, the reveal, lobby host, join screen, and an
+in-game spectator, at desktop 1280×800 and mobile 390×844. Expectations:
+
+- **Regenerate when a commit visibly changes the client UI** (styles, layout, component
+  markup), and include the refreshed images in that commit so reviewers get a before/after
+  diff. Don't regenerate for non-visual changes — image churn drowns the signal.
+- Command: `npm --prefix client run build && node tools/screenshots.mjs` (~3–4 min; spawns
+  its own server on port 18917; Chrome at the default Windows path or `CHROME` env).
+- Runs are **intentionally unseeded**: the seed determines the hidden role deal, so a
+  client-chosen seed would be an information leak. Treat the gallery as a layout/design
+  diff, not a pixel test — role names, chatter, and which optional states get captured
+  (vote vs. propose) vary run to run.
+- Puppeteer-core lives in `client/` devDependencies (the server stays zero-dependency).
+- Known gap: no error/reconnect-banner capture yet.
+
 ## Architecture
 
 Layering (details in `docs/design-implementation.md` §1; rules reference in `docs/research-rules-and-visuals.md`):

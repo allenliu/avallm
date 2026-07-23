@@ -145,18 +145,17 @@ not per commit. Games are unseeded on purpose: a client-chosen seed would determ
 hidden role deal, so pixel-stable runs would need an engine-side gated seed path (future).
 TODO: an error/reconnect-banner capture.
 
-### Open design question — the table surface
+### Table surface — DECIDED: The Constellation (ambient scene)
 
-Allen: the felt-and-lacquer ellipse "reads almost like a poker table." Three alternatives
-that keep the arcana and change only the furniture, shown at the 9-player worst case:
-[artifact](https://claude.ai/code/artifact/75f9f772-8a0e-4e5d-87d8-0152615faa66) —
-**A · The Dais** (terraced stone council chamber), **B · The Constellation** (no furniture;
-seats hang on a golden orbit line — best crowding behavior, most "arcane"),
-**C · The High Table** (straight banquet rail). Current ellipse stays until a pick.
-Allen likes the Constellation; deeper exploration with three sub-variants (Pendants /
-Orrery / Zodiac) and the motion language (ambient bob + halo + orbit mote; event
-lift/ripple, gem drop, flip + comet, your-turn sweep) is live-animated at
-https://claude.ai/code/artifact/4d60cb73-268b-4a5e-9006-acaa3ff32980.
+The felt-and-lacquer ellipse read "poker" (Allen). Alternatives were explored
+([surfaces](https://claude.ai/code/artifact/75f9f772-8a0e-4e5d-87d8-0152615faa66),
+[constellation variants + motion](https://claude.ai/code/artifact/4d60cb73-268b-4a5e-9006-acaa3ff32980));
+**picked and implemented 2026-07-23: the ambient Constellation** — golden orbit lines,
+travelling mote, live twinkles, slow staggered seat bob, pulsing leader halo. Motion
+verdicts from Allen: speaking ripple **rejected**, quest comet **rejected** (the card
+flip alone carries it), gem-drop on lean **adopted** (fires on post-proposal lean
+signals), your-turn edge sweep + hand rise **adopted**. Sub-variants Orrery/Zodiac
+remain future options (Zodiac's seat-linking lines double as a turn-order diagram).
 
 ### Exploratory / future (design for compatibility, don't build yet)
 

@@ -281,8 +281,13 @@ export function App() {
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
       {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
       <div className="fartable">
-        <div className="surface" />
-        <div className="table-glow" />
+        <div className="orbit" />
+        <div className="orbit o2" />
+        <div className="mote" />
+        <span className="tw" style={{ left: '16%', top: '30%' }} />
+        <span className="tw" style={{ left: '42%', top: '12%', animationDelay: '1.4s' }} />
+        <span className="tw" style={{ left: '70%', top: '38%', animationDelay: '2.3s' }} />
+        <span className="tw" style={{ left: '88%', top: '12%', animationDelay: '3.2s' }} />
         <TableSeats view={view} bots={bots} acting={acting} />
         <QuestBoard view={view} />
       </div>
@@ -328,7 +333,7 @@ export function App() {
       </main>
       )}
       {!gameOver && (
-      <footer className="youredge">
+      <footer className={`youredge${myAsk && !payload.spectator ? ' waits' : ''}`}>
         <div className="edge-inner">
           <div className="youchip" title={roleTitle}>
             <span className="you-sigil">{payload.spectator ? '◎' : view.name.slice(0, 2).toUpperCase()}</span>
