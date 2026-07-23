@@ -103,6 +103,8 @@ export interface Library {
     tableTalkNorms?: string
     outputContracts?: Record<string, string>
     kinds?: string[]
+    previewRoles?: string[]
+    caps?: { field: number; aggregate: number }
   }
   gated?: boolean
   defaultTable?: string[]

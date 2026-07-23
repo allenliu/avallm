@@ -800,11 +800,23 @@ function TablePicker({ library, table, onChange, onFill }: {
           return (
             <div key={i} className="seatrow" style={{ ['--mc' as string]: info?.color ?? 'var(--line)' }}>
               <span className="mini">{info?.monogram ?? '?'}</span>
-              {/* Switching agents drops any model override — the new agent's own default applies. */}
-              <select value={seat.agent} onChange={(e) => setSeat(i, { agent: e.target.value })} title={info?.model}>
+              {/* Switching agents drops any model override — the new agent's own
+                  default applies. An UNAVAILABLE agent (stale model suggestion)
+                  stays selectable: the server's cure is a seat model override,
+                  so selecting one auto-picks a model instead of blocking it. */}
+              <select
+                value={seat.agent}
+                title={info?.model}
+                onChange={(e) => {
+                  const next = library.agents.find((a) => a.id === e.target.value)
+                  setSeat(i, next?.unavailable
+                    ? { agent: e.target.value, model: library.defaultModel ?? library.models[0]?.id }
+                    : { agent: e.target.value })
+                }}
+              >
                 {library.agents.map((a) => (
-                  <option key={a.id} value={a.id} disabled={!!a.unavailable}>
-                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — unavailable' : ''}
+                  <option key={a.id} value={a.id}>
+                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — pick a model' : ''}
                   </option>
                 ))}
               </select>
@@ -815,7 +827,9 @@ function TablePicker({ library, table, onChange, onFill }: {
                   onChange={(e) => setSeat(i, { agent: seat.agent, model: e.target.value || undefined })}
                   title="Model this seat runs on"
                 >
-                  <option value="">default — {info.model}</option>
+                  {/* No "default" option for unavailable agents — their default
+                      is the dead model the server would reject. */}
+                  {!info.unavailable && <option value="">default — {info.model}</option>}
                   {library.models.map((m) => (
                     <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
                   ))}
@@ -861,7 +875,10 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
 
   const draftBody = () => ({
     name,
-    model: model || undefined, // omitted = ride the seat/server default
+    // Always send the key: '' means CLEAR the model suggestion. `|| undefined`
+    // would be dropped by JSON.stringify, and PUT keeps absent fields — making
+    // "no fixed model" silently keep the old pin.
+    model,
     about,
     personality,
     strategy,
@@ -888,7 +905,9 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
     setKindG({ ...(a.kindGuidance ?? {}) })
     // The raw suggestion, NOT a.model — that is the resolved display slug, and
     // pinning it here would silently turn "no fixed model" into a fixed one.
-    setModel(a.suggestedModel ?? '')
+    // A suggestion that left the roster seeds as '' (= clear on save): keeping
+    // the dead id would make EVERY save 400 with "unknown model".
+    setModel(library.models.some((m) => m.id === a.suggestedModel) ? a.suggestedModel! : '')
     setOpen(true)
   }
 
@@ -1055,15 +1074,17 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
         </select>
       </label>
       <p className="roles-preview">
-        Custom text: {tunedChars.toLocaleString()} / 10,000 chars (~{tokenEst(tunedChars)} tokens
-        added to every call this agent makes).
+        Custom text: {tunedChars.toLocaleString()} / {(library.baseline?.caps?.aggregate ?? 10_000).toLocaleString()} chars
+        (~{tokenEst(tunedChars)} tokens added to every call this agent makes).
       </p>
       <details className="prompt-details" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !preview) void runPreview() }}>
         <summary>Preview the exact prompt (free — no model call)</summary>
         <div className="row">
           <label>as{' '}
             <select value={pvRole} onChange={(e) => setPvRole(e.target.value)}>
-              {(preview?.rolesInPlay ?? roles).filter((r, i, a) => a.indexOf(r) === i).map((r) => <option key={r} value={r}>{r}</option>)}
+              {/* previewRoles = roles actually in the server's fixture game;
+                  the full role list would offer options that can only 400. */}
+              {(preview?.rolesInPlay ?? library.baseline?.previewRoles ?? roles).map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </label>
           <label>deciding{' '}

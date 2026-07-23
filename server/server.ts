@@ -27,7 +27,7 @@ import { createGame, applyDecision, expectedDecisions, renamePlayer } from './en
 import { viewFor, viewForSpectator } from './engine/view.ts'
 import { heuristicDecide } from './agents/heuristic.ts'
 import { createAgentFromDef } from './agents/registry.ts'
-import { deleteCustomDef, loadAgentLibrary, parseTableSeat, publicInfo, resolveModel, saveCustomDef, validateDef } from './agents/defs.ts'
+import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, publicInfo, saveCustomDef, validateDef } from './agents/defs.ts'
 import type { AgentDef, AgentPublicInfo, LibraryProblem, LlmEngine, TableSeat } from './agents/defs.ts'
 import { RULES_DIGEST, ROLE_GUIDANCE, TABLE_TALK_NORMS, OUTPUT_CONTRACTS, buildMessages } from './agents/prompts.ts'
 import { CALL_PARAMS } from './llm/call-params.ts'
@@ -70,16 +70,23 @@ const newToken = () => crypto.randomBytes(16).toString('hex')
 const newId = () => crypto.randomBytes(5).toString('hex')
 
 // Read llm-engine prompt fields from a request body. PUT semantics when
-// `base` is given: absent field = keep prior value, empty value = clear.
-// The model is optional (a suggestion — resolveModel backstops); real
-// validation (key names, caps, temperature range) happens in validateDef.
+// `base` is given: absent field = keep prior value; null or empty = clear.
+// A present-but-wrong-typed value THROWS (handlers turn it into a 400) —
+// coercing a type error into "clear this field" would silently destroy
+// stored config. Key names, caps, and ranges still validate in validateDef.
 function engineFrom(body: any, base?: LlmEngine): LlmEngine {
-  const text = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
-  const guidanceMap = (v: unknown): Record<string, string> | undefined => {
-    if (!v || typeof v !== 'object') return undefined
+  const text = (key: string) => (v: unknown): string | undefined => {
+    if (v === null || v === undefined) return undefined
+    if (typeof v !== 'string') throw new Error(`${key} must be a string (or null to clear)`)
+    return v.trim() || undefined
+  }
+  const guidanceMap = (key: string) => (v: unknown): Record<string, string> | undefined => {
+    if (v === null || v === undefined) return undefined
+    if (typeof v !== 'object' || Array.isArray(v)) throw new Error(`${key} must be an object of key -> text`)
     const out: Record<string, string> = {}
     for (const [k, t] of Object.entries(v)) {
-      if (typeof t === 'string' && t.trim()) out[k] = t.trim()
+      if (typeof t !== 'string') throw new Error(`${key}.${k} must be a string`)
+      if (t.trim()) out[k] = t.trim() // blank entry = clear it (the editor's mechanism)
     }
     return Object.keys(out).length ? out : undefined
   }
@@ -87,14 +94,21 @@ function engineFrom(body: any, base?: LlmEngine): LlmEngine {
     (body && key in body ? parse(body[key]) : prior)
   return {
     type: 'llm',
-    model: pick('model', text, base?.model),
-    personality: pick('personality', text, base?.personality),
-    strategy: pick('strategy', text, base?.strategy),
-    roleGuidance: pick('roleGuidance', guidanceMap, base?.roleGuidance) as LlmEngine['roleGuidance'],
-    roleGuidanceMode: pick('roleGuidanceMode',
-      (v) => (v === 'append' || v === 'replace' ? v : undefined), base?.roleGuidanceMode),
-    kindGuidance: pick('kindGuidance', guidanceMap, base?.kindGuidance) as LlmEngine['kindGuidance'],
-    temperature: pick('temperature', (v) => (typeof v === 'number' ? v : undefined), base?.temperature),
+    model: pick('model', text('model'), base?.model),
+    personality: pick('personality', text('personality'), base?.personality),
+    strategy: pick('strategy', text('strategy'), base?.strategy),
+    roleGuidance: pick('roleGuidance', guidanceMap('roleGuidance'), base?.roleGuidance) as LlmEngine['roleGuidance'],
+    roleGuidanceMode: pick('roleGuidanceMode', (v) => {
+      if (v === null || v === undefined || v === '') return undefined
+      if (v === 'append' || v === 'replace') return v
+      throw new Error('roleGuidanceMode must be "replace" or "append"')
+    }, base?.roleGuidanceMode),
+    kindGuidance: pick('kindGuidance', guidanceMap('kindGuidance'), base?.kindGuidance) as LlmEngine['kindGuidance'],
+    temperature: pick('temperature', (v) => {
+      if (v === null || v === undefined) return undefined
+      if (typeof v !== 'number') throw new Error('temperature must be a number (or null to clear)')
+      return v
+    }, base?.temperature),
   }
 }
 
@@ -169,10 +183,23 @@ function lobbyPayload(l: Lobby) {
     // Name + resolved model per bot seat, so invitees see exactly what's
     // playing (a custom agent's name alone doesn't reveal its model).
     table: l.config.table.map((t) => {
-      const info = publicInfo(libById(t.agent), t.model)
+      const info = publicInfo(seatDef(t), t.model)
       return { name: info.name, model: info.model }
     }),
   }
+}
+
+// Resolve a lobby seat to a seatable def — NEVER throws. An agent deleted (or
+// model-orphaned) after lobby creation falls back to Autopilot, visibly. This
+// is the one chokepoint for "is this seat playable"; lobbyPayload runs inside
+// the start path (lobbyBroadcast), so a throwing lookup there would strand a
+// just-started session before its first pump.
+function seatDef(t: TableSeat): AgentDef {
+  const def = library.find((d) => d.id === t.agent)
+  // A seat model override cures a stale def suggestion (parseTableSeat rule).
+  if (def && !(def.unavailable && t.model === undefined)) return def
+  console.warn(`[agents] seat fallback: "${t.agent}" ${def ? def.unavailable : 'no longer exists'} — seating Autopilot`)
+  return libById('autopilot')
 }
 
 function lobbyBroadcast(l: Lobby): void {
@@ -188,7 +215,7 @@ function createLobby(body: any): { lobby: Lobby; token: string } {
 
   let roles: Role[] | undefined
   if (body.roles !== undefined) {
-    if (!Array.isArray(body.roles) || !body.roles.every((r: unknown) => typeof r === 'string' && r in ROLE_ALIGNMENT)) {
+    if (!Array.isArray(body.roles) || !body.roles.every((r: unknown) => typeof r === 'string' && Object.hasOwn(ROLE_ALIGNMENT, r))) {
       throw new Error('roles must be an array of valid role names')
     }
     roles = body.roles as Role[]
@@ -228,17 +255,7 @@ function createLobby(body: any): { lobby: Lobby; token: string } {
 
 function startLobby(l: Lobby): void {
   const { playerCount, table } = l.config
-  // An agent deleted (or model-orphaned) between lobby creation and start
-  // must not crash the start that a joiner triggered — fall back to Autopilot,
-  // visibly (the seat's card shows Autopilot, not the vanished agent). A seat
-  // model override cures a stale def suggestion, so only override-less
-  // unavailable defs fall back.
-  const defs = table.map((t) => {
-    const def = library.find((d) => d.id === t.agent)
-    if (def && !(def.unavailable && t.model === undefined)) return def
-    console.warn(`[agents] seat fallback: "${t.agent}" ${def ? def.unavailable : 'no longer exists'} — seating Autopilot`)
-    return libById('autopilot')
-  })
+  const defs = table.map(seatDef)
 
   // Shuffle humans across the whole table (no "host is always seat 0" tell).
   const seats = Array.from({ length: playerCount }, (_, i) => i)
@@ -260,11 +277,12 @@ function startLobby(l: Lobby): void {
   }
   const botInfo: Record<number, AgentPublicInfo> = {}
   const agents = new Map<Seat, AvalonAgent>()
-  // Deep-copy each seat's resolved def (seat model override baked in): the
-  // reveal (and, later, session snapshots) must serve the config that
-  // actually played, so a PUT or DELETE mid-game only affects future games
-  // (design doc §5).
-  const agentDefs: Record<number, AgentDef> = {}
+  // Deep-copy each seat's def PLUS its seat model override: the reveal (and,
+  // later, session snapshots) must serve the config that actually played, so
+  // a PUT or DELETE mid-game only affects future games (design doc §5). The
+  // def is kept raw — overwriting engine.model would erase the distinction
+  // between "def suggested X" and "host overrode to X".
+  const agentDefs: Record<number, { def: AgentDef; model?: string }> = {}
   const seed = `web-${newId()}`
   // Reserve bot (roster) names FIRST, so a human who picks an in-play bot's
   // name is the one demoted to "<name> 2" — never the bot. Names are injected
@@ -276,9 +294,7 @@ function startLobby(l: Lobby): void {
     // publicInfo gets the seat's model override so the in-game badge shows
     // the model that actually answers, never just the def's suggestion.
     botInfo[seat] = { ...publicInfo(def, table[i].model), name: names[seat] }
-    const snap = structuredClone(def)
-    if (snap.engine.type === 'llm') snap.engine.model = resolveModel(def, table[i].model)
-    agentDefs[seat] = snap
+    agentDefs[seat] = { def: structuredClone(def), model: table[i].model }
   })
   const humans = new Map<Seat, { token: string; name: string }>()
   l.members.forEach((m, i) => {
@@ -317,7 +333,7 @@ interface Session {
   humans: Map<Seat, { token: string; name: string }>
   spectators: Set<string>                              // spectator tokens
   botInfo: Record<number, AgentPublicInfo>
-  agentDefs: Record<number, AgentDef>                  // def snapshots taken at game start
+  agentDefs: Record<number, { def: AgentDef; model?: string }>  // def snapshots + seat overrides, taken at game start
   waiting: DecisionRequest[]                           // pending HUMAN asks (any seat)
   acting: Seat[]
   degraded: { seat: Seat; kind: string; error: string }[]
@@ -618,7 +634,7 @@ const server = http.createServer(async (req, res) => {
           // The configs that actually played (def snapshots from game start,
           // immune to library edits/deletes) — full transparency post-game.
           agents: Object.fromEntries(
-            Object.entries(s.agentDefs).map(([seat, def]) => [seat, publicInfo(def)]),
+            Object.entries(s.agentDefs).map(([seat, snap]) => [seat, publicInfo(snap.def, snap.model)]),
           ),
         })
         return
@@ -643,6 +659,12 @@ const server = http.createServer(async (req, res) => {
           tableTalkNorms: TABLE_TALK_NORMS,
           outputContracts: OUTPUT_CONTRACTS,
           kinds: Object.keys(CALL_PARAMS),
+          // Roles actually present in the preview fixture — the editor's role
+          // picker must not offer roles that can only ever 400.
+          previewRoles: [...new Set(fixtureGame().players.map((p) => p.role))],
+          // The caps the server enforces; the client meter displays these
+          // rather than hardcoding its own copy.
+          caps: { field: FIELD_CAP, aggregate: AGGREGATE_CAP },
         },
         gated: !!inviteCode(),
       })
@@ -652,19 +674,30 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const name = typeof body.name === 'string' ? body.name.trim() : ''
-      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'agent'
-      let id = base
-      for (let i = 2; library.some((d) => d.id === id); i++) id = `${base}-${i}`
-      const def = validateDef({
-        id,
-        name,
-        version: 1,
-        author: typeof body.author === 'string' ? body.author.slice(0, 60) : 'local',
-        about: typeof body.about === 'string' && body.about.trim() ? body.about.slice(0, 300) : undefined,
-        // engineFrom reads all prompt layers; the model stays optional (a
-        // personality-only agent rides the seat/server default).
-        engine: engineFrom(body),
-      })
+      // The id regex needs >= 2 chars, so a 1-char slug ('Q' -> 'q') falls
+      // back to 'agent' like the empty case does.
+      const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30)
+      const stem = base.length >= 2 ? base : 'agent'
+      // Dedupe against files on disk too, not just loaded agents — a corrupt
+      // (load-skipped) file still owns its id; clobbering it would destroy
+      // the very content the problems list told the user to fix.
+      let id = stem
+      for (let i = 2; library.some((d) => d.id === id) || customDefFileExists(id); i++) id = `${stem}-${i}`
+      let def: AgentDef
+      try {
+        def = validateDef({
+          id,
+          name,
+          version: 1,
+          author: typeof body.author === 'string' && body.author.trim() ? body.author.trim().slice(0, 60) : 'local',
+          about: typeof body.about === 'string' && body.about.trim() ? body.about.slice(0, 300) : undefined,
+          // engineFrom reads all prompt layers; the model stays optional (a
+          // personality-only agent rides the seat/server default).
+          engine: engineFrom(body),
+        })
+      } catch (err) {
+        return json(res, 400, { error: err instanceof Error ? err.message : String(err) })
+      }
       saveCustomDef(def)
       reloadLibrary()
       json(res, 200, { agent: publicInfo(libById(def.id)) })
@@ -677,9 +710,15 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       if (!inviteOk(body)) return json(res, 403, { error: 'invite code required', gated: true })
       const game = fixtureGame()
-      const rolesInPlay = game.players.map((p) => p.role)
-      const kind: LlmCallKind = typeof body.kind === 'string' && body.kind in CALL_PARAMS
-        ? body.kind as LlmCallKind : 'discuss'
+      const rolesInPlay = [...new Set(game.players.map((p) => p.role))]
+      // Object.hasOwn, not `in` (prototype keys like "__proto__" would pass);
+      // an unknown kind is a 400, never a silent coercion — a typo'd kind
+      // must not render a discuss prompt presented as the requested one.
+      const rawKind = typeof body.kind === 'string' && body.kind ? body.kind : 'discuss'
+      if (!Object.hasOwn(CALL_PARAMS, rawKind)) {
+        return json(res, 400, { error: `unknown kind "${rawKind}"`, kinds: Object.keys(CALL_PARAMS) })
+      }
+      const kind = rawKind as LlmCallKind
       const role = typeof body.role === 'string' && body.role ? body.role : 'servant'
       const player = game.players.find((p) => p.role === role)
       if (!player) return json(res, 400, { error: `role "${role}" is not in the preview game`, rolesInPlay })
@@ -718,25 +757,34 @@ const server = http.createServer(async (req, res) => {
       if (req.method === 'DELETE') {
         deleteCustomDef(def.id)
         reloadLibrary()
-        // Running games keep their def snapshots; not-yet-started lobbies
-        // fall back to Autopilot at start (startLobby).
+        // Running games keep their def snapshots; open lobbies stay alive
+        // because every seat lookup goes through the non-throwing seatDef
+        // (payloads show Autopilot, and the game starts with Autopilot).
         json(res, 200, { ok: true })
         return
       }
       if (def.engine.type !== 'llm') {
         return json(res, 400, { error: 'only llm agents are editable over HTTP' })
       }
-      const updated = validateDef({
-        id: def.id,
-        name: typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : def.name,
-        version: (def.version ?? 1) + 1,
-        author: typeof body.author === 'string' && body.author.trim() ? body.author.slice(0, 60) : def.author,
-        about: 'about' in body
-          ? (typeof body.about === 'string' && body.about.trim() ? body.about.slice(0, 300) : undefined)
-          : def.about,
-        badge: def.badge,
-        engine: engineFrom(body, def.engine),
-      })
+      // Identity fields use the same rules as POST — validateDef is the
+      // arbiter (an over-long name 400s here exactly as it does on create,
+      // never a silent truncation).
+      let updated: AgentDef
+      try {
+        updated = validateDef({
+          id: def.id,
+          name: typeof body.name === 'string' && body.name.trim() ? body.name.trim() : def.name,
+          version: (def.version ?? 1) + 1,
+          author: typeof body.author === 'string' && body.author.trim() ? body.author.trim().slice(0, 60) : def.author,
+          about: 'about' in body
+            ? (typeof body.about === 'string' && body.about.trim() ? body.about.slice(0, 300) : undefined)
+            : def.about,
+          badge: def.badge,
+          engine: engineFrom(body, def.engine),
+        })
+      } catch (err) {
+        return json(res, 400, { error: err instanceof Error ? err.message : String(err) })
+      }
       saveCustomDef(updated)
       reloadLibrary()
       json(res, 200, { agent: publicInfo(libById(def.id)) })

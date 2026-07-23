@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 import { DEFAULT_MODEL, ROSTER, rosterById } from '../llm/roster.ts'
 import { CALL_PARAMS } from '../llm/call-params.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
-import { ROLE_ALIGNMENT } from '../engine/rules.ts'
+import { ROLE_ALIGNMENT, nameIsReserved } from '../engine/rules.ts'
 import type { Role } from '../engine/types.ts'
 
 export interface LlmEngine {
@@ -132,8 +132,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const USER_AGENTS_DIR = path.join(__dirname, '..', '..', 'data', 'agents')
 export const CURATED_AGENTS_DIR = path.join(__dirname, '..', '..', 'agents')
 
-const FIELD_CAP = 2000
-const AGGREGATE_CAP = 10_000
+// Exported so the API payload can serve them — the client meter must display
+// the same caps the server enforces, not a hardcoded copy.
+export const FIELD_CAP = 2000
+export const AGGREGATE_CAP = 10_000
 
 function hashColor(s: string): string {
   let h = 0
@@ -190,6 +192,8 @@ function validateGuidanceMap(
   if (!map || typeof map !== 'object' || Array.isArray(map)) {
     throw new Error(`${field} must be an object of ${noun} -> text`)
   }
+  // validKeys callers must use Object.hasOwn, never `in`: `in` walks the
+  // prototype chain, so "toString"/"__proto__" would pass as valid keys.
   for (const [key, text] of Object.entries(map)) {
     if (!validKeys(key)) throw new Error(`${field}: unknown ${noun} "${key}"`)
     if (typeof text !== 'string' || text.length > FIELD_CAP) {
@@ -211,9 +215,15 @@ export function validateDef(raw: unknown, opts: ValidateOpts = {}): AgentDef {
   if (typeof d.id !== 'string' || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(d.id)) {
     throw new Error('agent id must be a short kebab-case slug')
   }
-  if (typeof d.name !== 'string' || !d.name.trim() || d.name.length > 40) {
-    throw new Error('agent name required (max 40 chars)')
-  }
+  // Agent names become bot table names, injected verbatim into every player's
+  // prompt — they get the same treatment as human names (CLAUDE.md): strip
+  // prompt-structure markup, collapse whitespace, reject reserved identity
+  // words ("You", "system", ...). Enforced HERE so every ingest path (POST,
+  // PUT, file-drop, curated) is covered.
+  if (typeof d.name !== 'string') throw new Error('agent name required (max 40 chars)')
+  d.name = d.name.replace(/[<>{}[\]|\\]/g, '').replace(/\s+/g, ' ').trim()
+  if (!d.name || d.name.length > 40) throw new Error('agent name required (max 40 chars)')
+  if (nameIsReserved(d.name)) throw new Error(`"${d.name}" can't be used as an agent name — it's a reserved word`)
   // Legacy defs carry version: '1.0' — read any string as its leading number.
   if (typeof d.version === 'string') d.version = Math.trunc(parseFloat(d.version)) || 1
   if (d.version !== undefined && (typeof d.version !== 'number' || !Number.isInteger(d.version) || d.version < 1)) {
@@ -237,7 +247,7 @@ export function validateDef(raw: unknown, opts: ValidateOpts = {}): AgentDef {
       }
     }
     if (e.roleGuidance !== undefined) {
-      validateGuidanceMap(e.roleGuidance, 'roleGuidance', 'role', (k) => k in ROLE_ALIGNMENT)
+      validateGuidanceMap(e.roleGuidance, 'roleGuidance', 'role', (k) => Object.hasOwn(ROLE_ALIGNMENT, k))
       for (const k of Object.keys(e.roleGuidance)) {
         e.roleGuidance[k as Role] = normText(e.roleGuidance[k as Role]!)
       }
@@ -246,7 +256,7 @@ export function validateDef(raw: unknown, opts: ValidateOpts = {}): AgentDef {
       throw new Error(`roleGuidanceMode must be "replace" or "append"`)
     }
     if (e.kindGuidance !== undefined) {
-      validateGuidanceMap(e.kindGuidance, 'kindGuidance', 'kind', (k) => k in CALL_PARAMS)
+      validateGuidanceMap(e.kindGuidance, 'kindGuidance', 'kind', (k) => Object.hasOwn(CALL_PARAMS, k))
       for (const k of Object.keys(e.kindGuidance)) {
         e.kindGuidance[k as LlmCallKind] = normText(e.kindGuidance[k as LlmCallKind]!)
       }
@@ -283,6 +293,13 @@ function loadTier(
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()) {
     try {
       const def = validateDef(JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')), { allowUnknownModel: true })
+      // Filename must equal the internal id: saveCustomDef/deleteCustomDef
+      // address defs as `${id}.json`, so a mismatched hand-dropped file would
+      // make PUT write a duplicate and DELETE a silent no-op. Enforce the
+      // invariant at the load boundary instead of trusting every writer.
+      if (def.id !== file.slice(0, -'.json'.length)) {
+        throw new Error(`file name must match its id — rename to ${def.id}.json`)
+      }
       if (seen.has(def.id)) {
         // Earlier tiers win, but a vanished agent is a bug report, not a shrug.
         const reason = `id "${def.id}" is shadowed by a ${agents.find((a) => a.id === def.id)?.tier} agent — rename the file's id to restore it`
@@ -330,6 +347,13 @@ export function deleteCustomDef(id: string): void {
   fs.rmSync(path.join(USER_AGENTS_DIR, `${id}.json`), { force: true })
 }
 
+// Whether ANY file (including corrupt/skipped ones that never made it into
+// the library) already claims this id on disk — id allocation must not
+// silently clobber a broken file the user was told to fix.
+export function customDefFileExists(id: string): boolean {
+  return fs.existsSync(path.join(USER_AGENTS_DIR, `${id}.json`))
+}
+
 export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicInfo {
   // The OpenRouter slug, not a marketing name — "deepseek/deepseek-v4-flash"
   // tells you exactly what you're playing against. Always the RESOLVED model
@@ -340,7 +364,8 @@ export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicIn
   let model = 'external'
   if (e.type === 'heuristic') model = 'rule-based'
   else if (e.type === 'llm') {
-    const resolved = modelOverride ?? e.model ?? DEFAULT_MODEL
+    // resolveModel owns the precedence; it can't throw inside the llm branch.
+    const resolved = resolveModel(def, modelOverride)
     model = ROSTER.find((r) => r.id === resolved)?.slug ?? `${resolved} (unavailable)`
   }
   return {

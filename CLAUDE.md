@@ -59,7 +59,7 @@ Layering (details in `docs/design-implementation.md` §1; rules reference in `do
 ### Invariants to preserve
 
 - **Hidden information flows through one chokepoint**: `viewFor(game, seat)` in `server/engine/view.ts`. No prompt builder, client payload, or agent ever touches raw `Game` — they get a `PlayerView`. Contract tests `test/knowledge.test.ts` and `test/leaks.test.ts` pin this; new `PlayerView` fields are private-by-default for spectators (opt-in public in `viewForSpectator`).
-- **The OpenRouter key and bot prompts never reach the browser.** The server owns all state and prompt construction; the client sees only the human's filtered view.
+- **The OpenRouter key and live-game bot prompts never reach the browser.** The server owns all state and prompt construction; the client sees only the human's filtered view of a real game. Deliberate exceptions, transparency-by-design (docs/design-custom-agents.md §4/§7): the static prompt anatomy (rules digest, baseline guidance, table-talk norms, output contracts) served by `GET /api/agents`, and fully rendered prompts for the fixed-seed FIXTURE game served by `POST /api/agents/preview` — neither can carry state from any live session.
 - **Player names are untrusted input** — they pass through sanitization plus a reserved-name policy (`nameIsReserved` in `server/engine/rules.ts`) before being embedded in other players' prompts. Anything else user-authored that lands in a prompt needs the same treatment.
 - Games live in memory; a restart ends running games (snapshot persistence is on the roadmap — `docs/ROADMAP.md`).
 

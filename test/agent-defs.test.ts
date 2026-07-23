@@ -100,6 +100,26 @@ test('validateDef: new layer fields — key checks, caps, temperature, CRLF', ()
   assert.equal(e.kindGuidance?.reflect, 'a\nb')
 })
 
+test('validateDef: agent names get the player-name policy (sanitize + reserved words)', () => {
+  // Reserved identity words are rejected — a bot named "You" poisons every
+  // other player's prompt exactly like a human named "You" would.
+  assert.throws(() => validateDef({ id: 'you-bot', name: 'You', engine: { type: 'heuristic' } }), /reserved/)
+  assert.throws(() => validateDef({ id: 'sys', name: ' system ', engine: { type: 'heuristic' } }), /reserved/)
+  // Prompt-structure markup is stripped, not stored.
+  const d = validateDef({ id: 'angle', name: '<Angle> {Bot}', engine: { type: 'heuristic' } })
+  assert.equal(d.name, 'Angle Bot')
+  // Normal agent names still pass untouched.
+  assert.equal(validateDef({ id: 'mh', name: 'Merlin Hunter', engine: { type: 'heuristic' } }).name, 'Merlin Hunter')
+})
+
+test('validateDef: guidance keys reject prototype-chain names', () => {
+  const ok = (engine: object) => validateDef({ id: 'ok', name: 'x', engine: { type: 'llm', model: 'deepseek', ...engine } })
+  // `in` would accept these via Object.prototype; Object.hasOwn must not.
+  assert.throws(() => ok({ kindGuidance: { toString: 'x' } }), /unknown kind "toString"/)
+  assert.throws(() => ok({ roleGuidance: { constructor: 'x' } }), /unknown role "constructor"/)
+  assert.throws(() => ok({ kindGuidance: JSON.parse('{"__proto__": "x"}') }), /unknown kind "__proto__"/)
+})
+
 test('validateDef: legacy string versions read as integers; lenient mode keeps dead models', () => {
   const legacy = validateDef({
     id: 'old', name: 'Old', version: '1.0',
