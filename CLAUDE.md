@@ -45,6 +45,19 @@ Layering (details in `docs/design-implementation.md` §1; rules reference in `do
 - **Player names are untrusted input** — they pass through sanitization plus a reserved-name policy (`nameIsReserved` in `server/engine/rules.ts`) before being embedded in other players' prompts. Anything else user-authored that lands in a prompt needs the same treatment.
 - Games live in memory; a restart ends running games (snapshot persistence is on the roadmap — `docs/ROADMAP.md`).
 
+## Pushing vs. deploying
+
+Railway tracks the `deploy` branch, not `master` — pushing `master` never triggers a deploy. Deploying means advancing `deploy` (only on explicit instruction, like any push):
+
+```
+git push origin master                     # publish code; no deploy
+git push origin origin/master:deploy       # deploy origin/master
+git push origin <sha>:deploy               # deploy a specific commit
+git push --force-with-lease origin <old-sha>:deploy   # rollback
+```
+
+`origin/deploy` always names the deployed commit; `git log origin/deploy..origin/master` shows what's pushed but not yet deployed.
+
 ## Docs
 
 `docs/design-implementation.md` is the architecture reference (kept current; cite sections when relevant). `docs/research-strategy.md` feeds the bot prompts. `docs/ROADMAP.md` tracks deferred work. The design borrows patterns from the sibling repo `C:\Users\liual\Claude Projects\datingsim` (OpenRouter client, snapshot versioning).

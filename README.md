@@ -48,8 +48,13 @@ Design docs in `docs/`:
 The repo carries a `Dockerfile` + `railway.toml` (Dockerfile builder — required, because the
 server runs TypeScript natively on Node 24, which nixpacks won't provide). To deploy:
 
-1. Railway → New Project → Deploy from GitHub repo → pick this repo. The Dockerfile is detected
-   automatically.
+1. Railway → New Project → Deploy from GitHub repo → pick this repo, and set the tracked branch
+   to **`deploy`** (Settings → Source). The Dockerfile is detected automatically. Tracking
+   `deploy` instead of `master` decouples pushing from deploying: `git push origin master`
+   publishes code without touching the deployment, and a deploy is an explicit
+   `git push origin <sha>:deploy` (or `origin/master:deploy` to deploy the latest push;
+   `--force-with-lease` with an older sha to roll back). `origin/deploy` always names the
+   deployed commit.
 2. Set variables: `OPENROUTER_API_KEY` (required for LLM bots), `OPENROUTER_MAX_SPEND_USD`
    (recommended hard spend ceiling, e.g. `5`), and `AVALON_INVITE_CODE` (**strongly recommended
    on any public URL** — without it, anyone who finds the site can start LLM games on your key).
