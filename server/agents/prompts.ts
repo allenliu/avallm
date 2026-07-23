@@ -3,6 +3,7 @@
 // module constants so provider prompt caches can hit.
 
 import { MAX_PROPOSALS } from '../engine/rules.ts'
+import { factsDossier } from './facts.ts'
 import type { PlayerView, Seat } from '../engine/types.ts'
 import type { Msg } from '../llm/openrouter.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
@@ -221,9 +222,15 @@ export function buildMessages(
     OUTPUT_CONTRACTS[kind],
   ].join('\n')
 
+  // Engine-owned facts layer: the raw public state, then the DERIVED dossier
+  // (deterministic signals the model is bad at computing itself). Both are
+  // neutral data — what to do about them is the agent's policy. The dossier is
+  // omitted early-game when nothing has resolved yet (returns '').
+  const dossier = factsDossier(view)
   const user = [
     `== GAME STATE ==`,
     publicStateText(view),
+    ...(dossier ? [``, dossier] : []),
     ``,
     `== YOUR PRIVATE NOTES (from earlier this game) ==`,
     scratchpad || '(none yet)',
