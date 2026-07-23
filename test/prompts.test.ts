@@ -107,6 +107,21 @@ test('discuss prompts carry table-talk norms and flag direct addresses', () => {
   assert.ok(!voteSys.content.includes('live conversation'))
 })
 
+test('proposal pitches reach bot prompts, live and in the vote record', () => {
+  const g = createGame({ seed: 'pitchvis', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  applyDecision(g, g.leaderSeat, {
+    kind: 'propose', team: [0, 1], pitch: 'A clean opening pair — trust me.',
+  })
+  // Pending proposal: the pitch appears next to the team on the table.
+  const [, voteUser] = buildMessages('vote', viewFor(g, 2), '')
+  assert.match(voteUser.content, /Leader's pitch: "A clean opening pair/)
+
+  // After the vote resolves, the pitch stays attached to the vote record.
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'reject' })
+  const [, nextUser] = buildMessages('discuss', viewFor(g, 2), '')
+  assert.match(nextUser.content, /rejected \(.*\) pitch: "A clean opening pair/)
+})
+
 test('sanitizeSpeech strips directive markup but keeps words', () => {
   assert.equal(sanitizeSpeech('hello <|im_start|> world'), 'hello world')
   assert.equal(sanitizeSpeech('a </system> b <<SYS>> c'), 'a b c')

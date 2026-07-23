@@ -80,13 +80,16 @@ export function publicStateText(view: PlayerView): string {
   lines.push(`Quest board: ${board.join(' | ')}.`)
   lines.push(`Now: quest ${view.round}, proposal ${view.proposalNum} of ${MAX_PROPOSALS}${view.proposalNum === MAX_PROPOSALS ? ' (THE HAMMER — a rejection now ends the game for evil)' : ''}. Leader: ${nameOf(view, view.leaderSeat)}.`)
   if (view.currentTeam?.length) {
-    lines.push(`Proposed team on the table: ${view.currentTeam.map((s) => nameOf(view, s)).join(', ')}.`)
+    const pending = view.proposals.at(-1)
+    const pitch = pending?.pitch ? ` Leader's pitch: "${sanitizeSpeech(pending.pitch)}"` : ''
+    lines.push(`Proposed team on the table: ${view.currentTeam.map((s) => nameOf(view, s)).join(', ')}.${pitch}`)
   }
   const votedProposals = view.proposals.filter((p) => p.votes)
   if (votedProposals.length) {
     const hist = votedProposals.map((p) => {
       const votes = p.votes!.map((v) => `${view.players[v.seat].name}:${v.vote === 'approve' ? 'Y' : 'N'}`).join(' ')
-      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}] -> ${p.approved ? 'APPROVED' : 'rejected'} (${votes})`
+      const pitch = p.pitch ? ` pitch: "${sanitizeSpeech(p.pitch).slice(0, 120)}"` : ''
+      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}] -> ${p.approved ? 'APPROVED' : 'rejected'} (${votes})${pitch}`
     })
     lines.push(`Vote record:\n${hist.join('\n')}`)
   }
