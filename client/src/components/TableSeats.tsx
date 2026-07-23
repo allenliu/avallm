@@ -55,13 +55,14 @@ export function TableSeats({ view, bots, acting }: {
             title={bot ? `${p.name} — ${bot.model}` : p.name}
           >
             <div className="seat-card">
-              {isLeader && <span className="halo" />}
               {isLeader && <span className="crown" title="Leader">♛</span>}
               <span className="sigil">{bot?.monogram ?? p.name.slice(0, 2).toUpperCase()}</span>
               <span className="seat-nm">{p.name}</span>
               {lean && (
-                <span className={`gem ${lean === 'approve' ? 'a' : lean === 'reject' ? 'r' : 'u'}`}
-                  title={`leaning ${lean}`} />
+                <span className={`seat-lean ${lean === 'approve' ? 'a' : lean === 'reject' ? 'r' : 'u'}`}
+                  title={`leaning ${lean}`}>
+                  {lean === 'approve' ? 'AYE' : lean === 'reject' ? 'NAY' : '?'}
+                </span>
               )}
               {vote && (
                 <span className={`votechip ${vote}`} title={`voted ${vote}`}>
