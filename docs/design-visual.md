@@ -102,18 +102,20 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
   words (G3), role card as arcana (G6), play-card vote/quest actions with turn tags (G5),
   mobile pinned your-edge bar + compact role strip (M2). Seat arc positions are
   percentages of the zone, so the arrangement compresses with the viewport.
-- [ ] **Setup/landing** (G setup mock): dealt-cards hero, three numbered panels, gem role
-  toggles, sticky gold CTA rail (S1–S5 all addressed in mock). Currently wearing an
-  interim token skin only — layout still the old single column.
-- [ ] **Endgame reveal** (E1/E2, M3): reveal takes over the stage; seven arcana dealt
-  face-down in seat order, flipped one by one; winner banner in plain words; thinking
-  timeline restyled (scratchpad/notes rows). The card-flip is the core animation.
-- [ ] **History grid + Reference modals** (G7): header buttons are now Record / Codex
-  ghost buttons (X3 partly done) and the sheets inherit the tokens; the grid's
-  flag-chip density pass is still open.
-- [ ] Motion pass (X4): current-card glow, thinking pulse, and play-card hover lifts are
-  in (all behind `prefers-reduced-motion`); card flips (quest + reveal) and vote tally
-  lay-down still open.
+- [x] **Setup/landing** (G setup mock): dealt-cards hero (real quest sizes per player
+  count, 2-fails marker), numbered panels The Table / The Seats / The Roles, seat rows
+  with mini card-backs and untruncated blurbs (S4), gem role toggles (keyboard-focusable),
+  fixed gold CTA rail with the live in-play roster (S1–S5).
+- [x] **Endgame reveal** (E1/E2, M3): the reveal replaces the feed stage (the table arc
+  stays as backdrop); every identity dealt face-down in seat order and flipped one by one
+  (staggered 0.35s); winner banner in plain words; your card outlined in gold; thinking
+  timeline behind the same toggle.
+- [x] **History grid + Reference modals** (G7): Record / Codex ghost buttons (X3), sheets
+  on the token system, grid gets mono type, uppercase headers, row hover, gold on-team
+  shading. (A deeper flag-chip redesign of the grid stays a future option.)
+- [x] Motion pass (X4): quest-card flip on resolve, feed rows lay in, moments scale in,
+  reveal deal-and-flip, current-card glow, turn-tag pulse, play-card hover lifts — all
+  disabled under `prefers-reduced-motion`.
 - [x] Verify with a real playthrough via the screenshot harness — done for the game
   screen at 1280×800 and 390×844 (autopilot game, all phases through reveal).
 

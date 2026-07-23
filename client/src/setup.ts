@@ -8,6 +8,18 @@ export type Role =
 
 export const EVIL_COUNT: Record<number, number> = { 5: 2, 6: 2, 7: 3, 8: 3, 9: 3 }
 
+// Mirrors server/engine/rules.ts TEAM_SIZES / failsRequired (display only —
+// the engine is authoritative). Quest 4 at 7+ players needs 2 fails.
+export const TEAM_SIZES: Record<number, number[]> = {
+  5: [2, 3, 2, 3, 3],
+  6: [2, 3, 4, 3, 4],
+  7: [2, 3, 3, 4, 4],
+  8: [3, 4, 4, 5, 5],
+  9: [3, 4, 4, 5, 5],
+}
+export const twoFailQuest = (players: number, quest: number): boolean =>
+  players >= 7 && quest === 4
+
 export const ROLE_INFO: Record<Role, { name: string; side: 'good' | 'evil'; desc: string }> = {
   merlin: {
     name: 'Merlin', side: 'good',

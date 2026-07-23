@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DecisionRequest, Library, LobbyPayload, RevealPayload, ServerPayload, TableSeat } from './types.ts'
-import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
+import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, TEAM_SIZES, buildRoles, twoFailQuest } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
 import { ARCANA } from './components/Arcana.tsx'
@@ -10,7 +10,7 @@ import { QuestBoard } from './components/QuestBoard.tsx'
 import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
-import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
+import { TableSeats } from './components/TableSeats.tsx'
 
 const Brand = () => <>Ava<span className="llm">LLM</span></>
 
@@ -225,15 +225,17 @@ export function App() {
 
   if (screen.name === 'landing') {
     return (
-      <div className="landing">
-        <h1><Brand /></h1>
-        <p className="subtitle">The Resistance: Avalon vs. the LLMs</p>
-        <p className="tagline">
-          Hidden roles, open models. Bluff DeepSeek, out-read Gemini — or invite
-          friends and let the machines fill the empty chairs.
-        </p>
+      <div className="landing-page">
+        <div className="hero">
+          <h1><Brand /></h1>
+          <p className="subtitle">The Resistance: Avalon vs. the LLMs</p>
+          <p className="tagline">
+            Hidden roles, open models. Bluff DeepSeek, out-read Gemini — or invite
+            friends and let the machines fill the empty chairs.
+          </p>
+        </div>
         <Launcher onStart={startGame} starting={starting} library={library} onLibraryChange={refreshLibrary} />
-        {error && <p className="error">{error}</p>}
+        {error && <p className="error center">{error}</p>}
       </div>
     )
   }
@@ -284,6 +286,11 @@ export function App() {
         <TableSeats view={view} bots={bots} acting={acting} />
         <QuestBoard view={view} />
       </div>
+      {gameOver ? (
+        <main className="reveal-main">
+          <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} />
+        </main>
+      ) : (
       <main>
         <Feed view={view} bots={bots} degradedSeqs={payload.degradedSeqs} />
         <aside>
@@ -313,27 +320,26 @@ export function App() {
           )}
         </aside>
       </main>
-      <footer className={gameOver ? 'endstage' : 'youredge'}>
-        {gameOver
-          ? <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} />
-          : (
-            <div className="edge-inner">
-              <div className="youchip" title={roleTitle}>
-                <span className="you-sigil">{payload.spectator ? '👁' : view.name.slice(0, 2).toUpperCase()}</span>
-                <span className="you-meta">
-                  <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
-                  <span className="you-role">{roleTitle} · your seat</span>
-                </span>
+      )}
+      {!gameOver && (
+      <footer className="youredge">
+        <div className="edge-inner">
+          <div className="youchip" title={roleTitle}>
+            <span className="you-sigil">{payload.spectator ? '◎' : view.name.slice(0, 2).toUpperCase()}</span>
+          <span className="you-meta">
+              <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
+              <span className="you-role">{roleTitle} · your seat</span>
+            </span>
+          </div>
+          {payload.spectator
+            ? <div className="action-bar waiting">
+                Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
               </div>
-              {payload.spectator
-                ? <div className="action-bar waiting">
-                    Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
-                  </div>
-                : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
-            </div>
-          )}
+            : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
+        </div>
         {error && <p className="error">{error}</p>}
       </footer>
+      )}
     </div>
   )
 }
@@ -598,112 +604,156 @@ function Launcher({ onStart, starting, library, onLibraryChange }: {
     { key: 'oberon', label: 'Oberon', roles: ['oberon'] },
   ]
 
+  const goodRoles = built.roles?.filter((r) => ROLE_INFO[r].side === 'good') ?? []
+  const evilRoles = built.roles?.filter((r) => ROLE_INFO[r].side === 'evil') ?? []
+  const rollup = (rs: Role[]) => {
+    const counts = new Map<Role, number>()
+    for (const r of rs) counts.set(r, (counts.get(r) ?? 0) + 1)
+    return [...counts].map(([r, n]) => `${ROLE_INFO[r].name}${n > 1 ? ` ×${n}` : ''}`).join(' · ')
+  }
+
   return (
-    <div className="launcher">
-      <button className="secondary rules-toggle" onClick={() => setShowRules(!showRules)}>
-        {showRules ? 'Hide the rules' : 'How do you play Avalon?'}
-      </button>
+    <div className="launcher-arcane">
+      <div className="deal" aria-hidden="true">
+        {TEAM_SIZES[players].map((sz, i) => (
+          <div key={i} className="dcard">
+            {sz}
+            {twoFailQuest(players, i + 1) && <span className="dcard-note">2 fails</span>}
+          </div>
+        ))}
+      </div>
+      <div className="center-row">
+        <button className="ghost rules-toggle" onClick={() => setShowRules(!showRules)}>
+          {showRules ? 'Hide the rules' : 'How do you play Avalon?'}
+        </button>
+      </div>
       {showRules && (
-        <ul className="rules-summary">
+        <ul className="rules-summary wide">
           {RULES_SUMMARY.map((line, i) => <li key={i}>{line}</li>)}
         </ul>
       )}
-      <div className="row">
-        <label>
-          Your name{' '}
-          <input
-            value={humanName} maxLength={24} placeholder="You"
-            onChange={(e) => {
-              setHumanName(e.target.value)
-              localStorage.setItem('avalon-name', e.target.value)
-            }}
-          />
-        </label>
-        <label>
-          Players{' '}
-          <select value={players} onChange={(e) => setPlayersAndRoles(Number(e.target.value))}>
-            {[5, 6, 7, 8, 9].map((n) => (
-              <option key={n} value={n}>{n} ({n - EVIL_COUNT[n]} good / {EVIL_COUNT[n]} evil)</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Humans{' '}
-          <select value={humanSeats} onChange={(e) => setHumanSeats(Number(e.target.value))}>
-            {Array.from({ length: players }, (_, i) => i + 1).map((n) => (
-              <option key={n} value={n}>{n === 1 ? 'just me' : `${n} (invite link)`}</option>
-            ))}
-          </select>
-        </label>
-        {library?.gated && (
-          <label>
-            Invite code{' '}
-            <input
-              value={invite} maxLength={64} placeholder="required on this server"
-              onChange={(e) => {
-                setInvite(e.target.value)
-                localStorage.setItem('avalon-invite', e.target.value)
-              }}
+      <div className="setup-grid">
+        <div className="setup-col">
+          <section className="card-panel">
+            <h2><span className="n">I</span>The Table</h2>
+            <div className="body">
+              <div className="frow">
+                <label className="field">Your name
+                  <input
+                    value={humanName} maxLength={24} placeholder="You"
+                    onChange={(e) => {
+                      setHumanName(e.target.value)
+                      localStorage.setItem('avalon-name', e.target.value)
+                    }}
+                  />
+                </label>
+                <label className="field wide">Players
+                  <select value={players} onChange={(e) => setPlayersAndRoles(Number(e.target.value))}>
+                    {[5, 6, 7, 8, 9].map((n) => (
+                      <option key={n} value={n}>{n} — {n - EVIL_COUNT[n]} good / {EVIL_COUNT[n]} evil</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">Humans
+                  <select value={humanSeats} onChange={(e) => setHumanSeats(Number(e.target.value))}>
+                    {Array.from({ length: players }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>{n === 1 ? 'just me' : `${n} — invite link`}</option>
+                    ))}
+                  </select>
+                </label>
+                {library?.gated && (
+                  <label className="field">Invite code
+                    <input
+                      value={invite} maxLength={64} placeholder="required on this server"
+                      onChange={(e) => {
+                        setInvite(e.target.value)
+                        localStorage.setItem('avalon-invite', e.target.value)
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          </section>
+          {botCount > 0 && (
+            <TablePicker
+              library={library}
+              table={table}
+              onChange={setTable}
+              onFill={(mode) => setTable(mode === 'models'
+                ? defaultTable(library, botCount)
+                : Array.from({ length: botCount }, () => ({ agent: 'autopilot' })))}
             />
-          </label>
-        )}
+          )}
+          <AddAgentForm library={library} onAdded={onLibraryChange} />
+        </div>
+        <div className="setup-col">
+          <section className="card-panel">
+            <h2><span className="n">III</span>The Roles</h2>
+            <div className="body">
+              <div className="presets">
+                {(Object.keys(PRESETS) as PresetId[]).map((p) => (
+                  <button
+                    key={p}
+                    className={`preset${preset === p ? ' active' : ''}`}
+                    title={PRESETS[p].blurb}
+                    onClick={() => applyPreset(p)}
+                  >{PRESETS[p].label}</button>
+                ))}
+              </div>
+              {preset === 'custom' && <p className="preset-custom">custom selection</p>}
+              <div className="gem-roles">
+                {toggles.map((t) => {
+                  const side = ROLE_INFO[t.roles[0]].side
+                  return (
+                    <label key={t.key} className={`gem-role ${side}${sel[t.key] ? ' checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        className="visually-hidden"
+                        checked={sel[t.key]}
+                        onChange={() => toggle(t.key)}
+                      />
+                      <span className={`gembox ${side}`} />
+                      <span>
+                        <span className={`gr-name ${side}`}>{t.label}</span>{' '}
+                        <span className="gr-desc">{t.roles.map((r) => ROLE_INFO[r].desc).join(' ')}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="role-fill-note">
+                Remaining seats are filled with Loyal Servants (good, no knowledge) and
+                Minions (evil, know each other). {evil} of {players} players are evil.
+              </p>
+              {built.error && <p className="error">{built.error}</p>}
+              {built.warning && <p className="warning">{built.warning}</p>}
+            </div>
+          </section>
+        </div>
       </div>
-      {botCount > 0 && (
-        <TablePicker
-          library={library}
-          table={table}
-          onChange={setTable}
-          onFill={(mode) => setTable(mode === 'models'
-            ? defaultTable(library, botCount)
-            : Array.from({ length: botCount }, () => ({ agent: 'autopilot' })))}
-        />
-      )}
-      <AddAgentForm library={library} onAdded={onLibraryChange} />
-      <div className="preset-row">
-        {(Object.keys(PRESETS) as PresetId[]).map((p) => (
-          <button
-            key={p}
-            className={`secondary preset-btn${preset === p ? ' active' : ''}`}
-            title={PRESETS[p].blurb}
-            onClick={() => applyPreset(p)}
-          >{PRESETS[p].label}</button>
-        ))}
-        {preset === 'custom' && <span className="preset-custom">custom</span>}
-      </div>
-      <div className="role-toggles">
-        {toggles.map((t) => (
-          <label key={t.key} className={`role-toggle-row ${ROLE_INFO[t.roles[0]].side}`}>
-            <input
-              type="checkbox"
-              checked={sel[t.key]}
-              onChange={() => toggle(t.key)}
-            />
-            <span className="role-toggle-name">{t.label}</span>
-            <span className="role-toggle-desc">
-              {t.roles.map((r) => ROLE_INFO[r].desc).join(' ')}
+      <div className="cta-rail">
+        <div className="cta-inner">
+          {built.roles && (
+            <span className="inplay">
+              <b>In play:</b>{' '}
+              <span className="good">{rollup(goodRoles)}</span>
+              {' — '}
+              <span className="evil">{rollup(evilRoles)}</span>
             </span>
-          </label>
-        ))}
-        <p className="role-fill-note">
-          Remaining seats are filled with Loyal Servants (good, no knowledge) and
-          Minions (evil, know each other). {evil} of {players} players are evil.
-        </p>
+          )}
+          <span className="cta-spacer" />
+          <button
+            className="cta"
+            disabled={starting || !built.roles || table.length !== botCount}
+            onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName, invite: invite || undefined })}
+          >
+            {starting
+              ? 'Setting the table…'
+              : humanSeats > 1 ? 'Create lobby & get invite link' : 'Sit down at the table'}
+          </button>
+        </div>
       </div>
-      {built.error && <p className="error">{built.error}</p>}
-      {built.warning && <p className="warning">{built.warning}</p>}
-      {built.roles && (
-        <p className="roles-preview">
-          In play: {built.roles.map((r) => ROLE_INFO[r].name).join(', ')}
-        </p>
-      )}
-      <button
-        disabled={starting || !built.roles || table.length !== botCount}
-        onClick={() => onStart({ players, humanSeats, table, roles: built.roles, humanName, invite: invite || undefined })}
-      >
-        {starting
-          ? 'Setting the table…'
-          : humanSeats > 1 ? 'Create lobby & get invite link' : 'Sit down at the table'}
-      </button>
     </div>
   )
 }
@@ -722,45 +772,49 @@ function TablePicker({ library, table, onChange, onFill }: {
     onChange(next)
   }
   return (
-    <div className="table-picker">
-      <div className="table-picker-head">
-        <span className="action-label">Bot opponents</span>
+    <section className="card-panel">
+      <h2>
+        <span className="n">II</span>The Seats
         <span className="fill-buttons">
-          fill with:{' '}
-          <button className="secondary" onClick={() => onFill('models')}>LLM models</button>
-          <button className="secondary" onClick={() => onFill('autopilot')}>Autopilot (free)</button>
+          fill with{' '}
+          <button className="fill-btn" onClick={() => onFill('models')}>LLM models</button>
+          <button className="fill-btn" onClick={() => onFill('autopilot')}>Autopilot (free)</button>
         </span>
-      </div>
-      {table.map((seat, i) => {
-        const info = agentById(seat.agent)
-        const isLlm = info && info.model !== 'rule-based' && info.model !== 'external'
-        return (
-          <div key={i} className="table-picker-row">
-            <ModelBadge info={info} />
-            {/* Switching agents drops any model override — the new agent's own default applies. */}
-            <select value={seat.agent} onChange={(e) => setSeat(i, { agent: e.target.value })}>
-              {library.agents.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name} ({a.model}){a.custom ? ' — custom' : ''}
-                </option>
-              ))}
-            </select>
-            {isLlm && (
-              <select
-                value={seat.model ?? ''}
-                onChange={(e) => setSeat(i, { agent: seat.agent, model: e.target.value || undefined })}
-              >
-                <option value="">default — {info.model}</option>
-                {library.models.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
+      </h2>
+      <div className="body">
+        {table.map((seat, i) => {
+          const info = agentById(seat.agent)
+          const isLlm = info && info.model !== 'rule-based' && info.model !== 'external'
+          return (
+            <div key={i} className="seatrow" style={{ ['--mc' as string]: info?.color ?? 'var(--line)' }}>
+              <span className="mini">{info?.monogram ?? '?'}</span>
+              {/* Switching agents drops any model override — the new agent's own default applies. */}
+              <select value={seat.agent} onChange={(e) => setSeat(i, { agent: e.target.value })} title={info?.model}>
+                {library.agents.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}
+                  </option>
                 ))}
               </select>
-            )}
-            <span className="role-toggle-desc">{info?.about ?? ''}</span>
-          </div>
-        )
-      })}
-    </div>
+              {isLlm && (
+                <select
+                  className="model-override"
+                  value={seat.model ?? ''}
+                  onChange={(e) => setSeat(i, { agent: seat.agent, model: e.target.value || undefined })}
+                  title="Model this seat runs on"
+                >
+                  <option value="">default — {info.model}</option>
+                  {library.models.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
+                  ))}
+                </select>
+              )}
+              <span className="seat-about">{info?.about ?? ''}</span>
+            </div>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -800,28 +854,30 @@ function AddAgentForm({ library, onAdded }: { library: Library | null; onAdded: 
     }
   }
   if (!open) {
-    return <button className="secondary rules-toggle" onClick={() => setOpen(true)}>+ Create your own agent</button>
+    return <button className="addagent" onClick={() => setOpen(true)}>+ Inscribe your own agent</button>
   }
   return (
-    <div className="add-agent">
-      <div className="row">
-        <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
-        <select value={model} onChange={(e) => setModel(e.target.value)}>
-          <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
-          {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
-        </select>
+    <div className="add-agent card-panel">
+      <div className="body add-agent-body">
+        <div className="row">
+          <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
+          <select value={model} onChange={(e) => setModel(e.target.value)}>
+            <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
+            {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
+          </select>
+        </div>
+        <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
+        <textarea
+          value={personality} maxLength={2000} rows={3}
+          placeholder="Personality / strategy prompt — layered onto the baseline agent (e.g. 'You are theatrical and paranoid. Accuse early, defend loudly, never vote with the crowd.')"
+          onChange={(e) => setPersonality(e.target.value)}
+        />
+        <div className="row">
+          <button disabled={busy || !name.trim()} onClick={submit}>Save to library</button>
+          <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
+        </div>
+        {err && <p className="error">{err}</p>}
       </div>
-      <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
-      <textarea
-        value={personality} maxLength={2000} rows={3}
-        placeholder="Personality / strategy prompt — layered onto the baseline agent (e.g. 'You are theatrical and paranoid. Accuse early, defend loudly, never vote with the crowd.')"
-        onChange={(e) => setPersonality(e.target.value)}
-      />
-      <div className="row">
-        <button disabled={busy || !name.trim()} onClick={submit}>Save to library</button>
-        <button className="secondary" onClick={() => setOpen(false)}>Cancel</button>
-      </div>
-      {err && <p className="error">{err}</p>}
     </div>
   )
 }
