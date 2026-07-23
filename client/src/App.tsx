@@ -454,7 +454,10 @@ function defaultTable(library: Library | null, count: number): string[] {
 }
 
 function Launcher({ onStart, starting, library, onLibraryChange }: {
-  onStart: (opts: { players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string }) => void
+  onStart: (opts: {
+    players: number; humanSeats: number; table: string[]; roles: Role[] | null; humanName: string
+    invite?: string
+  }) => void
   starting: boolean
   library: Library | null
   onLibraryChange: () => void
