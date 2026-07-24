@@ -18,8 +18,53 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
   const waitingNames = new Set(waitingOn ?? [])
   for (const p of view.players) if (waitingNames.has(p.name)) pending.add(p.seat)
   const pendingKey = [...pending].sort((a, b) => a - b).join(',')
+  // Auto-scroll follows the live edge, but only while the reader is already
+  // parked there — scroll up to read history and new lines no longer yank you
+  // back down. `atBottomRef` mirrors the state so the scroll effect can read the
+  // latest pinned-ness without re-firing every time the reader scrolls. While
+  // the reader is away from the edge, new events accrue as an unread tally shown
+  // on the jump button; returning to the bottom clears it.
+  const [atBottom, setAtBottom] = useState(true)
+  const [unread, setUnread] = useState(0)
+  const atBottomRef = useRef(true)
+  const prevLen = useRef(view.events.length)
+  const lastTop = useRef(0)
+  const scrollToBottom = () => ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
+  // Clicking the pill re-pins to the live edge immediately — clearing the count
+  // and resuming auto-follow — rather than waiting for the glide to settle.
+  const jumpToLatest = () => {
+    atBottomRef.current = true
+    setAtBottom(true)
+    setUnread(0)
+    scrollToBottom()
+  }
+  const onScroll = () => {
+    const el = ref.current
+    if (!el) return
+    // A slack tolerance keeps sub-pixel rounding and the trailing frames of a
+    // smooth scroll from reading as "not at bottom".
+    const pinned = el.scrollHeight - el.scrollTop - el.clientHeight <= 24
+    // Only a USER scrolling up detaches from the live edge. The auto-follow scroll
+    // moves only downward, so its transient not-at-bottom frames — and the growth
+    // of the feed as rows append — must not flip us off the edge; otherwise every
+    // message would flicker the button, and a burst mid-glide could strand the
+    // follow above the true bottom showing a spurious unread count.
+    const movedUp = el.scrollTop < lastTop.current - 1
+    lastTop.current = el.scrollTop
+    if (pinned) {
+      atBottomRef.current = true
+      setAtBottom(true)
+      setUnread(0)
+    } else if (movedUp) {
+      atBottomRef.current = false
+      setAtBottom(false)
+    }
+  }
   useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' })
+    const added = view.events.length - prevLen.current
+    prevLen.current = view.events.length
+    if (atBottomRef.current) scrollToBottom()
+    else if (added > 0) setUnread((n) => n + added)
   }, [view.events.length, view.phase, pendingKey])
   // The viewer sees "You" for their own seat; the canonical name (what bots
   // see) is never a pronoun, so this label lives only in the client.
@@ -32,7 +77,8 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
   const rows = view.events.map((ev) => renderEvent(ev, name, view)).filter(Boolean) as FeedRow[]
 
   return (
-    <div className="feed" ref={ref}>
+    <div className="feed-wrap">
+    <div className="feed" ref={ref} onScroll={onScroll}>
       {rows.map((row) => {
         const style = row.seat !== undefined ? { ['--mc' as string]: mc(row.seat) } : undefined
         const autopilot = degraded.has(row.key) && (
@@ -154,6 +200,21 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
         )
       })}
       <PendingIndicator view={view} bots={bots} pending={pending} name={name} />
+    </div>
+      {!atBottom && (
+        <button
+          type="button"
+          className="feed-jump"
+          onClick={jumpToLatest}
+          aria-label={unread > 0 ? `Jump to ${unread} new message${unread === 1 ? '' : 's'}` : 'Jump to the latest'}
+        >
+          <svg className="feed-jump-ar" viewBox="0 0 14 14" aria-hidden="true">
+            <path d="M3 4 L7 8 L11 4 M3 8 L7 12 L11 8" fill="none" stroke="currentColor"
+              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="feed-jump-lbl">{unread > 0 ? `${unread} new` : 'Latest'}</span>
+        </button>
+      )}
     </div>
   )
 }

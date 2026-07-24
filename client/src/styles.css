@@ -729,6 +729,10 @@ input::placeholder { color: var(--faint); }
 main { display: flex; gap: 0.9rem; flex: 1; min-height: 0; padding: 0.7rem 1.1rem; width: 100%; max-width: 1400px; margin: 0 auto; }
 main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
 
+/* Wrapper is the flex child of main; the feed fills it, and the jump-to-latest
+   button floats over it (anchored to the wrapper, so it stays put while the feed
+   scrolls beneath). */
+.feed-wrap { position: relative; flex: 1; min-width: 0; display: flex; }
 .feed {
   flex: 1;
   min-width: 0;
@@ -739,6 +743,33 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   overflow-y: auto;
   display: flex; flex-direction: column; gap: 0.45rem;
 }
+/* Appears only when the reader has scrolled up off the live edge. */
+.feed-jump {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.34rem 0.7rem 0.34rem 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--night);
+  background: var(--gold);
+  border: 1px solid var(--gold-lt);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  /* Transform-only entrance: the button's resting state is fully opaque, so a
+     stalled animation clock (e.g. a throttled tab) can never leave it invisible.
+     The slide-up alone reads as the entrance. */
+  animation: feed-jump-in 0.18s ease both;
+}
+.feed-jump:hover { background: var(--gold-lt); }
+/* A thin double-chevron reads as "skip to newest" without the heavy-arrow look. */
+.feed-jump-ar { width: 0.72rem; height: 0.72rem; display: block; opacity: 0.85; }
+@keyframes feed-jump-in { from { transform: translateY(8px); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .feed-jump { animation: none; } }
 .feed-row { line-height: 1.45; font-size: 0.94rem; overflow-wrap: anywhere; }
 /* ---- the illuminated stream: one line per turn (talk / quiet / deed) ----
    A turn's identity is the name's colour (--mc) — no sigil, no monogram badge.
