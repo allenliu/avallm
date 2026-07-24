@@ -349,8 +349,8 @@ function PendingIndicator({ view, bots, pending, name }: {
 
 // The pass pool: a wordless pass is narrated, picked deterministically by the
 // event's seq so a given pass always reads the same way while the table varies.
-// Stored in base (second-person) form; conjugate adds the -s for a third party
-// so the viewer's own pass reads "You hold their peace", not "You holds".
+// Stored in third-person base form ("their"); conjugate rewrites it for the
+// viewer so their own pass reads "You hold your peace", not "You holds their".
 const PASS_VERBS = [
   'hold their peace',
   'keep their counsel',
@@ -360,10 +360,13 @@ const PASS_VERBS = [
   'let it pass',
 ]
 
-// "You <verb>" needs the base form; anyone else takes third-person -s on the
-// leading verb ("hold" → "holds", "say" → "says", "let" → "lets").
+// A third party takes the -s on the leading verb ("hold" → "holds", "say" →
+// "says", "let" → "lets") and keeps "their"; the viewer ("You <verb>") keeps
+// the base verb but takes "your" for the possessive.
 const conjugate = (base: string, thirdParty: boolean) =>
-  thirdParty ? base.replace(/^\S+/, (w) => `${w}s`) : base
+  thirdParty
+    ? base.replace(/^\S+/, (w) => `${w}s`)
+    : base.replace(/\btheir\b/g, 'your')
 
 interface FeedRow {
   key: number
