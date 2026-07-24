@@ -100,6 +100,9 @@ export interface Library {
   models: { id: string; name: string; slug: string; tier: string }[]
   baseline?: {
     rulesDigest: string
+    // Shared per-alignment fragment (keyed 'good'/'evil') prepended to every
+    // role's guidance and not overridable; roleGuidance is the per-role layer.
+    alignmentGuidance?: Record<string, string>
     roleGuidance: Record<string, string>
     tableTalkNorms?: string
     outputContracts?: Record<string, string>

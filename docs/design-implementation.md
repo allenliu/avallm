@@ -127,9 +127,14 @@ state.
 Above the engine-level interface sits a **config layer**: an agent is an `AgentDef`
 (`server/agents/defs.ts`) — identity (name / version / author / about / badge) plus an engine.
 For `llm` engines the config owns the **prompt layers** — an always-on `personality` and optional
-per-role `roleGuidance` overrides (`roleGuidanceMode: 'replace'` (default) swaps the baseline for
-that role; `'append'` layers the custom text under it, so the agent keeps riding baseline strategy
-improvements) — and may **suggest** a model, but does not own it. Which model actually plays is a
+per-role `roleGuidance` overrides (`roleGuidanceMode: 'replace'` (default) swaps the role-specific
+baseline for that role; `'append'` layers the custom text under it, so the agent keeps riding
+baseline strategy improvements) — and may **suggest** a model, but does not own it. Each role's
+built-in guidance is `alignment-shared fragment + role-specific string` (`ALIGNMENT_SHARED` in
+`server/agents/prompts.ts`): advice common to a whole side (e.g. the double-fail coordination
+warning) lives once in the shared fragment, which sits in front of every role of that alignment
+and is **not** overridable — `replace`/`append` act only on the role-specific layer. That makes
+it structurally impossible for one role string to miss shared safety advice. Which model actually plays is a
 seat-time decision: `resolveModel` resolves *lobby seat override > def suggestion > `DEFAULT_MODEL`*
 (the host pays the OpenRouter bill, so the host gets the final say; a personality-only agent with no
 suggested model rides `DEFAULT_MODEL`). The rules digest, output contracts, injection guard, and

@@ -31,7 +31,7 @@ import { createAgentFromDef } from './agents/registry.ts'
 import { AGGREGATE_CAP, FIELD_CAP, customDefFileExists, deleteCustomDef, loadAgentLibrary, parseTableSeat, promptOverridesOf, publicInfo, saveCustomDef, useDataDir, validateDef } from './agents/defs.ts'
 import { loadEnv } from './llm/env.ts'
 import type { AgentDef, AgentPublicInfo, LibraryProblem, LlmEngine, TableSeat } from './agents/defs.ts'
-import { RULES_DIGEST, ROLE_GUIDANCE, TABLE_TALK_NORMS, OUTPUT_CONTRACTS, buildMessages } from './agents/prompts.ts'
+import { RULES_DIGEST, ROLE_GUIDANCE, ALIGNMENT_SHARED, TABLE_TALK_NORMS, OUTPUT_CONTRACTS, buildMessages } from './agents/prompts.ts'
 import { CALL_PARAMS } from './llm/call-params.ts'
 import type { LlmCallKind } from './llm/call-params.ts'
 import { getClient } from './llm/client.ts'
@@ -762,6 +762,10 @@ const server = http.createServer(async (req, res) => {
         // an author's custom layers (design doc §5).
         baseline: {
           rulesDigest: RULES_DIGEST,
+          // Alignment-shared doctrine sits in front of every role's guidance and
+          // is not overridable (engine-owned, like the rules digest); role-specific
+          // guidance is the overridable layer.
+          alignmentGuidance: ALIGNMENT_SHARED,
           roleGuidance: ROLE_GUIDANCE,
           tableTalkNorms: TABLE_TALK_NORMS,
           outputContracts: OUTPUT_CONTRACTS,

@@ -138,6 +138,12 @@ function LibraryTab({ library }: { library: Library | null }) {
             <summary>baseline rules digest (shared system prompt)</summary>
             <pre>{library.baseline.rulesDigest}</pre>
           </details>
+          {library.baseline.alignmentGuidance && Object.entries(library.baseline.alignmentGuidance).map(([alignment, text]) => (
+            <details key={alignment} className="prompt-details">
+              <summary>baseline guidance: {alignment} (shared by every {alignment} role)</summary>
+              <pre>{text}</pre>
+            </details>
+          ))}
           {Object.entries(library.baseline.roleGuidance).map(([role, text]) => (
             <details key={role} className="prompt-details">
               <summary>baseline guidance: {role}</summary>

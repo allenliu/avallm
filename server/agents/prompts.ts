@@ -2,9 +2,9 @@
 // hidden-information chokepoint) — never raw Game. Stable fragments are
 // module constants so provider prompt caches can hit.
 
-import { MAX_PROPOSALS } from '../engine/rules.ts'
+import { MAX_PROPOSALS, ROLE_ALIGNMENT } from '../engine/rules.ts'
 import { factsDossier } from './facts.ts'
-import type { Lean, PlayerView, Seat } from '../engine/types.ts'
+import type { Alignment, Lean, PlayerView, Role, Seat } from '../engine/types.ts'
 import type { Msg } from '../llm/openrouter.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
 
@@ -32,15 +32,32 @@ export const TABLE_TALK_NORMS = `Table talk is a live conversation, not a series
 - Refer to players by NAME when you speak — never by seat number. The table shows names, not seats; a spoken "seat 3" means nothing to anyone. Seat numbers exist only for your private team/vote/target fields.
 - Passing is fine when you genuinely have nothing to add — but never when you have been put on the spot.`
 
+// Advice shared by EVERY role of an alignment lives here, in ONE place, so a
+// single role string can never silently miss it (a Morgana with no coordination
+// warning once double-failed a 2-person quest and instantly confirmed two evil).
+// Composed IN FRONT of the role-specific string by roleGuidanceFor, so the
+// role layer refines the shared doctrine rather than repeating it. Exported for
+// the /api/agents prompt-anatomy display.
+export const GOOD_SHARED = `You are good. Good's last vulnerability is the Assassin: even after three quests succeed, one correct guess at Merlin steals the win. So protecting Merlin is a team job. Reason out loud from the shared public evidence (the vote record and the quest results), and never let one player look like the only one at the table who always knows. Fails prove at least that many evil sat on the team; a vote for a team that then fails is a mark against the voter.`
+
+export const EVIL_SHARED = `You are evil. Your cover is looking loyal, so never say or imply that you know a teammate or that you want a quest to fail, and let the public record be the only thing that could ever give you away. On most quests a single Fail is enough to sink it. When two or more evil share such a quest you have NO private channel to split the work, so read your partner's play to judge whether the Fail falls to you: a double Fail sinks nothing extra and exposes both of you at once. The exception is a quest that needs two Fails (shown in the game state), where you must instead coordinate so you BOTH fail or it succeeds.`
+
+export const ALIGNMENT_SHARED: Record<Alignment, string> = {
+  good: GOOD_SHARED,
+  evil: EVIL_SHARED,
+}
+
+// Role-specific guidance ONLY. Advice common to an alignment belongs in
+// ALIGNMENT_SHARED above, not duplicated here. roleGuidanceFor composes the two.
 export const ROLE_GUIDANCE: Record<string, string> = {
-  merlin: `You know the evil players, but the Assassin is watching for exactly that. Never state your knowledge directly. Steer teams and votes subtly, and deliberately vote "wrong" sometimes — a player whose votes are always correct gets assassinated. Prefer nudging discussion toward the truth over revealing it.`,
-  percival: `One of the two players you see is Merlin, the other is Morgana (evil). Watch which one behaves like they know things. Protecting Merlin matters more than exposing evil: act confident and knowledgeable so the Assassin might mistake YOU for Merlin.`,
-  servant: `You know nothing except your own loyalty. Reason from quest results and the vote record: fails mean evil was on the team; players who approve teams that fail are suspect. Be decisive and act like you have reads — timid servants make Merlin stand out.`,
-  assassin: `Play like a loyal servant while secretly sabotaging. If good wins 3 quests you get one shot: name Merlin. Track WHO always voted correctly and who steered good teams without obvious evidence — that is Merlin. When another evil player shares your quest, remember you have no private channel: judge from their play whether the fail falls to you, because a double fail exposes two of you at once.`,
+  merlin: `You know the evil players, but the Assassin is hunting for exactly that tell. Never state your knowledge. Steer teams and votes toward the truth without becoming the player who is always right, and deliberately vote the "wrong" way now and then to blur your certainty. Nudge the table toward good teams rather than announcing them.`,
+  percival: `One of the two players you see is Merlin, the other is Morgana (evil). Watch which one behaves like they know things. Play the decoy: act confident and knowledgeable so the Assassin might mistake YOU for Merlin, and lend your trust to the candidate who reads as the real Merlin.`,
+  servant: `You know nothing except your own loyalty, so logic and nerve are your only tools. Be decisive and act like you have real reads: a timid, read-less servant is exactly how Merlin stands out by contrast.`,
+  assassin: `If good reaches three successful quests you still get one shot: name Merlin. All game, track WHO always voted correctly and who quietly steered good teams toward success, and hold that read for the final guess.`,
   morgana: `Percival sees you and Merlin without knowing which is which. Act like Merlin: confident reads, decisive votes, protective of "good" players. Draw Percival's trust away from the real Merlin.`,
-  mordred: `Merlin cannot see you. You are evil's cleanest asset: get on quests, vote reasonably, and stay above suspicion — you can afford to look like a model good player until the moment a fail matters.`,
-  oberon: `You are evil but alone: you do not know your fellow evil, and they do not know you. Infer who they are from fails and votes, and fail quests when you judge it right — but beware double-failing a quest another evil also failed.`,
-  minion: `Support your evil partners: vote approve on teams containing evil, cast doubt on good players, and fail quests when the timing is right — one fail per quest is enough. When several evil share a quest, you have no private channel to divide the work: read your partner's style and decide whether failing falls to you, knowing a double fail exposes two of you at once.`,
+  mordred: `Merlin cannot see you, which makes you evil's cleanest asset: get onto quests, vote reasonably, and stay above suspicion. You can pass for a model good player right up until the moment a Fail matters.`,
+  oberon: `You are evil but alone: you do not know your fellow evil, and they do not know you. Infer who they are from fails and votes. Because you cannot read a teammate you cannot identify, weigh hard whether a Fail is even needed before you add yours.`,
+  minion: `Support your evil partners: vote to approve teams that carry evil, cast doubt on the good players who are steering toward the truth, and take the Fail yourself when the timing is right.`,
 }
 
 export const OUTPUT_CONTRACTS: Record<LlmCallKind, string> = {
@@ -238,19 +255,33 @@ export interface PromptOverrides {
   personality?: string
   strategy?: string
   roleGuidance?: Partial<Record<string, string>>
-  // 'replace' (default): custom guidance swaps out the baseline for that role.
-  // 'append': custom guidance layers UNDER the baseline, so the agent keeps
-  // riding baseline strategy improvements.
+  // 'replace' (default): custom guidance swaps out the ROLE-SPECIFIC baseline.
+  // 'append': custom guidance layers UNDER the role-specific baseline, so the
+  // agent keeps riding baseline strategy improvements.
+  // Either way the alignment-shared fragment stays in front (see roleGuidanceFor):
+  // it is engine-owned doctrine like the rules digest, not an overridable layer.
   roleGuidanceMode?: 'replace' | 'append'
   kindGuidance?: Partial<Record<string, string>>
 }
 
-function roleGuidanceFor(role: string, overrides: PromptOverrides): string {
+// Layer order (front to back): alignment-shared -> role-specific -> custom.
+// The alignment-shared fragment is ALWAYS present, even under a 'replace'
+// override, so no role (built-in or custom) can silently miss the coordination
+// doctrine that once cost a game. roleGuidanceMode governs only the role layer:
+//   no override -> [shared, roleBaseline]
+//   replace     -> [shared, custom]              (role-specific baseline dropped)
+//   append      -> [shared, roleBaseline, custom]
+export function roleGuidanceFor(role: string, overrides: PromptOverrides): string {
+  const shared = ALIGNMENT_SHARED[ROLE_ALIGNMENT[role as Role]] ?? ''
   const base = ROLE_GUIDANCE[role] ?? ''
   const custom = overrides.roleGuidance?.[role]
-  if (custom === undefined) return base
-  if (overrides.roleGuidanceMode === 'append') return [base, custom].filter(Boolean).join('\n')
-  return custom
+  const roleLayer =
+    custom === undefined
+      ? base
+      : overrides.roleGuidanceMode === 'append'
+        ? [base, custom].filter(Boolean).join('\n')
+        : custom
+  return [shared, roleLayer].filter(Boolean).join('\n')
 }
 
 export function buildMessages(

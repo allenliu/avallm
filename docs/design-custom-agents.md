@@ -70,9 +70,18 @@ interface LlmEngine {
 - **`strategy`** is the general brain: "track vote correlations across proposals; treat a
   reject-heavy early game as evil coordination; never sit on the first quest twice" — the kind of
   cross-role doctrine that today has nowhere to live.
-- **`roleGuidance`** keeps its replace semantics (author text supersedes the baseline for that
-  role), but the editor now shows the baseline text inline so authors edit *from* it rather than
-  guessing what they're replacing. `GET /api/agents` already ships the baselines for exactly this.
+- **`roleGuidance`** keeps its replace semantics (author text supersedes the *role-specific*
+  baseline for that role), but the editor now shows the baseline text inline so authors edit
+  *from* it rather than guessing what they're replacing. `GET /api/agents` already ships the
+  baselines for exactly this. Note the split introduced 2026-07-24: each role's built-in guidance
+  is now `alignment-shared fragment + role-specific string`. The alignment-shared fragment
+  (`ALIGNMENT_SHARED` in `prompts.ts` — one blob for good, one for evil, holding advice every role
+  of that side needs, e.g. the double-fail coordination warning) is **engine-owned and not
+  overridable**, like the rules digest: it always sits in front, even under `replace`. `replace`
+  and `append` govern only the role-specific layer. This is a structural fix for a class of bug
+  where a single role string could silently omit shared safety advice (a Morgana with no
+  coordination warning once double-failed a 2-person quest and confirmed two evil at once).
+  `GET /api/agents` ships it as a separate `alignmentGuidance` field alongside `roleGuidance`.
 - **`kindGuidance`** attaches to a decision kind rather than a role: extra coaching for `vote`
   ("weigh the vote record over table talk"), `assassinate` (a custom Merlin-detection checklist),
   or `reflect` — which is quietly the most interesting slot, because a custom reflect prompt is a
@@ -91,7 +100,8 @@ Layered composition order (system message):
 RULES_DIGEST                     engine
 identity + knowledge             engine (view-derived)
 strategy                         custom
-roleGuidance[role]               custom, else baseline
+roleGuidance[role]               engine alignment-shared fragment (always, undroppable),
+                                 then role-specific: custom, else baseline
 personality                      custom
 kindGuidance[kind]               custom
 TABLE_TALK_NORMS                 engine (discuss/pitch only)

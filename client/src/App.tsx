@@ -1191,15 +1191,30 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
         <label className="temp-row">
           Mode{' '}
           <select value={roleGMode} onChange={(e) => setRoleGMode(e.target.value as 'replace' | 'append')}>
-            <option value="replace">replace the baseline guidance</option>
+            <option value="replace">replace the role-specific baseline</option>
             <option value="append">append under the baseline (rides baseline improvements)</option>
           </select>
         </label>
         <p className="roles-preview">
           {roleGMode === 'replace'
-            ? 'Your text replaces the baseline guidance for that role. Leave blank to keep the baseline (shown as placeholder).'
-            : 'Your text is added below the baseline guidance for that role, so the agent keeps riding baseline improvements.'}
+            ? 'Your text replaces the role-specific baseline for that role. Leave blank to keep the baseline (shown as placeholder).'
+            : 'Your text is added below the role-specific baseline, so the agent keeps riding baseline improvements.'}
         </p>
+        {library.baseline?.alignmentGuidance && (
+          <details className="prompt-details">
+            <summary>Always-on alignment guidance (prepended, not overridable)</summary>
+            <p className="roles-preview">
+              Every role also gets a fixed fragment shared by its whole side, sitting in front of
+              the text below. Your override tunes only the role-specific layer; it cannot remove this.
+            </p>
+            {Object.entries(library.baseline.alignmentGuidance).map(([alignment, text]) => (
+              <div key={alignment} className="guidance-row">
+                <span className="guidance-key">{alignment}</span>
+                <pre>{text}</pre>
+              </div>
+            ))}
+          </details>
+        )}
         {guidanceEditor(roles, roleG, setRoleG, library.baseline?.roleGuidance,
           (r) => library.baseline?.roleGuidance[r] ?? '')}
       </details>

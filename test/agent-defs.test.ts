@@ -4,9 +4,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { builtinDefs, parseTableSeat, publicInfo, resolveModel, validateDef } from '../server/agents/defs.ts'
 import { DEFAULT_MODEL, ROSTER, rosterById } from '../server/llm/roster.ts'
-import { buildMessages, ROLE_GUIDANCE } from '../server/agents/prompts.ts'
+import { ALIGNMENT_SHARED, buildMessages, EVIL_SHARED, roleGuidanceFor, ROLE_GUIDANCE } from '../server/agents/prompts.ts'
 import { createGame } from '../server/engine/game.ts'
 import { viewFor } from '../server/engine/view.ts'
+import { ROLE_ALIGNMENT } from '../server/engine/rules.ts'
 
 test('built-in library: one agent per roster model plus autopilot, all valid', () => {
   const defs = builtinDefs()
@@ -183,4 +184,27 @@ test('personality and roleGuidance layer into the prompt; contracts stay fixed',
     assert.match(msg.content, /TABLE TALK block/)     // injection guard
     assert.match(msg.content, /succeeding 3 of 5/)    // rules digest
   }
+})
+
+test('every role carries its alignment-shared doctrine, undroppable by overrides', () => {
+  // The structural guarantee: shared advice can never be missing from a role,
+  // which is the bug that once let a Morgana double-fail with no warning.
+  for (const [role, alignment] of Object.entries(ROLE_ALIGNMENT)) {
+    const composed = roleGuidanceFor(role, {})
+    assert.ok(
+      composed.startsWith(ALIGNMENT_SHARED[alignment]),
+      `${role} guidance must lead with the ${alignment}-shared fragment`,
+    )
+    assert.ok(composed.includes(ROLE_GUIDANCE[role]), `${role} keeps its role-specific text`)
+  }
+  // The specific regression: Morgana and Mordred (which used to omit it) now get
+  // the double-fail coordination warning via the shared fragment.
+  for (const role of ['morgana', 'mordred', 'assassin', 'minion', 'oberon']) {
+    assert.ok(roleGuidanceFor(role, {}).includes('double Fail'), `${role} warns on double fails`)
+  }
+  // A 'replace' override swaps only the role-specific layer; the shared fragment
+  // stays in front, so a custom evil agent can't accidentally drop the warning.
+  const replaced = roleGuidanceFor('morgana', { roleGuidance: { morgana: 'ONLY MINE' } })
+  assert.ok(replaced.includes(EVIL_SHARED) && replaced.includes('ONLY MINE'))
+  assert.ok(!replaced.includes(ROLE_GUIDANCE.morgana))
 })
