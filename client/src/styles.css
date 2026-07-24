@@ -1059,15 +1059,49 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .rc-know { font-size: 0.8rem; }
 .roles-in-play { color: var(--faint); font: 500 0.62rem var(--mono); line-height: 1.6; }
 .degraded-note { color: var(--dim); font-size: 0.78rem; padding: 0 0.3rem; }
-.name-edit-toggle { font-size: 0.78rem; }
-.name-editor {
-  background: var(--panel);
+/* ---- name editor (your identity at the table) ---- */
+.name-edit-toggle {
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  background: transparent;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.6rem;
-  display: flex; flex-direction: column; gap: 0.4rem;
+  border-radius: 999px;
+  color: var(--dim);
+  font: 600 0.62rem var(--mono);
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 0.42em 0.9em;
 }
-.name-editor input { min-width: 0; width: 8rem; }
+.name-edit-toggle:hover { color: var(--gold-lt); border-color: var(--gold-deep); filter: none; }
+.name-edit-toggle .quill { width: 13px; height: 13px; opacity: 0.9; }
+
+.name-editor {
+  width: 100%; max-width: 232px;
+  background: linear-gradient(175deg, var(--panel), var(--night-2));
+  border: 1px solid var(--gold-deep);
+  border-radius: 7px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 2.5px var(--night-2),
+    inset 0 0 0 3.5px rgba(138, 114, 48, 0.5),
+    0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.ne-head {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 0.8rem 0.4rem;
+  font: 600 0.56rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+  border-bottom: 1px solid var(--line);
+}
+.ne-head .quill { width: 12px; height: 12px; color: var(--gold); flex-shrink: 0; }
+.ne-body { padding: 0.7rem 0.8rem 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.ne-body input { width: 100%; min-width: 0; }
+.ne-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+.ne-save { padding: 0.42em 1.2em; font-size: 0.9rem; }
+.ne-cancel {
+  background: transparent; border: 1px solid transparent; color: var(--dim);
+  font: 600 0.62rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 0.42em 0.7em;
+}
+.ne-cancel:hover { color: var(--text); filter: none; }
+.ne-error { margin: 0; font-size: 0.8rem; }
 
 /* ---- your edge of the table (footer) ---- */
 footer.youredge {
