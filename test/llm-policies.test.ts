@@ -45,8 +45,11 @@ test('call params cover every kind with json mode', () => {
   for (const kind of ['discuss', 'propose', 'pitch', 'finalize', 'vote', 'quest', 'assassinate', 'reflect'] as const) {
     const p = CALL_PARAMS[kind]
     // Decision calls stay lean; reflect writes the whole scratchpad (up to one
-    // read per player plus a plan), so it gets a larger ceiling.
-    const maxCap = kind === 'reflect' ? 1000 : 500
+    // read per player plus a plan), so it gets a larger ceiling. assassinate is
+    // the reasoning-heavy once-a-game shot: a reasoning model can spend the whole
+    // budget on reasoning tokens and return an empty answer, so it is deliberately
+    // given generous headroom (see CALL_PARAMS comment).
+    const maxCap = kind === 'reflect' ? 1000 : kind === 'assassinate' ? 2000 : 500
     assert.ok(p.max_tokens >= 100 && p.max_tokens <= maxCap, kind)
     assert.ok(p.temperature >= 0 && p.temperature <= 1, kind)
     assert.equal(p.json, true, kind)

@@ -35,7 +35,15 @@ export const CALL_PARAMS: Record<LlmCallKind, CallParams> = {
   finalize: { temperature: 0.6, max_tokens: 350, json: true },
   vote: { temperature: 0.4, max_tokens: 400, json: true },
   quest: { temperature: 0.3, max_tokens: 350, json: true },
-  assassinate: { temperature: 0.4, max_tokens: 400, json: true },
+  // assassinate is the game's single highest-impact call (fires once, and >50%
+  // of evil wins run through it) AND the most reasoning-heavy ASK (rank every
+  // good player by vote-accuracy, separate Merlin from Percival). A reasoning
+  // model (gpt-oss-120b, observed) burns completion budget on reasoning tokens
+  // that count against max_tokens; at 400 it emitted ~400 reasoning tokens and
+  // returned an EMPTY answer TWICE, degrading to the heuristic — the salvage
+  // ladder can't rescue empty content. So this budget is deliberately generous:
+  // once-a-game, the extra tokens are free, and skimping here throws the shot.
+  assassinate: { temperature: 0.4, max_tokens: 2000, json: true },
   // reflect writes the scratchpad (up to 9 reads + a plan); the budget must fit
   // the richer reads the reflect contract now asks for, or the OUTPUT truncates
   // before the parser's generous caps ever apply.
