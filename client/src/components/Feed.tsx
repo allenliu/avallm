@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 import type { AgentInfo, GameEvent, PlayerView, Seat } from '../types.ts'
 import { Emblem } from './Arcana.tsx'
 import { winReasonText } from '../setup.ts'
@@ -73,16 +73,19 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
         }
 
         if (row.kind === 'questreveal') {
-          // Face-down cards gather, shuffle, then a single card flips to the
-          // aggregate (The Sun / The Tower + fail count). Individual plays are
-          // never shown — the shuffle IS the anonymity. Mount-driven animation.
+          // Q1: the sealed cards gather, shuffle, then a single card flips to the
+          // aggregate (The Sun / The Tower + fail count) — individual plays are
+          // never shown, the shuffle IS the anonymity. Same stage as the sealing
+          // indicator, so the moment reads as one continuous element. Mount-driven,
+          // so it plays in full even when the server resolved instantly.
           const won = row.cls === 'ok'
+          const size = row.teamSize ?? 3
           return (
             <div key={row.key} className={`feed-row questreveal ${row.cls}`}>
-              <span className="qr-stage" style={{ ['--n' as string]: row.teamSize }}>
-                {Array.from({ length: row.teamSize ?? 3 }).map((_, i) => (
-                  <span key={i} className="qr-card"
-                    style={{ ['--i' as string]: i, ['--x' as string]: `calc((${i} - (${row.teamSize ?? 3} - 1) / 2) * 15px)`, ['--r' as string]: `calc((${i} - (${row.teamSize ?? 3} - 1) / 2) * 6deg)` }} />
+              <span className="qr-top" aria-hidden="true" />
+              <span className="qr-stage">
+                {Array.from({ length: size }).map((_, i) => (
+                  <span key={i} className="qr-card" style={qfan(i, size)} />
                 ))}
                 <span className={`qr-result ${won ? 'sun' : 'tower'}`}>
                   <Emblem id={won ? 'sun' : 'tower'} className="qr-em" />
@@ -157,6 +160,15 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
 
 const Dots = () => <span className="tr-dots"><i>●</i><i>●</i><i>●</i></span>
 
+// Fan offset for quest card i of a `size`-card team. Shared by the sealing
+// indicator and the reveal row so the two share one stage: the cards start
+// (and, when sealing, stay) fanned; the reveal's qgather animation collapses
+// them from exactly this position.
+const qfan = (i: number, size: number): CSSProperties => ({
+  ['--x' as string]: `calc((${i} - (${size} - 1) / 2) * 15px)`,
+  ['--r' as string]: `calc((${i} - (${size} - 1) / 2) * 6deg)`,
+})
+
 // The live-edge indicator, chosen by phase:
 //  discussion / proposal → ghost row (a typing indicator; agents act in turn)
 //  vote                  → sealing ballot; resolves to the attributed tally
@@ -198,19 +210,23 @@ function PendingIndicator({ view, bots, pending, name }: {
   }
 
   if (view.phase === 'quest') {
+    // Only team members act this phase; once all have sealed, pending empties and
+    // we've already returned null above — so this always shows sealing progress.
+    // Same stage/cards as the questResult reveal row, so the sealing element and
+    // the reveal read as one continuous moment: the cards you watch seal are the
+    // ones that gather, shuffle, and flip. The gather-&-flip plays on the reveal.
     const team = view.currentTeam ?? []
-    const sealed = team.length - team.filter((s) => pending.has(s)).length
-    const allSealed = sealed === team.length
+    const size = team.length
+    const sealed = size - team.filter((s) => pending.has(s)).length
     return (
-      <div className={`feed-row ballot quest${allSealed ? ' gathered' : ''}`} role="status">
-        <span className="ballot-lbl">The chosen are sealing their quest cards</span>
-        <span className="qstack">
+      <div className="feed-row qseal" role="status">
+        <span className="qr-top">sealing · {sealed}/{size}<Dots /></span>
+        <span className="qr-stage">
           {team.map((s, i) => (
-            <span key={s} className={`qmini ${pending.has(s) ? 'pending' : 'sealed'}`}
-              style={{ ['--i' as string]: i }} title="a quest card, played in secret" />
+            <span key={s} className={`qr-card ${pending.has(s) ? 'pending' : 'sealed'}`}
+              style={qfan(i, size)} title="a quest card, played in secret" />
           ))}
         </span>
-        <span className="ballot-prog">{allSealed ? <>gathered &amp; shuffled<Dots /></> : <>{sealed}/{team.length} sealed<Dots /></>}</span>
       </div>
     )
   }
@@ -313,8 +329,9 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, view: PlayerVie
     }
     case 'questResult': {
       const won = p.result === 'success'
-      const q = view.quests[p.round - 1]
-      const teamSize = q?.team?.length ?? q?.teamSize ?? (p.failsRequired + 2)
+      // teamSize is authoritative on the quest (set at game start); the team may
+      // not be recorded on it, so don't derive size from team length.
+      const teamSize = view.quests[p.round - 1]?.teamSize ?? 3
       return {
         key: ev.seq,
         kind: 'questreveal',

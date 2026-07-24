@@ -658,24 +658,18 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .bslot.sealed::after { content: "✦"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.5rem; color: var(--gold); }
 @keyframes seal-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-/* quest: face-down cards that gather into a stack — never flipped (anonymous) */
-.feed-row.ballot.quest .qstack { display: inline-flex; }
-.qmini {
-  width: 24px; height: 32px; border-radius: 4px;
-  background:
-    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
-    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
-    linear-gradient(180deg, var(--night-2), var(--panel));
-  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep), 0 3px 6px rgba(0, 0, 0, 0.5);
-  margin-left: -6px; transition: transform 0.35s ease, margin 0.35s ease;
+/* quest sealing — a centered column sharing the reveal's stage & cards, so the
+   sealing element and the questResult reveal read as one continuous moment
+   (same card box, same position; the reveal simply gathers & flips them) */
+.feed-row.qseal {
+  display: flex; flex-direction: column; align-items: center;
+  border-left: 3px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 3px 3px 0; padding: 0.5rem 1rem; margin: 0.15rem 0;
+  animation: lay 0.3s ease both;
 }
-.qmini:first-child { margin-left: 0; }
-.qmini.pending { animation: seal-pulse 1.4s ease-in-out infinite; }
-/* once all sealed, the cards collapse together and shuffle — anonymity by gathering */
-.ballot.quest.gathered .qmini { margin-left: -20px; animation: shuffle 0.9s ease-in-out infinite; }
-.ballot.quest.gathered .qmini:first-child { margin-left: 0; }
-.ballot.quest.gathered .qmini:nth-child(odd) { animation-delay: 0.15s; }
-@keyframes shuffle { 0%, 100% { transform: translateX(0) rotate(0); } 50% { transform: translateX(2px) rotate(2deg); } }
+.qr-top { height: 15px; font: 600 0.56rem var(--mono); letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--faint); display: inline-flex; align-items: center; gap: 6px; }
+.feed-row.qseal .qr-card.pending { animation: seal-pulse 1.4s ease-in-out infinite; }
 
 .feed-row.moment.assassin-beat {
   border-color: var(--evil);
@@ -689,7 +683,7 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bslot.pending, .qmini.pending, .ballot.quest.gathered .qmini, .feed-row.moment.assassin-beat { animation: none; }
+  .bslot.pending, .feed-row.moment.assassin-beat { animation: none; }
 }
 
 /* ---- vote reveal (Option A): ballots flip in place to aye/nay ---- */
@@ -730,13 +724,25 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 
 /* ---- quest reveal (Q1): gather → shuffle → single flip to the aggregate ---- */
 .feed-row.questreveal {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 0.55rem 1rem 0.5rem; margin: 0.5rem 0;
-  border-top: 1px solid; border-bottom: 1px solid;
+  display: flex; flex-direction: column; align-items: center;
+  border-left: 3px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
+  border-radius: 0 3px 3px 0; padding: 0.5rem 1rem; margin: 0.15rem 0;
 }
-.feed-row.questreveal.ok { border-color: var(--good); background: linear-gradient(90deg, transparent, rgba(111, 143, 217, 0.12), transparent); }
-.feed-row.questreveal.bad { border-color: var(--evil); background: linear-gradient(90deg, transparent, rgba(194, 94, 84, 0.12), transparent); }
-.qr-stage { position: relative; width: 108px; height: 58px; }
+/* the frame stays neutral through gather+shuffle, then resolves to the
+   allegiance color exactly as the card flips (~76% of the 3s choreography) */
+.feed-row.questreveal.ok { animation: lay 0.3s ease both, qframe-ok 3s ease both; }
+.feed-row.questreveal.bad { animation: lay 0.3s ease both, qframe-bad 3s ease both; }
+@keyframes qframe-ok {
+  0%, 74% { border-left-color: var(--gold-deep); background: rgba(201, 168, 76, 0.05); }
+  86%, 100% { border-left-color: var(--good); background: rgba(111, 143, 217, 0.10); }
+}
+@keyframes qframe-bad {
+  0%, 74% { border-left-color: var(--gold-deep); background: rgba(201, 168, 76, 0.05); }
+  86%, 100% { border-left-color: var(--evil); background: rgba(194, 94, 84, 0.10); }
+}
+
+/* shared stage + card back, used by both .qseal (sealing) and .questreveal */
+.qr-stage { position: relative; width: 108px; height: 52px; margin: 5px 0; }
 .qr-card {
   position: absolute; left: 50%; top: 50%; width: 30px; height: 42px; margin: -21px 0 0 -15px;
   border-radius: 4px;
@@ -746,63 +752,59 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
     linear-gradient(180deg, var(--night-2), var(--panel));
   box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep), 0 3px 6px rgba(0, 0, 0, 0.5);
   transform: translateX(var(--x)) rotate(var(--r));
-  animation: qgather 1.5s ease both;
 }
+/* the reveal animates its cards; the sealing row leaves them fanned & static */
+.feed-row.questreveal .qr-card { animation: qgather 3s ease both; }
 @keyframes qgather {
-  0%, 20% { transform: translateX(var(--x)) rotate(var(--r)); opacity: 1; }
-  42% { transform: translateX(0) rotate(0); opacity: 1; }
-  50% { transform: translateX(2px) rotate(3deg); }
-  58% { transform: translateX(-2px) rotate(-3deg); }
-  66% { transform: translateX(0) rotate(0); opacity: 1; }
-  78%, 100% { transform: translateX(0) rotate(0); opacity: 0; }
+  0%, 10% { transform: translateX(var(--x)) rotate(var(--r)); opacity: 1; }
+  26% { transform: translateX(0) rotate(0); opacity: 1; }
+  34% { transform: translateX(3px) rotate(3deg); }
+  42% { transform: translateX(-3px) rotate(-3deg); }
+  50% { transform: translateX(2px) rotate(2deg); }
+  58% { transform: translateX(-2px) rotate(-2deg); }
+  66% { transform: translateX(2px) rotate(2deg); }
+  74% { transform: translateX(0) rotate(0); opacity: 1; }
+  80% { opacity: 1; }
+  90%, 100% { transform: translateX(0) rotate(0); opacity: 0; }
 }
 .qr-result {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  opacity: 0; animation: qreveal 1.5s ease both;
+  opacity: 0;
 }
+.feed-row.questreveal .qr-result { animation: qreveal 3s ease both; }
 .qr-result.sun { color: var(--good); }
 .qr-result.tower { color: var(--evil); }
 .qr-em { width: 30px; height: 30px; }
 .qr-word { font: 700 0.5rem var(--mono); letter-spacing: 0.1em; }
 @keyframes qreveal {
-  0%, 70% { opacity: 0; transform: perspective(300px) rotateY(90deg) scale(0.85); }
-  84% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1.06); }
+  0%, 76% { opacity: 0; transform: perspective(300px) rotateY(90deg) scale(0.85); }
+  88% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1.06); }
   100% { opacity: 1; transform: perspective(300px) rotateY(0) scale(1); }
 }
-.qr-caption { text-align: center; animation: revealfade 0.4s ease 1.25s both; }
+.qr-caption { min-height: 30px; text-align: center; }
+.feed-row.questreveal .qr-caption { animation: revealfade 0.4s ease 2.5s both; }
 .qr-caption b { font: 700 0.95rem var(--serif); letter-spacing: 0.16em; text-transform: uppercase; }
 .feed-row.questreveal.ok .qr-caption b { color: var(--good); }
 .feed-row.questreveal.bad .qr-caption b { color: var(--evil); }
 .qr-sub { display: block; font: 500 0.66rem var(--mono); color: var(--dim); letter-spacing: 0.05em; margin-top: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
-  /* skip the choreography — land straight on the revealed state */
+  /* skip the choreography — land straight on the revealed state; sealing cards
+     stay visible & static (they must NOT inherit the reveal's fade-to-0) */
   .vf-inner { animation: none; transform: rotateY(180deg); }
-  .votereveal .votes-result, .qr-caption { animation: none; opacity: 1; }
-  .qr-card { animation: none; opacity: 0; }
-  .qr-result { animation: none; opacity: 1; transform: none; }
+  .votereveal .votes-result { animation: none; opacity: 1; }
+  .feed-row.questreveal { animation: none !important; }
+  .feed-row.questreveal.ok { border-left-color: var(--good); background: rgba(111, 143, 217, 0.10); }
+  .feed-row.questreveal.bad { border-left-color: var(--evil); background: rgba(194, 94, 84, 0.10); }
+  .feed-row.questreveal .qr-card { animation: none; opacity: 0; }
+  .feed-row.questreveal .qr-result { animation: none; opacity: 1; transform: none; }
+  .feed-row.questreveal .qr-caption { animation: none; opacity: 1; }
+  .feed-row.qseal .qr-card.pending { animation: none; }
 }
 
-/* the vote tally: everyone's played card laid in a row */
-.feed-row.votes {
-  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  border-left: 2px solid var(--gold-deep);
-  background: rgba(201, 168, 76, 0.05);
-  border-radius: 0 3px 3px 0;
-  padding: 0.35rem 0.6rem 0.35rem 0.7rem;
-  margin: 0.2rem 0;
-}
+/* shared label/result type for the vote reveal (the .votereveal rules above
+   override color/size; these carry the base spacing) */
 .votes-lbl { font: 600 0.58rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); margin-right: 2px; }
-.vcard {
-  font: 600 0.68rem var(--mono);
-  padding: 3px 7px; border-radius: 3px; border: 1px solid;
-  display: inline-flex; gap: 5px; align-items: baseline;
-}
-.vcard.approve { color: #c9d9f2; border-color: rgba(111, 143, 217, 0.6); background: rgba(111, 143, 217, 0.13); }
-.vcard.reject { color: #f0cdc7; border-color: rgba(194, 94, 84, 0.6); background: rgba(194, 94, 84, 0.13); }
-.vcard b { font-weight: 700; }
-.vcard.approve b { color: #9cd0a4; }
-.vcard.reject b { color: #e6a49a; }
 .votes-result { font: 700 0.72rem var(--mono); letter-spacing: 0.12em; margin-left: 4px; }
 .votes-result.ok { color: #9cd0a4; }
 .votes-result.bad { color: #e6a49a; }

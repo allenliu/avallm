@@ -142,7 +142,7 @@ async function soloRun(browser, viewportName, viewport) {
       // bots deciding while we wait — capture the transient live-edge indicators
       const kind = await page.evaluate(() => {
         if (document.querySelector('.assassin-beat')) return 'assassin-beat'
-        if (document.querySelector('.ballot.quest')) return 'quest-ballot'
+        if (document.querySelector('.feed-row.qseal')) return 'quest-ballot'
         if (document.querySelector('.feed-row.ballot')) return 'vote-ballot'
         if (document.querySelector('.thinking-row')) return 'discuss-thinking'
         return null
@@ -173,7 +173,7 @@ async function soloRun(browser, viewportName, viewport) {
       else await clickByText(page, 'Approve')
     } else if (st.buttons.includes('Success')) {
       if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
-      if (!seen.has('quest-ballot') && await page.$('.ballot.quest')) { seen.add('quest-ballot'); await shot('quest-ballot') }
+      if (!seen.has('quest-ballot') && await page.$('.feed-row.qseal')) { seen.add('quest-ballot'); await shot('quest-ballot') }
       await clickByText(page, 'Success')
     } else if (st.buttons.includes('Fail')) {
       if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
