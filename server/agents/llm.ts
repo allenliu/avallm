@@ -26,6 +26,14 @@ export interface LlmAgentOpts {
   temperature?: number      // agent-config override of the per-kind default, [0, 1]
 }
 
+// A short, whitespace-collapsed, quoted view of a failed raw reply, for the
+// degrade record. Empty output is common on truncation, so name that case.
+function rawSnippet(raw: string): string {
+  const clean = raw.replace(/\s+/g, ' ').trim()
+  if (!clean) return '(empty)'
+  return JSON.stringify(clean.length > 200 ? `${clean.slice(0, 200)}…` : clean)
+}
+
 export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   const entry = rosterById(opts.modelId)
   const { client } = opts
@@ -100,7 +108,15 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
           ? parsed.error!
           : parsed.decision && legalityError(parsed.decision, view)
         if (error) {
-          throw new Error(`${label} failed ${kind} twice: ${error}`)
+          // Carry the actual model output into the degrade record so a
+          // truncated/malformed reply is diagnosable from the copy log, not
+          // guessed. The runner/server both surface err.message verbatim, and
+          // that text is already full-reveal-only, so the snippet leaks nothing
+          // the transcript doesn't. Whitespace-collapsed + clipped short.
+          throw new Error(
+            `${label} failed ${kind} twice: ${error}. Raw output` +
+            ` (1st: ${rawSnippet(first)}; 2nd: ${rawSnippet(second)})`,
+          )
         }
       }
       const decision = parsed.decision!

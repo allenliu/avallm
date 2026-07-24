@@ -89,7 +89,15 @@ export function publicStateText(view: PlayerView): string {
   if (view.currentTeam?.length) {
     const pending = view.proposals.at(-1)
     const pitch = pending?.pitch ? ` Leader's pitch: "${sanitizeSpeech(pending.pitch)}"` : ''
-    lines.push(`Proposed team on the table: ${view.currentTeam.map((s) => nameOf(view, s)).join(', ')}.${pitch}`)
+    // Surface the finalize revision so a bot reacting to a changed team sees
+    // WHAT changed, not just the final roster — otherwise it confabulates the
+    // delta (or misses that a revision happened at all). The reason never rides
+    // the transcript (proposalRevised emits no utterance), so this is its only
+    // channel to non-leaders.
+    const revision = pending?.revisedFrom
+      ? ` The leader REVISED this team at finalize (originally ${pending.revisedFrom.map((s) => nameOf(view, s)).join(', ')})${pending.revisedReason ? `, reason: "${sanitizeSpeech(pending.revisedReason)}"` : ''}.`
+      : ''
+    lines.push(`Proposed team on the table: ${view.currentTeam.map((s) => nameOf(view, s)).join(', ')}.${revision}${pitch}`)
   }
   const votedProposals = view.proposals.filter((p) => p.votes)
   if (votedProposals.length) {
@@ -98,7 +106,8 @@ export function publicStateText(view: PlayerView): string {
       const outcome = p.auto
         ? 'AUTO-APPROVED (hammer, no vote)'
         : `${p.approved ? 'APPROVED' : 'rejected'} (${p.votes!.map((v) => `${view.players[v.seat].name}:${v.vote === 'approve' ? 'Y' : 'N'}`).join(' ')})`
-      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}] -> ${outcome}${pitch}`
+      const revised = p.revisedFrom ? ` (revised from [${p.revisedFrom.map((s) => view.players[s].name).join('/')}])` : ''
+      return `Q${p.round}.${p.proposalNum} leader ${view.players[p.leader].name}, team [${p.team.map((s) => view.players[s].name).join('/')}]${revised} -> ${outcome}${pitch}`
     })
     lines.push(`Vote record:\n${hist.join('\n')}`)
   }

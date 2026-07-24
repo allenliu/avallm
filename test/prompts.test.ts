@@ -87,6 +87,40 @@ test('public state includes the vote record and hammer note', () => {
   assert.match(after, /AUTO-APPROVED \(hammer, no vote\)/)
 })
 
+test('public state surfaces a finalize revision (delta, not just the final team)', () => {
+  const g = createGame({ seed: 'rev', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 1 } })
+  const leader = g.leaderSeat
+  applyDecision(g, leader, { kind: 'propose', team: [leader, (leader + 1) % 5], pitch: 'starting here' })
+  // Run the initial discussion segment to its end, reaching the finalize turn.
+  while (g.phase === 'discussion') {
+    const [d] = expectedDecisions(g)
+    applyDecision(g, d.seat, { kind: 'discuss', say: '' })
+  }
+  assert.equal(g.phase, 'finalize')
+  const swappedIn = (leader + 2) % 5
+  applyDecision(g, leader, {
+    kind: 'finalize', stick: false, team: [leader, swappedIn], reason: 'swapping for a cleaner player',
+  })
+
+  // A non-leader mid-post-revision sees WHAT changed and why, on the pending line.
+  const nonLeader = (leader + 3) % 5
+  const pending = publicStateText(viewFor(g, nonLeader))
+  assert.match(pending, /REVISED this team at finalize/)
+  assert.match(pending, /originally/)
+  assert.match(pending, /swapping for a cleaner player/)
+
+  // Drive to the vote and confirm the history row carries the revision too.
+  while (g.phase === 'discussion') {
+    const [d] = expectedDecisions(g)
+    applyDecision(g, d.seat, { kind: 'discuss', say: '' })
+  }
+  assert.equal(g.phase, 'vote')
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'reject' })
+  const history = publicStateText(viewFor(g, nonLeader))
+  assert.match(history, /Vote record:/)
+  assert.match(history, /revised from \[/)
+})
+
 test('discuss prompts carry table-talk norms and flag direct addresses', () => {
   const g = createGame({ seed: 'addr', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })

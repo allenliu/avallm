@@ -22,8 +22,14 @@ export interface CallParams {
 // the object stays small), and these budgets have headroom so a slightly-over
 // model still lands the final field. Keep the field LAST + budget generous, or
 // the truncation bug returns.
+//
+// discuss is the SAME class at the highest-frequency call, but its contract
+// keeps a deliberately generous 60-word "thinking" (clipping thinking makes the
+// bot dumber) plus "say" and "lean" AFTER it — so at 300 a verbose model (a
+// DeepSeek discuss degraded this way) truncated before "say". discuss buys the
+// headroom with a bigger budget rather than a smaller contract.
 export const CALL_PARAMS: Record<LlmCallKind, CallParams> = {
-  discuss: { temperature: 0.8, max_tokens: 300, json: true },
+  discuss: { temperature: 0.8, max_tokens: 500, json: true },
   propose: { temperature: 0.6, max_tokens: 300, json: true },
   pitch: { temperature: 0.7, max_tokens: 250, json: true },
   finalize: { temperature: 0.6, max_tokens: 350, json: true },

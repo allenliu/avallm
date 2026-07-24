@@ -26,9 +26,14 @@ const SAY_MAX_CHARS = 400
 // Sized so a full 10-player scratchpad (9 reads + a plan) never re-clips.
 const READ_MAX_CHARS = 400        // one seat's suspicion read
 const PLAN_MAX_CHARS = 600        // the plan for the coming round
-const DEDUCTION_MAX_CHARS = 240   // one standing logical inference
+const DEDUCTION_MAX_CHARS = 400   // one standing logical inference (was 240,
+                                  // which clipped multi-clause deductions mid-
+                                  // conclusion; matched to READ_MAX_CHARS)
 const DEDUCTIONS_MAX = 6          // how many inferences to carry
-const SCRATCHPAD_MAX_CHARS = 7000 // the whole assembled pad
+const SCRATCHPAD_MAX_CHARS = 7000 // the whole assembled pad. Never binds in
+                                  // practice: the pad is REPLACED each reflect
+                                  // (not accumulated) and reflect's max_tokens
+                                  // caps one reply well under this.
 
 // Exported for eval tooling (probe/judge), which parses non-decision JSON
 // replies with the same salvage tolerance.
