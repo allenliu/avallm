@@ -24,8 +24,8 @@ export const SPECTATOR_ARCANA = { numeral: '0', title: 'The Witness', emblem: 'b
 // outer pool so a given name always keeps its glyph.
 const CELESTIAL: Record<string, { glyph: string; body: string }> = {
   deepseek: { glyph: '☿', body: 'Mercury' },
-  gemini: { glyph: '♊', body: 'Gemini' },
-  'gemini-flash': { glyph: '☄', body: 'the Comet' },
+  gemini: { glyph: '♊︎', body: 'Gemini' },
+  'gemini-flash': { glyph: '☄︎', body: 'the Comet' },
   haiku: { glyph: '☉', body: 'Sol' },
   kimi: { glyph: '☽', body: 'Luna' },
   glm: { glyph: '♃', body: 'Jupiter' },
