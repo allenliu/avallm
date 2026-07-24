@@ -98,5 +98,3 @@ Key sources:
   Strategies* ([arXiv 2510.11389](https://arxiv.org/abs/2510.11389)) and *Trust, Lies, and Long
   Memories* ([arXiv 2604.20582](https://arxiv.org/abs/2604.20582)) on multi-round reputation and
   cross-game memory.
-
-LLM integration patterns (OpenRouter client, prompt structure) draw on the sibling `datingsim` project.
