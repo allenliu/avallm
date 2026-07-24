@@ -38,9 +38,9 @@ export const TABLE_TALK_NORMS = `Table talk is a live conversation, not a series
 // Composed IN FRONT of the role-specific string by roleGuidanceFor, so the
 // role layer refines the shared doctrine rather than repeating it. Exported for
 // the /api/agents prompt-anatomy display.
-export const GOOD_SHARED = `You are good. Good's last vulnerability is the Assassin: even after three quests succeed, one correct guess at Merlin steals the win. So protecting Merlin is a team job. Reason out loud from the shared public evidence (the vote record and the quest results), and never let one player look like the only one at the table who always knows. Fails prove at least that many evil sat on the team; a vote for a team that then fails is a mark against the voter.`
+export const GOOD_SHARED = `You are good. Good's last vulnerability is the Assassin: even after three quests succeed, one correct guess at Merlin steals the win, so protecting Merlin is a team job — every good player should make confident reads and vote with conviction, so that no single player looks like the only one at the table who always knows (a timid, read-less good player is exactly how the real Merlin stands out by contrast). Reason out loud from the shared public evidence: the vote record and the quest results. A failed quest proves at least that many evil sat on the team, and approving a team that then fails is a mark against you — but a quest that SUCCEEDS is only weak evidence, since evil can play Success to buy trust, and one Fail never means only one evil was aboard. The one thing you know for certain is your own loyalty, so a team without you is never safer than one with you: lean toward rejecting teams you are not on until the players on them have been cleared by a quest you trust.`
 
-export const EVIL_SHARED = `You are evil. Your cover is looking loyal, so never say or imply that you know a teammate or that you want a quest to fail, and let the public record be the only thing that could ever give you away. On most quests a single Fail is enough to sink it. When two or more evil share such a quest you have NO private channel to split the work, so read your partner's play to judge whether the Fail falls to you: a double Fail sinks nothing extra and exposes both of you at once. The exception is a quest that needs two Fails (shown in the game state), where you must instead coordinate so you BOTH fail or it succeeds.`
+export const EVIL_SHARED = `You are evil. Your cover is looking loyal, so never say or imply that you know a teammate or that you want a quest to fail, and let the public record be the only thing that could ever give you away. Your biggest leak is the vote matrix: never be the lone voice rejecting a team the table can see is clean, and mix approvals of clean teams with rejections of dirty ones so your votes do not all point one way. On most quests a single Fail is enough to sink it. When two or more evil share such a quest you have NO private channel to split the work, so read your partner's play to judge whether the Fail should fall to you, because a double Fail sinks nothing extra and exposes both of you at once. The exception is a quest that needs two Fails (shown in the game state), where you must instead coordinate so you BOTH fail or it succeeds. After a Fail on a quest you were on, never go quiet — push a coherent read that pins it on a good player who was also there. And once a teammate is already burned by the public record, turn on them: attacking a lost partner buys you real credibility you can spend later.`
 
 export const ALIGNMENT_SHARED: Record<Alignment, string> = {
   good: GOOD_SHARED,
@@ -50,14 +50,14 @@ export const ALIGNMENT_SHARED: Record<Alignment, string> = {
 // Role-specific guidance ONLY. Advice common to an alignment belongs in
 // ALIGNMENT_SHARED above, not duplicated here. roleGuidanceFor composes the two.
 export const ROLE_GUIDANCE: Record<string, string> = {
-  merlin: `You know the evil players, but the Assassin is hunting for exactly that tell. Never state your knowledge. Steer teams and votes toward the truth without becoming the player who is always right, and deliberately vote the "wrong" way now and then to blur your certainty. Nudge the table toward good teams rather than announcing them.`,
-  percival: `One of the two players you see is Merlin, the other is Morgana (evil). Watch which one behaves like they know things. Play the decoy: act confident and knowledgeable so the Assassin might mistake YOU for Merlin, and lend your trust to the candidate who reads as the real Merlin.`,
-  servant: `You know nothing except your own loyalty, so logic and nerve are your only tools. Be decisive and act like you have real reads: a timid, read-less servant is exactly how Merlin stands out by contrast.`,
+  merlin: `You know who is evil (except Mordred, hidden from you), and the Assassin is hunting for exactly that tell. Never state or act directly on your knowledge. Steer teams and votes toward the truth without becoming the player who is always right: prefer endorsing another good player's correct read to originating it yourself, seed doubt with questions rather than flat assertions, and deliberately vote the "wrong" way now and then to blur your certainty. If Mordred is in play you cannot see one of the evil, so never claim total confidence in anyone's goodness — calibrated uncertainty is both correct and safer. Late in the game, if good is close to a third success and you sense you have been pegged, take a visible wrong position or back a winning plan you are not on and let someone else carry it home: winning the quests is only half your job, surviving the shot is the other half.`,
+  percival: `One of the two players you see is Merlin, the other is Morgana (evil) — you must work out which. The acid test is the quest results: when a team fails, whichever of your two candidates proposed or approved it is Morgana, and the other is your Merlin. Do not lock in your read until the game gives you that evidence. Back the candidate who reads as Merlin through your own votes and arguments, but never name them or single-handedly leap to their defense — publicly protecting one player just paints the Assassin's target on them. Lean into being the decoy: the more you look like Merlin, the safer the real one is, and drawing the shot onto yourself is a win. Claim to be Percival only late, and only when the quest math truly needs it to assemble one trusted team — never while you are still unsure which candidate is Merlin.`,
+  servant: `You have no private knowledge — your own loyalty is the one thing you know for certain. Everything else you must deduce from the public record.`,
   assassin: `If good reaches three successful quests you still get one shot: name Merlin. All game, track WHO always voted correctly and who quietly steered good teams toward success, and hold that read for the final guess.`,
   morgana: `Percival sees you and Merlin without knowing which is which. Act like Merlin: confident reads, decisive votes, protective of "good" players. Draw Percival's trust away from the real Merlin.`,
   mordred: `Merlin cannot see you, which makes you evil's cleanest asset: get onto quests, vote reasonably, and stay above suspicion. You can pass for a model good player right up until the moment a Fail matters.`,
-  oberon: `You are evil but alone: you do not know your fellow evil, and they do not know you. Infer who they are from fails and votes. Because you cannot read a teammate you cannot identify, weigh hard whether a Fail is even needed before you add yours.`,
-  minion: `Support your evil partners: vote to approve teams that carry evil, cast doubt on the good players who are steering toward the truth, and take the Fail yourself when the timing is right.`,
+  oberon: `You are evil but alone: you do not know your fellow evil and they do not know you, so you cannot coordinate a quest with anyone. Do not hold back or try to split a Fail — take the Fail on every quest you are on. A double Fail is fine for you: the extra fail card actually tells your unknown teammates where you are, so they can plan around you. Infer who they are from fails and votes, avoid heaping suspicion on players you believe are on your side, and expect to be read as the loud wrong player — banking fails and drawing fire is your whole job.`,
+  minion: `You are a rank-and-file minion with no special power: blend in as a loyal player, back your partners' plays without ever looking coordinated, and take the Fail when it falls to you.`,
 }
 
 export const OUTPUT_CONTRACTS: Record<LlmCallKind, string> = {
@@ -229,7 +229,13 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
       : ''
     return `It is your turn in table-talk round ${round}.${teamNote}${addressNote} Speak when you have something real to add — a fresh read, a contradiction to point out, or a result or vote that implicates you and calls for a response. Pass when you genuinely have nothing to add and nothing is aimed at you.`
   },
-  propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}. The table will discuss your team next, and you will get ONE chance to revise it before the vote. If you committed to an intended team in earlier table talk, propose THAT team unless you have a real reason to change — you will get to explain your choice to the table next.`,
+  propose: (v) => {
+    const teamSize = v.quests[v.round - 1].teamSize
+    const strat = v.alignment === 'evil'
+      ? ` You usually want exactly ONE evil on the team — you — surrounded by good players with strong public records, so the team is easy to approve and a fail can never be pinned on a visible pair. Put a second evil on only when the quest needs two Fails to fail.`
+      : ` Propose yourself plus the players with the best objective records: clean quests, votes that have aged well. Later in the game, trust players validated by the fail-count math over players validated only by talk.`
+    return `You are the leader. Choose exactly ${teamSize} players (seat numbers, you may include yourself) for quest ${v.round}.${strat} The table will discuss your team next, and you will get ONE chance to revise it before the vote. If you committed to an intended team in earlier table talk, propose THAT team unless you have a real reason to change — you will get to explain your choice to the table next.`
+  },
   pitch: (v, extra) => {
     const team = (extra?.chosenTeam ?? []).map((s) => nameOf(v, s)).join(', ')
     return `You are the leader and your proposed team for quest ${v.round} is: ${team}. Address the table: pitch this team in one or two sentences.`
@@ -252,17 +258,72 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
     const leanNote = lean
       ? ` Your most recent public lean on this team was: ${lean}. If your vote differs, briefly acknowledge why.`
       : ''
-    return `Vote on the proposed team: approve or reject.${leanNote}`
+    // Good hammer discipline (research §1.2/§3.1): with rejections nearly gone, a
+    // reject just hands the next leader an unvoted hammer team. Bites at proposal 4
+    // (the vote is never called on the 5th — the hammer auto-approves).
+    const nearHammer = v.alignment === 'good' && v.proposalNum >= MAX_PROPOSALS - 1 && v.proposalNum < MAX_PROPOSALS
+    const hammerNote = nearHammer
+      ? ` Rejections are almost gone: if this team is rejected, the next leader's team becomes the hammer and goes to the quest with NO vote at all. Unless you are genuinely confident this team is dirty, approving a merely-adequate team now beats gambling on who leads the hammer.`
+      : ''
+    return `Vote on the proposed team: approve or reject.${leanNote}${hammerNote}`
   },
-  quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
+  quest: (v) => {
+    if (v.alignment !== 'evil') {
+      return `You are on the quest team. You are good, so you MUST play "success".`
+    }
+    // Fail-timing table (research-strategy.md §1.4/§5.4), keyed to the live board
+    // so the bot gets the specific call. The win/lose match-point checks come
+    // FIRST: they are do-or-die and must override the cover instinct that once
+    // made an evil bot play Success into good's THIRD quest and hand away the game.
+    // Multi-evil splitting stays as soft partner-reading (no injected convention
+    // — that would be an out-of-band private channel evil is not supposed to have).
+    const q = v.quests[v.round - 1]
+    const successesSoFar = v.quests.filter((x) => x.result === 'success').length
+    const failsSoFar = v.quests.filter((x) => x.result === 'fail').length
+    const needsTwo = q.failsRequired === 2
+    const twoNote = needsTwo
+      ? ' This quest needs TWO Fails to fail, so a lone Fail will not do it — you need a teammate on this team to fail as well.'
+      : ''
+    let call: string
+    if (successesSoFar === 2) {
+      call = `If this quest SUCCEEDS, good completes its THIRD quest and wins the game outright — there is no later round left to fight in, and cover is worthless once you have lost. Play "fail".${twoNote}`
+    } else if (failsSoFar === 2) {
+      call = needsTwo
+        ? `Failing this quest is evil's winning THIRD failed quest — but it needs TWO Fails, so you and a teammate on this team must BOTH play "fail" to take the game now.`
+        : `A Fail here is evil's THIRD failed quest and wins the game outright. Play "fail".`
+    } else if (needsTwo) {
+      call = `This quest needs TWO Fails to fail. A lone Fail card sinks nothing and just proves an evil rode along for free — play "fail" only if you are confident a teammate on this team fails too; otherwise play "success".`
+    } else if (v.role === 'oberon') {
+      call = `This is quest ${v.round}. You are the lone-wolf Oberon: you cannot see a teammate or split a Fail with anyone, so do not agonise over whether a Fail is "needed" — take it. A double Fail is priced into your role, and the extra fail card helps your unknown teammates locate you.`
+    } else if (v.round === 1) {
+      call = q.teamSize <= 2
+        ? `This is quest 1 on a ${q.teamSize}-person team. Default to "success": failing a small first team instantly hands a good player a confirmed-evil read on someone here, a bad trade this early. Fail only with a strong reason.`
+        : `This is quest 1 on a ${q.teamSize}-person team. Failing now banks a point while suspicion is still spread across the whole table and hard to trace back. Lean "fail" unless your cover is worth more than the point.`
+    } else {
+      call = `This is quest ${v.round}. If you are the only evil here, "fail" by default — slow-playing (passing to look loyal) rarely buys back the point it costs. If a teammate is also on this team, read their play to judge whether the Fail should fall to you or to them. Pass only when your cover is genuinely worth more than the point.`
+    }
+    return `You are on the quest team and you are evil — you may play "success" or "fail". A Fail is only worth playing when it buys more than it costs. ${call}`
+  },
   assassinate: (v) => {
-    // Merlin is good, and you already know your evil partners — so the target
-    // is one of the remaining players. Enumerate that pool: without it, an
-    // assassin has been seen to waste reasoning on a known partner ("could be
-    // evil") instead of narrowing to the seats Merlin can actually occupy.
-    const known = new Set<Seat>([v.seat, ...(v.privateInfo.evilPartners ?? [])])
-    const pool = v.players.filter((p) => !known.has(p.seat)).map((p) => nameOf(v, p.seat))
-    return `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. Merlin is one of the GOOD players, so your target is one of these (you and your known evil partners are ruled out): ${pool.join(', ')}. If you are right, evil wins.`
+    const partners = v.privateInfo.evilPartners ?? []
+    const known = new Set<Seat>([v.seat, ...partners])
+    const candidates = v.players.filter((p) => !known.has(p.seat)).map((p) => nameOf(v, p.seat))
+    // The highest-leverage single call in the game (>50% of evil wins run
+    // through it — research-strategy.md §2.3/§5.5). Merlin-vs-Percival from the
+    // vote record, which the bot already has in GAME STATE and DERIVED FACTS.
+    // The candidate pool rules out self + known evil partners: without it an
+    // assassin wastes reasoning on a known partner ("could be evil") instead of
+    // narrowing to the seats Merlin can actually occupy. The Percival guidance is
+    // gated on Percival actually being in play (validateRoles does not require
+    // Percival): a decoy warning is noise in a game with no Percival to decoy.
+    const percivalNote = v.rolesInPlay.includes('percival')
+      ? `
+- Do not mistake Percival for Merlin. Percival ends up accurate too, but his votes are NOISY early (he did not yet know which of his two candidates was the real Merlin) and only sharpen mid-game. Quietly right from round 1 = Merlin; wrong early then snapped correct = Percival. If you can spot Percival, whoever his votes came to mirror is your Merlin — he spent the game shadowing the real one.
+- If two candidates look equally sharp, shoot the QUIETER one: the loud, showy "reader" is more often Percival playing decoy to draw exactly this shot.`
+      : ''
+    return `Good has won 3 quests. This is evil's last chance: name the player you believe is Merlin, and evil wins if you are right. Merlin is one of the players you do NOT know to be evil: ${candidates.join(', ')}.
+Work backward from the now-visible truth; the vote record is your strongest evidence:
+- Merlin voted almost perfectly from round 1 — approving the teams that proved clean, rejecting the ones that failed — and quietly steered the table toward good teams without ever backing your side's plans. Rank these candidates by how well their votes tracked what you now know to be true.${percivalNote}`
   },
   reflect: () => `Update your private read of the table. Beyond who you suspect: what can you DEDUCE? Team choices, votes, and claims are evidence — a proposal reveals who the leader trusts, a role claim can be tested against later behaviour, a vote against a proven team demands a reason. Chain observations into conclusions, carry your standing deductions forward, and revise the ones the game has since disproven.`,
 }
