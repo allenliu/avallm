@@ -164,7 +164,15 @@ export interface PlayerView {
   currentTeam?: Seat[]
   discussionRound?: number
   discussionPostRevision?: boolean
-  transcript: { seat: Seat; name: string; text: string; lean?: Lean }[]
+  // `prop` tags the utterance with the proposal segment it was spoken under
+  // (post-revision team if the leader revised), so a renderer can group table
+  // talk by proposal and a stale lean can never be read as a lean on the team
+  // currently on the table. Absent only for utterances before the first
+  // proposal (e.g. a lobby rename). team is public (proposals are public).
+  transcript: {
+    seat: Seat; name: string; text: string; lean?: Lean
+    prop?: { round: number; proposalNum: number; team: Seat[] }
+  }[]
   events: GameEvent[]           // only events visible to this seat
   winner?: Alignment
   winReason?: string

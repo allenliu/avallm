@@ -145,13 +145,27 @@ export function sanitizeSpeech(text: string): string {
 export function transcriptText(view: PlayerView, maxUtterances = 14): string {
   const recent = view.transcript.slice(-maxUtterances)
   if (!recent.length) return '(no table talk yet)'
-  return recent
-    .map((u) => {
-      const lean = u.lean ? ` [leans ${u.lean}]` : ''
-      const speech = u.text ? `"${sanitizeSpeech(u.text)}"` : '(passes)'
-      return `${u.name}(seat ${u.seat}): ${speech}${lean}`
-    })
-    .join('\n')
+  // Fence each proposal's discussion with a header so a lean reads as a lean on
+  // THAT team, not whatever team is on the table now — the rolling window
+  // crosses proposal boundaries, and an unfenced "(passes) [leans approve]"
+  // from a prior proposal is exactly how a bot confabulates a silent approval.
+  // The team in the header includes any finalize-time revision.
+  const lines: string[] = []
+  let prevKey: string | undefined
+  for (const u of recent) {
+    const key = u.prop ? `Q${u.prop.round}.${u.prop.proposalNum}|${u.prop.team.join(',')}` : ''
+    if (key !== prevKey) {
+      if (u.prop) {
+        const team = u.prop.team.map((s) => nameOf(view, s)).join(', ')
+        lines.push(`--- on Q${u.prop.round} proposal ${u.prop.proposalNum} (team: ${team}) ---`)
+      }
+      prevKey = key
+    }
+    const lean = u.lean ? ` [leans ${u.lean}]` : ''
+    const speech = u.text ? `"${sanitizeSpeech(u.text)}"` : '(passes)'
+    lines.push(`${u.name}(seat ${u.seat}): ${speech}${lean}`)
+  }
+  return lines.join('\n')
 }
 
 // Players who mentioned this bot by name since its last utterance — the
@@ -241,7 +255,15 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
     return `Vote on the proposed team: approve or reject.${leanNote}`
   },
   quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
-  assassinate: () => `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. If you are right, evil wins.`,
+  assassinate: (v) => {
+    // Merlin is good, and you already know your evil partners — so the target
+    // is one of the remaining players. Enumerate that pool: without it, an
+    // assassin has been seen to waste reasoning on a known partner ("could be
+    // evil") instead of narrowing to the seats Merlin can actually occupy.
+    const known = new Set<Seat>([v.seat, ...(v.privateInfo.evilPartners ?? [])])
+    const pool = v.players.filter((p) => !known.has(p.seat)).map((p) => nameOf(v, p.seat))
+    return `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. Merlin is one of the GOOD players, so your target is one of these (you and your known evil partners are ruled out): ${pool.join(', ')}. If you are right, evil wins.`
+  },
   reflect: () => `Update your private read of the table. Beyond who you suspect: what can you DEDUCE? Team choices, votes, and claims are evidence — a proposal reveals who the leader trusts, a role claim can be tested against later behaviour, a vote against a proven team demands a reason. Chain observations into conclusions, carry your standing deductions forward, and revise the ones the game has since disproven.`,
 }
 

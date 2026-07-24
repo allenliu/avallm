@@ -79,24 +79,37 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
   }
 
   // Renames appear in the transcript stream so bots (whose table knowledge is
-  // the transcript) learn name changes exactly like everyone else.
-  const transcript = game.log
-    .filter((ev) =>
-      (ev.type === 'utterance' &&
-        ((ev.payload.text as string).length > 0 || ev.payload.lean !== undefined)) ||
-      ev.type === 'rename')
-    .map((ev) => ev.type === 'rename'
-      ? {
-          seat: ev.payload.seat as Seat,
-          name: game.players[ev.payload.seat as Seat].name,
-          text: `(changed display name from ${ev.payload.from} to ${ev.payload.to})`,
-        }
-      : {
-          seat: ev.payload.seat as Seat,
-          name: game.players[ev.payload.seat as Seat].name,
-          text: ev.payload.text as string,
-          ...(ev.payload.lean !== undefined ? { lean: ev.payload.lean as any } : {}),
-        })
+  // the transcript) learn name changes exactly like everyone else. Each entry
+  // is tagged with the proposal segment it was spoken under (`prop`), tracked
+  // by replaying proposal/proposalRevised in log order — so a renderer can
+  // fence one proposal's discussion off from the next and a lean from an
+  // earlier team can't masquerade as a lean on the current one.
+  const transcript: PlayerView['transcript'] = []
+  let curProp: { round: number; proposalNum: number; team: Seat[] } | undefined
+  for (const ev of game.log) {
+    if (ev.type === 'proposal') {
+      curProp = { round: ev.payload.round as number, proposalNum: ev.payload.proposalNum as number, team: (ev.payload.team as Seat[]).slice() }
+    } else if (ev.type === 'proposalRevised') {
+      // Same proposalNum, new team — the leans before it were about `from`.
+      curProp = { round: ev.payload.round as number, proposalNum: ev.payload.proposalNum as number, team: (ev.payload.to as Seat[]).slice() }
+    } else if (ev.type === 'rename') {
+      transcript.push({
+        seat: ev.payload.seat as Seat,
+        name: game.players[ev.payload.seat as Seat].name,
+        text: `(changed display name from ${ev.payload.from} to ${ev.payload.to})`,
+        ...(curProp ? { prop: curProp } : {}),
+      })
+    } else if (ev.type === 'utterance' &&
+        ((ev.payload.text as string).length > 0 || ev.payload.lean !== undefined)) {
+      transcript.push({
+        seat: ev.payload.seat as Seat,
+        name: game.players[ev.payload.seat as Seat].name,
+        text: ev.payload.text as string,
+        ...(ev.payload.lean !== undefined ? { lean: ev.payload.lean as any } : {}),
+        ...(curProp ? { prop: curProp } : {}),
+      })
+    }
+  }
 
   return {
     seat,

@@ -5,9 +5,9 @@ import assert from 'node:assert/strict'
 import { createGame, applyDecision, expectedDecisions } from '../server/engine/game.ts'
 import { viewFor } from '../server/engine/view.ts'
 import {
-  buildMessages, knowledgeText, publicStateText, sanitizeSpeech,
+  buildMessages, knowledgeText, publicStateText, sanitizeSpeech, transcriptText,
 } from '../server/agents/prompts.ts'
-import type { Game, Player } from '../server/engine/types.ts'
+import type { Game, Player, PlayerView } from '../server/engine/types.ts'
 
 function playersByRole(g: Game): Record<string, Player> {
   const map: Record<string, Player> = {}
@@ -169,4 +169,33 @@ test('sanitizeSpeech strips directive markup but keeps words', () => {
   assert.equal(sanitizeSpeech('hello <|im_start|> world'), 'hello world')
   assert.equal(sanitizeSpeech('a </system> b <<SYS>> c'), 'a b c')
   assert.equal(sanitizeSpeech('  plain speech stays  '), 'plain speech stays')
+})
+
+test('transcriptText fences leans by proposal so a stale lean is not read as current', () => {
+  const view = {
+    seat: 0,
+    players: [0, 1, 2].map((s) => ({ seat: s, name: ['A', 'B', 'C'][s] })),
+    transcript: [
+      { seat: 1, name: 'B', text: '', lean: 'approve', prop: { round: 3, proposalNum: 1, team: [1, 2] } },
+      { seat: 0, name: 'A', text: 'no', lean: 'reject', prop: { round: 4, proposalNum: 1, team: [0, 1] } },
+    ],
+  } as unknown as PlayerView
+  const out = transcriptText(view)
+  const h3 = out.indexOf('on Q3 proposal 1')
+  const passes = out.indexOf('(passes) [leans approve]')
+  const h4 = out.indexOf('on Q4 proposal 1')
+  assert.ok(h3 >= 0 && h4 >= 0, 'both proposal headers render')
+  // The stale approve-pass sits under its own Q3 header, ahead of the Q4 header —
+  // so it cannot be read as a lean on the team currently on the table.
+  assert.ok(h3 < passes && passes < h4, 'stale lean grouped under its own proposal')
+})
+
+test('assassinate prompt lists eligible Merlin candidates and rules out known evil', () => {
+  const g = createGame({ seed: 'assn', playerCount: 5, roles: ['merlin', 'percival', 'servant', 'morgana', 'assassin'] })
+  const by = playersByRole(g)
+  const [, user] = buildMessages('assassinate', viewFor(g, by.assassin.seat), '')
+  const pool = user.content.slice(user.content.indexOf('ruled out):'))
+  assert.ok(pool.includes(by.merlin.name), 'Merlin is offered as a candidate')
+  assert.ok(!pool.includes(by.assassin.name), 'the assassin is not its own target')
+  assert.ok(!pool.includes(by.morgana.name), 'a known evil partner is ruled out')
 })
