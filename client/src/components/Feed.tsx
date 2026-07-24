@@ -38,7 +38,7 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
         const autopilot = degraded.has(row.key) && (
           <span
             className="chip autopilot-chip"
-            title="This decision fell back to the rule-based autopilot — the model's reply was unusable"
+            title="This decision fell back to the rule-based autopilot; the model's reply was unusable"
           >autopilot</span>
         )
         const pill = row.lean && (
@@ -207,7 +207,7 @@ function PendingIndicator({ view, bots, pending, name }: {
           {view.players.map((p) => (
             <span key={p.seat} className="vcardcol">
               <span className={`vslot ${pending.has(p.seat) ? 'pending' : 'sealed'}`}
-                title={pending.has(p.seat) ? `${name(p.seat)} — still to vote` : `${name(p.seat)} — sealed`} />
+                title={pending.has(p.seat) ? `${name(p.seat)}: still to vote` : `${name(p.seat)}: sealed`} />
               <span className="vcard-name">{name(p.seat)}</span>
             </span>
           ))}
@@ -353,7 +353,7 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, view: PlayerVie
       return {
         key: ev.seq, kind: 'moment', cls: 'gold',
         text: `The Knife is drawn`,
-        sub: `${name(p.assassin)} is the Assassin — and names ${name(p.target)} as Merlin. ${p.wasMerlin ? 'Correct. Evil steals the game.' : 'Wrong.'}`,
+        sub: `${name(p.assassin)} is the Assassin, and names ${name(p.target)} as Merlin. ${p.wasMerlin ? 'Correct. Evil steals the game.' : 'Wrong.'}`,
       }
     case 'gameOver':
       return {

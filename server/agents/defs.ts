@@ -269,7 +269,7 @@ export function validateDef(raw: unknown, opts: ValidateOpts = {}): AgentDef {
   if (typeof d.name !== 'string') throw new Error('agent name required (max 40 chars)')
   d.name = d.name.replace(/[<>{}[\]|\\]/g, '').replace(/\s+/g, ' ').trim()
   if (!d.name || d.name.length > 40) throw new Error('agent name required (max 40 chars)')
-  if (nameIsReserved(d.name)) throw new Error(`"${d.name}" can't be used as an agent name — it's a reserved word`)
+  if (nameIsReserved(d.name)) throw new Error(`"${d.name}" can't be used as an agent name: it's a reserved word`)
   // Legacy defs carry version: '1.0' — read any string as its leading number.
   if (typeof d.version === 'string') d.version = Math.trunc(parseFloat(d.version)) || 1
   if (d.version !== undefined && (typeof d.version !== 'number' || !Number.isInteger(d.version) || d.version < 1)) {
@@ -358,7 +358,7 @@ function loadTier(
       // (the seat override or DEFAULT_MODEL backstops it).
       const suggested = def.engine.type === 'llm' ? def.engine.model : undefined
       if (suggested !== undefined && !ROSTER.some((r) => r.id === suggested)) {
-        def.unavailable = `model "${suggested}" is no longer in the roster — pick a new model`
+        def.unavailable = `model "${suggested}" is no longer in the roster; pick a new model`
       }
       agents.push({ ...def, tier })
     } catch (err) {

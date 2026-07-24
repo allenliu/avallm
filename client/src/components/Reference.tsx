@@ -131,7 +131,7 @@ function LibraryTab({ library }: { library: Library | null }) {
       {library.baseline && (
         <div className="baseline-prompts">
           <p className="roles-preview">
-            Every LLM agent runs on the same engine-owned baseline — personalities layer on top.
+            Every LLM agent runs on the same engine-owned baseline; personalities layer on top.
             The output format, hidden-information filtering, and injection guard are fixed and not
             part of any agent's config.
           </p>
@@ -169,7 +169,7 @@ function SetupTab({ view }: { view: PlayerView }) {
             : '—'}
         </span></div>
       <div className="ref-row"><span className="role-toggle-name">Proposals</span>
-        <span className="role-toggle-desc">up to 5 per quest — after 4 rejections the 5th ("hammer") team is locked in automatically, no vote</span></div>
+        <span className="role-toggle-desc">up to 5 per quest; after 4 rejections the 5th ("hammer") team is locked in automatically, no vote</span></div>
     </div>
   )
 }

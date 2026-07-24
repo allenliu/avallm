@@ -31,7 +31,7 @@ export function RoleCard({ view }: { view: PlayerView }) {
             <p className="rc-know">Fellow evil: <b>{info.evilPartners.map(name).join(', ')}</b></p>
           )}
           {view.alignment === 'evil' && (!info.evilPartners || info.evilPartners.length === 0) && (
-            <p className="rc-know">You work alone — the other evil don't know you either.</p>
+            <p className="rc-know">You work alone; the other evil don't know you either.</p>
           )}
           {info.merlinCandidates && info.merlinCandidates.length > 0 && (
             <p className="rc-know">Merlin is one of: <b>{info.merlinCandidates.map(name).join(' / ')}</b></p>

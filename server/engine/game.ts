@@ -182,7 +182,7 @@ export function renamePlayer(game: Game, seat: Seat, rawName: string): void {
   if (!player) throw new EngineError(`no player at seat ${seat}`)
   const name = rawName.replace(/\s+/g, ' ').trim().slice(0, 24)
   if (!name) throw new EngineError('name must not be empty')
-  if (nameIsReserved(name)) throw new EngineError(`"${name}" is a reserved word — pick another name`)
+  if (nameIsReserved(name)) throw new EngineError(`"${name}" is a reserved word; pick another name`)
   const from = player.name
   if (from === name) return
   if (game.players.some((p) => p.seat !== seat && p.name.toLowerCase() === name.toLowerCase())) {

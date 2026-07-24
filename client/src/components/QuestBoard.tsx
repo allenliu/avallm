@@ -56,7 +56,7 @@ export function QuestBoard({ view }: { view: PlayerView }) {
           )
         })}
       </div>
-      <div className="prop" title="Proposals this round — after 4 rejections the 5th (hammer) team is locked in automatically, no vote">
+      <div className="prop" title="Proposals this round; after 4 rejections the 5th (hammer) team is locked in automatically, no vote">
         <span className="prop-lbl">Proposal {view.proposalNum}/5</span>
         <div className="pips">
           {[1, 2, 3, 4, 5].map((n) => (

@@ -12,7 +12,7 @@ export function SpectatorCard() {
         <Emblem id={SPECTATOR_ARCANA.emblem} className="rc-em" />
         <div className="role-name">{SPECTATOR_ARCANA.title}</div>
         <div className="role-align spectator">Spectator · unaligned</div>
-        <p className="role-desc">You see only public information — votes, quests, and table talk. Roles stay hidden until the game ends.</p>
+        <p className="role-desc">You see only public information: votes, quests, and table talk. Roles stay hidden until the game ends.</p>
       </div>
     </div>
   )

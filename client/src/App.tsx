@@ -365,7 +365,7 @@ export function App() {
       {!gameOver && (
       <footer className={`youredge${myAsk && !payload.spectator ? ' waits' : ''}`}>
         <div className="edge-inner">
-          <div className="youchip" title={payload.spectator ? roleTitle : `${roleTitle} — you are ⊕ Earth at this table`}>
+          <div className="youchip" title={payload.spectator ? roleTitle : `${roleTitle}: you are ⊕ Earth at this table`}>
             <span className="you-sigil">{payload.spectator ? '◎' : HUMAN_CELESTIAL.glyph}</span>
           <span className="you-meta">
               <span className="you-name">{payload.spectator ? 'Spectating' : view.name}</span>
@@ -374,7 +374,7 @@ export function App() {
           </div>
           {payload.spectator
             ? <div className="action-bar waiting">
-                Spectating{payload.waitingOn.length ? ` — waiting on ${payload.waitingOn.join(', ')}` : '…'}
+                Spectating{payload.waitingOn.length ? `, waiting on ${payload.waitingOn.join(', ')}` : '…'}
               </div>
             : <ActionBar view={view} ask={myAsk} onDecide={decide} waitingOn={payload.waitingOn} />}
         </div>
@@ -1168,19 +1168,19 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
       <div className="row">
         <input value={name} maxLength={40} placeholder="Agent name" onChange={(e) => setName(e.target.value)} />
         <select value={model} onChange={(e) => setModel(e.target.value)}>
-          <option value="">no fixed model — plays the table default ({library.defaultModel ?? 'server pick'})</option>
+          <option value="">no fixed model (plays the table default: {library.defaultModel ?? 'server pick'})</option>
           {library.models.map((m) => <option key={m.id} value={m.id}>{m.slug} ({m.tier})</option>)}
         </select>
       </div>
       <input value={about} maxLength={300} placeholder="About (shown in the library)" onChange={(e) => setAbout(e.target.value)} />
       <textarea
         value={personality} maxLength={2000} rows={2}
-        placeholder="Personality — the table persona (e.g. 'Theatrical and paranoid. Accuse early, defend loudly.')"
+        placeholder="Personality: the table persona (e.g. 'Theatrical and paranoid. Accuse early, defend loudly.')"
         onChange={(e) => setPersonality(e.target.value)}
       />
       <textarea
         value={strategy} maxLength={2000} rows={3}
-        placeholder="Strategy — always-on doctrine, any role (e.g. 'Track who approves failed teams across the whole vote record; treat early reject-storms as evil coordination.')"
+        placeholder="Strategy: always-on doctrine, any role (e.g. 'Track who approves failed teams across the whole vote record; treat early reject-storms as evil coordination.')"
         onChange={(e) => setStrategy(e.target.value)}
       />
       <details className="prompt-details">
@@ -1204,7 +1204,7 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
         <summary>Per-decision guidance ({Object.values(kindG).filter(Boolean).length} set)</summary>
         <p className="roles-preview">
           Extra coaching for one decision type. The <b>reflect</b> slot shapes the agent's private
-          notes — a custom memory strategy.
+          notes: a custom memory strategy.
         </p>
         {guidanceEditor(kinds, kindG, setKindG, undefined,
           (k) => `e.g. ${k === 'assassinate' ? 'Rank seats by vote-correctness; shoot the most correct.' : k === 'reflect' ? 'Note each player: trust 0-10, one reason, one prediction.' : `guidance applied only to ${k} calls`}`)}
@@ -1223,7 +1223,7 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
         (~{tokenEst(tunedChars)} tokens added to every call this agent makes).
       </p>
       <details className="prompt-details" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open && !preview) void runPreview() }}>
-        <summary>Preview the exact prompt (free — no model call)</summary>
+        <summary>Preview the exact prompt (free, no model call)</summary>
         <div className="row">
           <label>as{' '}
             <select value={pvRole} onChange={(e) => setPvRole(e.target.value)}>

@@ -19,7 +19,7 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
     return (
       <div className="action-bar waiting" data-kind="waiting">
         {others.length
-          ? `Waiting on ${others.join(', ')}… (no rush — this table plays like mail chess)`
+          ? `Waiting on ${others.join(', ')}… (no rush, take your turn whenever you like)`
           : 'The table is playing… watch the feed.'}
       </div>
     )
@@ -56,7 +56,7 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
     <div className="action-bar your-turn column discuss2" data-kind="discuss">
       {leadOpening && (
         <span className="action-hint">
-          ♛ You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
+          ♛ You lead quest {view.round}. Open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
         </span>
       )}
       <div className="discuss-top">
@@ -102,7 +102,7 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
     <div className="action-bar your-turn column" data-kind="propose">
       <div className="row">
         <TurnTag>You lead</TurnTag>
-        <span className="action-label">Quest {view.round} — pick {size} players ({team.length}/{size})</span>
+        <span className="action-label">Quest {view.round}: pick {size} players ({team.length}/{size})</span>
       </div>
       <div className="seat-picker">
         {view.players.map((p) => (
@@ -140,7 +140,7 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
       <span className="action-label">Approve <b className="team-gold">{team}</b> for quest {view.round}?</span>
       <span className="bar-spacer" />
       <div className="playcards">
-        <button className="play approve" data-t="vote-approve" title="The Chariot — approve, send them forth" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
+        <button className="play approve" data-t="vote-approve" title="The Chariot: approve, send them forth" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
           <span className="pnum">VII</span>
           <span className="pem-frame"><Emblem id="chariot" className="pem" /></span>
@@ -148,7 +148,7 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
           <span className="pt vote-title"><span className="ptx-arc">The Chariot</span><span className="ptx-plain">Approve</span></span>
           <span className="ps">send them forth</span>
         </button>
-        <button className="play reject" data-t="vote-reject" title="The Hanged Man — reject, force a new leader" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
+        <button className="play reject" data-t="vote-reject" title="The Hanged Man: reject, force a new leader" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
           <span className="pnum">XII</span>
           <span className="pem-frame"><Emblem id="hanged" className="pem" /></span>
@@ -166,7 +166,7 @@ function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<
     <div className="action-bar your-turn" data-kind="quest">
       <TurnTag>The quest</TurnTag>
       <span className="action-label">
-        Play your card in secret{good ? ' — good must play Success' : ''}:
+        Play your card in secret{good ? ' (good must play Success)' : ''}:
       </span>
       <span className="bar-spacer" />
       <div className="playcards">
@@ -195,7 +195,7 @@ function Assassinate({ view, onDecide }: { view: PlayerView; onDecide: (d: Recor
     <div className="action-bar your-turn column" data-kind="assassinate">
       <div className="row">
         <TurnTag>The Knife</TurnTag>
-        <span className="action-label">Good has three quests — but you are the Assassin. Who is Merlin?</span>
+        <span className="action-label">Good has three quests, but you are the Assassin. Who is Merlin?</span>
       </div>
       <div className="row">
         <div className="seat-picker">

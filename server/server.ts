@@ -512,7 +512,7 @@ function serveStatic(res: http.ServerResponse, urlPath: string): void {
       fs.createReadStream(index).pipe(res)
     } else {
       res.writeHead(404)
-      res.end('client not built — run: npm --prefix client install && npm --prefix client run build')
+      res.end('client not built. Run: npm --prefix client install && npm --prefix client run build')
     }
     return
   }
@@ -555,7 +555,7 @@ const server = http.createServer(async (req, res) => {
         if (!member) return json(res, 403, { error: 'not in this lobby' })
         const name = sanitizeName(body.name)
         if (!name) return json(res, 400, { error: 'name must not be empty' })
-        if (nameIsReserved(name)) return json(res, 400, { error: `"${name}" can't be used as a name — it's a reserved word` })
+        if (nameIsReserved(name)) return json(res, 400, { error: `"${name}" can't be used as a name: it's a reserved word` })
         const taken = [...lobby.members, ...lobby.spectators]
           .some((m) => m.token !== token && m.name.toLowerCase() === name.toLowerCase())
         if (taken) return json(res, 409, { error: `the name "${name}" is already taken in this lobby` })
@@ -578,10 +578,10 @@ const server = http.createServer(async (req, res) => {
           return
         }
         if (lobby.status !== 'open') {
-          return json(res, 409, { error: 'game already started — you can still spectate', spectateAvailable: true })
+          return json(res, 409, { error: 'game already started; you can still spectate', spectateAvailable: true })
         }
         if (lobby.members.length >= lobby.config.humanSeats) {
-          return json(res, 409, { error: 'all player seats are taken — you can still spectate', spectateAvailable: true })
+          return json(res, 409, { error: 'all player seats are taken; you can still spectate', spectateAvailable: true })
         }
         lobby.members.push({ token, name })
         if (lobby.members.length === lobby.config.humanSeats) startLobby(lobby)

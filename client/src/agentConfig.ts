@@ -13,7 +13,7 @@ export function agentConfigText(a: AgentInfo): string {
     parts.push(`ON ${kind.toUpperCase()}\n${text}`)
   }
   if (a.temperature !== undefined) parts.push(`TEMPERATURE ${a.temperature}`)
-  return parts.join('\n\n') || '(no custom layers — baseline prompts)'
+  return parts.join('\n\n') || '(no custom layers; baseline prompts)'
 }
 
 // ~4 chars per token, matching the server's estimate.
