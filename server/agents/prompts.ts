@@ -49,8 +49,8 @@ export const OUTPUT_CONTRACTS: Record<LlmCallKind, string> = {
   pitch: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "pitch": "<one or two spoken sentences to the table about your team>"}. The team is FINAL and cannot be changed here. If it differs from anything you said during table talk, acknowledge the change and give a reason — a silent flip-flop reads as evasive.`,
   vote: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "vote": "approve" or "reject"}. Keep "thinking" short so the whole object fits in the reply — the "vote" field comes last and MUST be present.`,
   quest: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "card": "success" or "fail"}. Keep "thinking" short so the whole object fits — the "card" field comes last and MUST be present.`,
-  assassinate: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "target": <seat number of the player you believe is Merlin>}.`,
-  reflect: `Reply with ONLY a JSON object: {"suspicions": [{"seat": <n>, "read": "<one line>", "confidence": <0-100>}...], "plan": "<your plan for the coming round, <=40 words>"}.`,
+  assassinate: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "target": <seat number of the player you believe is Merlin>}. Keep "thinking" short so the whole object fits — the "target" field comes last and MUST be present.`,
+  reflect: `Reply with ONLY a JSON object: {"suspicions": [{"seat": <n>, "read": "<your read on this player: one or two sentences, <=45 words. State your CONCLUSION and the reasoning behind it, not just an observation — this is your memory next round>", "confidence": <0-100>}...], "deductions": ["<a standalone logical inference you want to remember, e.g. 'Kimi proposed a team of DeepSeek+Gemini that excludes Haiku and Allen — a good leader includes who he trusts, so either Kimi reads those two as evil or Kimi is evil shielding a partner'>", ...], "plan": "<your plan for the coming round, <=60 words>"}. "deductions" is your running logical model: carry forward and revise the inferences that still hold, drop the ones the game has disproven, keep at most a handful of your strongest.`,
 }
 
 // ---- view rendering (engine facts, never model memory) ----
@@ -187,7 +187,7 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
   },
   quest: (v) => `You are on the quest team. Play your card: "success"${v.alignment === 'evil' ? ' or "fail"' : ' (good must play success)'}.`,
   assassinate: () => `Good has won 3 quests. As the Assassin, this is evil's last chance: name the player you believe is Merlin. If you are right, evil wins.`,
-  reflect: () => `Update your private read of the table: who do you suspect and why, and what is your plan?`,
+  reflect: () => `Update your private read of the table. Beyond who you suspect: what can you DEDUCE? Team choices, votes, and claims are evidence — a proposal reveals who the leader trusts, a role claim can be tested against later behaviour, a vote against a proven team demands a reason. Chain observations into conclusions, carry your standing deductions forward, and revise the ones the game has since disproven.`,
 }
 
 // ---- the builder ----

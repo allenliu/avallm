@@ -226,14 +226,18 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
     )
   }
 
+  // Backstops against any decision source (LLM, heuristic, untrusted stdio
+  // agent) emitting an unbounded blob. Kept independent from the agent-side
+  // caps in parse.ts, but deliberately >= them so a well-behaved agent's own
+  // thinking/scratchpad is never silently re-clipped here.
   if (typeof decision.thinking === 'string' && decision.thinking.trim()) {
     emit(game, 'thinking', {
-      seat, kind: decision.kind, text: decision.thinking.trim().slice(0, 900),
+      seat, kind: decision.kind, text: decision.thinking.trim().slice(0, 3000),
     }, { only: [seat] })
   }
   if (typeof decision.notes === 'string' && decision.notes.trim()) {
     emit(game, 'scratchpad', {
-      seat, round: game.round, text: decision.notes.trim().slice(0, 900),
+      seat, round: game.round, text: decision.notes.trim().slice(0, 8000),
     }, { only: [seat] })
   }
 

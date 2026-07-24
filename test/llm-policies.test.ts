@@ -44,7 +44,10 @@ test('provider policy: glm-5.2 pinned, everything else unconstrained', () => {
 test('call params cover every kind with json mode', () => {
   for (const kind of ['discuss', 'propose', 'pitch', 'vote', 'quest', 'assassinate', 'reflect'] as const) {
     const p = CALL_PARAMS[kind]
-    assert.ok(p.max_tokens >= 100 && p.max_tokens <= 500, kind)
+    // Decision calls stay lean; reflect writes the whole scratchpad (up to one
+    // read per player plus a plan), so it gets a larger ceiling.
+    const maxCap = kind === 'reflect' ? 1000 : 500
+    assert.ok(p.max_tokens >= 100 && p.max_tokens <= maxCap, kind)
     assert.ok(p.temperature >= 0 && p.temperature <= 1, kind)
     assert.equal(p.json, true, kind)
   }

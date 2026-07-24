@@ -89,3 +89,19 @@ test('reflect: structured and raw scratchpads, empty fails', () => {
 
   assert.equal(parseDecision('reflect', '   ', view).parseFailed, true)
 })
+
+test('reflect: deductions render into the scratchpad as a bulleted section', () => {
+  const withDeductions = parseDecision('reflect',
+    '{"suspicions":[{"seat":2,"read":"loud","confidence":60}],' +
+    '"deductions":["seat 3 excluded the players I trust, so seat 3 likely reads them as evil","  "],' +
+    '"plan":"press seat 3"}', view)
+  assert.equal(withDeductions.parseFailed, false)
+  assert.match(withDeductions.scratchpad!, /Deductions:\n- seat 3 excluded the players I trust/)
+  // Blank entries are dropped, not rendered as empty bullets.
+  assert.doesNotMatch(withDeductions.scratchpad!, /- {2,}\n|^- $/m)
+
+  // deductions alone (no suspicions/plan) is still a usable scratchpad.
+  const only = parseDecision('reflect', '{"deductions":["a proven team was rejected without a reason"]}', view)
+  assert.equal(only.parseFailed, false)
+  assert.match(only.scratchpad!, /a proven team was rejected/)
+})

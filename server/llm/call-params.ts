@@ -27,6 +27,9 @@ export const CALL_PARAMS: Record<LlmCallKind, CallParams> = {
   pitch: { temperature: 0.7, max_tokens: 250, json: true },
   vote: { temperature: 0.4, max_tokens: 400, json: true },
   quest: { temperature: 0.3, max_tokens: 350, json: true },
-  assassinate: { temperature: 0.4, max_tokens: 300, json: true },
-  reflect: { temperature: 0.5, max_tokens: 350, json: true },
+  assassinate: { temperature: 0.4, max_tokens: 400, json: true },
+  // reflect writes the scratchpad (up to 9 reads + a plan); the budget must fit
+  // the richer reads the reflect contract now asks for, or the OUTPUT truncates
+  // before the parser's generous caps ever apply.
+  reflect: { temperature: 0.5, max_tokens: 800, json: true },
 }

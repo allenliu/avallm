@@ -14,8 +14,20 @@ export interface ParsedDecision {
   error?: string
 }
 
-const THINKING_MAX_CHARS = 800
+const THINKING_MAX_CHARS = 2000
 const SAY_MAX_CHARS = 400
+
+// The scratchpad is the bot's persistent memory — it is re-injected into every
+// later prompt (llm.ts keeps it; prompts.ts renders it under "YOUR PRIVATE
+// NOTES"). These are generous backstops, NOT functional limits: truncation
+// happens post-generation, so a low cap saves no tokens — it only discards
+// reasoning the model already produced, then feeds the clipped version back in.
+// Sized so a full 10-player scratchpad (9 reads + a plan) never re-clips.
+const READ_MAX_CHARS = 400        // one seat's suspicion read
+const PLAN_MAX_CHARS = 600        // the plan for the coming round
+const DEDUCTION_MAX_CHARS = 240   // one standing logical inference
+const DEDUCTIONS_MAX = 6          // how many inferences to carry
+const SCRATCHPAD_MAX_CHARS = 7000 // the whole assembled pad
 
 // Exported for eval tooling (probe/judge), which parses non-decision JSON
 // replies with the same salvage tolerance.
@@ -143,18 +155,31 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
     case 'reflect': {
       // The scratchpad is the bot's own memory — any coherent text will do,
       // but empty output is a failure so the previous scratchpad survives.
-      if (o && (Array.isArray(o.suspicions) || typeof o.plan === 'string')) {
+      if (o && (Array.isArray(o.suspicions) || Array.isArray(o.deductions) || typeof o.plan === 'string')) {
         const susp = Array.isArray(o.suspicions)
           ? o.suspicions
               .filter((s: any) => s && Number.isInteger(s.seat))
-              .map((s: any) => `seat ${s.seat}: ${String(s.read ?? '').slice(0, 120)} (${Number(s.confidence) || 0}%)`)
+              .map((s: any) => `seat ${s.seat}: ${String(s.read ?? '').slice(0, READ_MAX_CHARS)} (${Number(s.confidence) || 0}%)`)
               .join('; ')
           : ''
-        const plan = typeof o.plan === 'string' ? o.plan.slice(0, 300) : ''
-        const pad = [susp, plan && `Plan: ${plan}`].filter(Boolean).join('\n').slice(0, 900)
+        // Deductions are the bot's running logical model — chains of inference
+        // ("X, therefore Y") that outlive a single turn's `thinking`.
+        const deductions = Array.isArray(o.deductions)
+          ? o.deductions
+              .filter((d: any) => typeof d === 'string' && d.trim())
+              .slice(0, DEDUCTIONS_MAX)
+              .map((d: string) => `- ${d.trim().slice(0, DEDUCTION_MAX_CHARS)}`)
+              .join('\n')
+          : ''
+        const plan = typeof o.plan === 'string' ? o.plan.slice(0, PLAN_MAX_CHARS) : ''
+        const pad = [
+          susp,
+          deductions && `Deductions:\n${deductions}`,
+          plan && `Plan: ${plan}`,
+        ].filter(Boolean).join('\n').slice(0, SCRATCHPAD_MAX_CHARS)
         if (pad) return { scratchpad: pad, thinking, parseFailed: false }
       }
-      const raw = content.trim().slice(0, 900)
+      const raw = content.trim().slice(0, SCRATCHPAD_MAX_CHARS)
       if (raw && !raw.includes('"suspicions"')) return { scratchpad: raw, thinking, parseFailed: false }
       return fail('expected {"suspicions": [...], "plan": "..."}')
     }
