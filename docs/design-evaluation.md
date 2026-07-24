@@ -253,3 +253,38 @@ loop is only as good as the reward signal under it.
 The prompt-layer restructure (§1.2 — facts/policy split, norms made overridable) is independent
 and safe to do early: it moves text between layers without changing built-in behavior, and it's
 what makes an `AgentDef` diff capture the whole behavioral change.
+
+---
+
+## 10. First prompt-improvement campaign (2026-07-23, log)
+
+The first application of this framework: general-play low-hanging fruit drawn from the incident
+data (20 judged games) and the LLM-Avalon literature (research-strategy.md §4). Four experiments,
+each targeting a specific judge-incident family, all committed with unit tests:
+
+1. **Facts dossier** (`server/agents/facts.ts`) — engine-owned, PlayerView-only, public-derivable
+   neutral facts (fail exposure, vote/lead signals, own contradicted positions, hammer proximity)
+   the heuristic already computed but LLM bots were denied. Targets the deduction-action gap.
+   Has an `AVALON_NO_DOSSIER=1` A/B toggle.
+2. **Vote-lean coherence** — the `vote` ask surfaces the seat's own most-recent public lean.
+   Targets vote-speech-incoherence.
+3. **Second-order self-check** — a `TABLE_TALK_NORMS` bullet ("what does this reveal about my
+   role?"). Targets knowledge-leak (the ReCon fix).
+4. **Loosen the passivity nudge** — the `discuss` ask's "most players pass by round 2" replaced by
+   a signal-triggered speak/pass rule. Targets commitment-failure.
+
+**Measurement decision.** A dossier-on-vs-off A/B at 6 games/arm was **noise-dominated and
+inconclusive** — favorable but sub-noise shifts on knowledge-leak/commitment-failure/blunder, an
+unfavorable vote-speech-incoherence swing (which the dossier doesn't target — #2 does), and
+identical win rate. Rather than spend on a 20–30-game/arm confirmation, we **ship the four on
+their design rationale + unit tests, and rely on the free programmatic metrics as standing
+guards** (the §3 metrics run at zero LLM cost on any games we do play).
+
+**The guard to watch — the dossier's Merlin risk.** The n=6 A/B *hinted* the dossier makes Merlin
+more vote-conspicuous (Haiku-Merlin avg conspicuousness rank 1.0 vs 1.5 without) — plausible,
+because a general deduction aid helps *everyone* vote truthfully, including Merlin, who must not.
+It's a hint, not a finding, at that sample. Standing guard: watch Merlin's conspicuousness rank
+and virtual-assassin rate (`npm run report`) on real games; if a larger sample confirms it
+worsening, the fix is a **Merlin-specific carve-out** of the dossier's vote-alignment facts
+(Merlin already knows the truth — the vote-record aggregation only makes its correct votes more
+legible to the table). Everything else in the dossier is Merlin-neutral.
