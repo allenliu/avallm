@@ -322,13 +322,17 @@ export function App() {
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
       {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
       <div className="fartable">
-        <div className="orbit" />
-        <div className="orbit o2" />
-        <div className="mote" />
-        <span className="tw" style={{ left: '16%', top: '30%' }} />
-        <span className="tw" style={{ left: '42%', top: '12%', animationDelay: '1.4s' }} />
-        <span className="tw" style={{ left: '70%', top: '38%', animationDelay: '2.3s' }} />
-        <span className="tw" style={{ left: '88%', top: '12%', animationDelay: '3.2s' }} />
+        {/* Decorative sky — clipped to the zone (see .fartable-sky) so the arcs
+            don't spill into the feed, while the seats' tooltips stay uncropped. */}
+        <div className="fartable-sky" aria-hidden="true">
+          <div className="orbit" />
+          <div className="orbit o2" />
+          <div className="mote" />
+          <span className="tw" style={{ left: '16%', top: '30%' }} />
+          <span className="tw" style={{ left: '42%', top: '12%', animationDelay: '1.4s' }} />
+          <span className="tw" style={{ left: '70%', top: '38%', animationDelay: '2.3s' }} />
+          <span className="tw" style={{ left: '88%', top: '12%', animationDelay: '3.2s' }} />
+        </div>
         <TableSeats view={view} bots={bots} acting={acting} />
         <QuestBoard view={view} />
       </div>

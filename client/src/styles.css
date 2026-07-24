@@ -485,9 +485,17 @@ input::placeholder { color: var(--faint); }
 .fartable {
   position: relative;
   height: clamp(198px, 30vh, 264px);
-  overflow: hidden;
   flex: 0 0 auto;
+  /* NOT overflow:hidden — a seat's hover tooltip is a descendant and, on the low
+     edge seats, extends below the zone; clipping here would slice it off where the
+     zone meets the feed. Only the decorative sky needs clipping, so it owns the
+     clip (.fartable-sky) and the tooltip is free to float over the feed. */
 }
+/* The orbit arcs / motes / twinkles are huge and would spill past the zone into
+   the feed; this layer clips them (and nothing else), leaving the seats and their
+   tooltips uncropped. Positioned at z-auto so the decorations keep their original
+   paint order under the scrim, spread, and seats. */
+.fartable-sky { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 /* The descending arcs are hard-clipped where the zone meets the feed; this
    scrim dissolves them into the night instead. It sits below the spread (z 2)
    and seats (z 3), so only the orbit lines fade — the cards stay crisp. */
@@ -1729,7 +1737,7 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
 .gallery-hint { color: var(--dim); font-family: var(--mono); padding: 24px; }
 .gallery-hint a { color: var(--gold); margin-right: 0.9rem; display: inline-block; }
 /* Tooltip variants crop the whole stage: the seat/quest tooltips are placed to the
-   side / above their anchor and would be clipped by the table zone's overflow, so
-   drop that clip here and give the stage headroom to frame the open tooltip. */
+   side / above their anchor, so give the stage headroom to frame the open tooltip.
+   (The table zone no longer clips its tooltips — see .fartable — so no overflow
+   override is needed here.) */
 .gallery-stage[data-variant^="tip-"] { min-height: 0; justify-content: center; padding: 78px 20px; }
-.gallery-stage[data-variant^="tip-"] .fartable { overflow: visible; }
