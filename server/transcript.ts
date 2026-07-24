@@ -176,6 +176,12 @@ function renderLine(ev: GameEvent, who: (s: Seat) => string): string | null {
       const pitch = p.pitch ? ` — "${p.pitch}"` : ''
       return tag(`[Q${p.round}.${p.proposalNum}] ${who(p.leader)} proposes: ${(p.team as Seat[]).map(who).join(', ')}${pitch}`)
     }
+    case 'proposalLocked':
+      return tag(`${who(p.leader)} locks in the team`)
+    case 'proposalRevised': {
+      const reason = p.reason ? ` — "${p.reason}"` : ''
+      return tag(`${who(p.leader)} revises the team: ${(p.to as Seat[]).map(who).join(', ')}${reason}`)
+    }
     case 'voteCast':
       return sub(`vote: ${who(p.seat)} → ${p.vote}`)
     case 'voteReveal': {

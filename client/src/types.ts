@@ -2,7 +2,7 @@
 
 export type Seat = number
 export type Alignment = 'good' | 'evil'
-export type Phase = 'discussion' | 'proposal' | 'vote' | 'quest' | 'assassination' | 'gameOver'
+export type Phase = 'discussion' | 'proposal' | 'finalize' | 'vote' | 'quest' | 'assassination' | 'gameOver'
 
 export interface Quest {
   num: number
@@ -17,8 +17,10 @@ export interface ProposalRecord {
   round: number
   proposalNum: number
   leader: Seat
-  team: Seat[]
+  team: Seat[]          // the FINAL team (post-revision if revised)
   pitch?: string
+  revisedFrom?: Seat[]  // original team, present iff the leader revised at finalize
+  revisedReason?: string
   votes?: { seat: Seat; vote: 'approve' | 'reject' }[]
   approved?: boolean
   auto?: boolean   // 5th ("hammer") proposal: approved automatically, no vote
@@ -47,8 +49,8 @@ export interface PlayerView {
   quests: Quest[]
   proposals: ProposalRecord[]
   currentTeam?: Seat[]
-  discussionSlot?: 'pre' | 'post'
   discussionRound?: number
+  discussionPostRevision?: boolean
   transcript: { seat: Seat; name: string; text: string; lean?: string }[]
   events: GameEvent[]
   winner?: Alignment
@@ -56,7 +58,7 @@ export interface PlayerView {
 }
 
 export interface DecisionRequest {
-  kind: 'discuss' | 'propose' | 'vote' | 'quest' | 'assassinate'
+  kind: 'discuss' | 'propose' | 'finalize' | 'vote' | 'quest' | 'assassinate'
   seat: Seat
   round: number
   proposalNum: number

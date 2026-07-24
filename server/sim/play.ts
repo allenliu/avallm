@@ -5,6 +5,7 @@
 import { parseArgs } from 'node:util'
 import { createInterface } from 'node:readline'
 import { createGame } from '../engine/game.ts'
+import { teamsEqual } from '../engine/rules.ts'
 import { eventVisibleTo } from '../engine/view.ts'
 import { createHeuristicAgent } from '../agents/heuristic.ts'
 import { runGame } from './runner.ts'
@@ -54,7 +55,7 @@ const names = ['Human', 'DeepSeek', 'Gemini', 'Haiku', 'Kimi', 'Qwen', 'GLM', 'M
 
 const game = createGame({
   seed: values.seed!, playerCount, names,
-  talk: { preProposal: 1, postProposal: 0 },
+  talk: { maxRounds: 1, maxRoundsAfterChange: 1 },
 })
 
 function questBoard(view: PlayerView): string {
@@ -71,6 +72,13 @@ async function askHuman(req: DecisionRequest, view: PlayerView): Promise<Decisio
   switch (req.kind) {
     case 'discuss': {
       const say = await ask('Your table talk (enter to pass): ')
+      if (view.currentTeam && view.leaderSeat !== HUMAN) {
+        const raw = (await ask('Your lean on the team (a=approve, r=reject, u=unsure, enter to skip): ')).trim().toLowerCase()
+        const lean = raw.startsWith('a') ? 'approve' as const
+          : raw.startsWith('r') ? 'reject' as const
+          : raw.startsWith('u') ? 'unsure' as const : undefined
+        return { kind: 'discuss', say, lean }
+      }
       return { kind: 'discuss', say }
     }
     case 'propose': {
@@ -84,6 +92,26 @@ async function askHuman(req: DecisionRequest, view: PlayerView): Promise<Decisio
           return { kind: 'propose', team }
         }
         console.log(`Need exactly ${size} distinct valid seats.`)
+      }
+    }
+    case 'finalize': {
+      const team = (view.currentTeam ?? []).map((s) => view.players[s].name).join(', ')
+      const raw = (await ask(`Your team [${team}] — enter to lock it in, or type a new comma-separated team: `)).trim()
+      if (!raw) return { kind: 'finalize', stick: true }
+      const size = view.quests[view.round - 1].teamSize
+      let input = raw
+      while (true) {
+        const team2 = input.split(/[\s,]+/).filter(Boolean).map(Number)
+        const identical = teamsEqual(team2, view.currentTeam ?? [])
+        if (!identical && team2.length === size
+          && team2.every((s) => Number.isInteger(s) && s >= 0 && s < playerCount)
+          && new Set(team2).size === size) {
+          const reason = await ask('One sentence to the table on why you changed: ')
+          return { kind: 'finalize', stick: false, team: team2, reason }
+        }
+        const retry = (await ask(`Need ${size} distinct valid seats, different from the current team (enter to lock instead): `)).trim()
+        if (!retry) return { kind: 'finalize', stick: true }
+        input = retry
       }
     }
     case 'vote': {

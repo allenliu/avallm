@@ -1,7 +1,7 @@
 // Headless simulation CLI.
 //   node server/sim/sim.ts --players 7 --seed 42            # one game, transcript
 //   node server/sim/sim.ts --players 7 --games 200          # aggregate stats
-//   node server/sim/sim.ts --agents random --talk 0,0
+//   node server/sim/sim.ts --agents random --talk 0
 import { parseArgs } from 'node:util'
 import { createGame } from '../engine/game.ts'
 import { createAgent } from '../agents/registry.ts'
@@ -18,7 +18,7 @@ const { values } = parseArgs({
     seed: { type: 'string', default: 'sim' },
     games: { type: 'string', default: '1' },
     agents: { type: 'string', default: 'heuristic' }, // heuristic | random | mixed | llm
-    talk: { type: 'string', default: '1,0' },         // pre,post rounds
+    talk: { type: 'string', default: '0' },           // maxRounds[,maxRoundsAfterChange]
     out: { type: 'string' },                          // append game artifacts (JSONL) for eval tooling
     quiet: { type: 'boolean', default: false },
   },
@@ -26,7 +26,7 @@ const { values } = parseArgs({
 
 const playerCount = Number(values.players)
 const games = Number(values.games)
-const [pre, post] = values.talk!.split(',').map(Number)
+const [maxRounds, maxRoundsAfterChange = 0] = values.talk!.split(',').map(Number)
 const isLlm = values.agents === 'llm'
 
 function specFor(seat: Seat): AgentSpec {
@@ -52,7 +52,7 @@ for (let i = 0; i < games; i++) {
   const seed = games === 1 ? values.seed! : `${values.seed}-${i}`
   const game = createGame({
     seed, playerCount, names: namesFor(playerCount),
-    talk: { preProposal: pre, postProposal: post },
+    talk: { maxRounds, maxRoundsAfterChange },
   })
   const agents = new Map<Seat, AvalonAgent>(
     game.players.map((p) => [p.seat, createAgent(specFor(p.seat), { seed, seat: p.seat })]),

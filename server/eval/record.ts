@@ -35,6 +35,12 @@ function eventLine(a: GameArtifact, ev: GameEvent, full: boolean): string | null
       const pitch = typeof p.pitch === 'string' ? ` — pitch: "${sanitizeSpeech(p.pitch)}"` : ''
       return `${tag} ${nameOf(a, p.leader as Seat)} proposes [${teamText(a, p.team as Seat[])}]${pitch}`
     }
+    case 'proposalLocked':
+      return `${tag} ${nameOf(a, p.leader as Seat)} locks in the team`
+    case 'proposalRevised': {
+      const reason = typeof p.reason === 'string' ? ` — "${sanitizeSpeech(p.reason)}"` : ''
+      return `${tag} ${nameOf(a, p.leader as Seat)} REVISES the team to [${teamText(a, p.to as Seat[])}]${reason}`
+    }
     case 'voteReveal': {
       if (p.auto === true) return `${tag} HAMMER: team [${teamText(a, p.team as Seat[])}] auto-approved, no vote`
       const votes = (p.votes as { seat: Seat; vote: string }[])

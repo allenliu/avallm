@@ -12,10 +12,16 @@ export function renderEvent(ev: GameEvent, game: Game): string | null {
     case 'gameCreated':
       return `=== Avalon: ${p.playerCount} players, roles: ${(p.rolesInPlay as string[]).join(', ')} ===\n` +
         `First leader: ${name(game, p.firstLeader)}`
-    case 'utterance':
-      return p.text ? `  ${name(game, p.seat)}: "${p.text}"` : null
+    case 'utterance': {
+      const lean = p.lean ? ` [leans ${p.lean}]` : ''
+      return p.text || lean ? `  ${name(game, p.seat)}: ${p.text ? `"${p.text}"` : '(signals)'}${lean}` : null
+    }
     case 'proposal':
       return `\n[Q${p.round}.${p.proposalNum}] ${name(game, p.leader)} proposes: ${(p.team as Seat[]).map((s) => name(game, s)).join(', ')}`
+    case 'proposalLocked':
+      return `  ${name(game, p.leader)} locks in the team.`
+    case 'proposalRevised':
+      return `  ${name(game, p.leader)} REVISES the team: ${(p.to as Seat[]).map((s) => name(game, s)).join(', ')}${p.reason ? ` — "${p.reason}"` : ''}`
     case 'voteReveal': {
       if (p.auto) return `  hammer: AUTO-APPROVED (no vote)`
       const votes = (p.votes as { seat: Seat; vote: string }[])

@@ -13,7 +13,7 @@ test('TABLE_TALK_NORMS carries the second-order self-check', () => {
 })
 
 test('discuss and pitch system prompts include the self-check bullet', () => {
-  const g = createGame({ seed: 'selfcheck', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const g = createGame({ seed: 'selfcheck', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   const view = viewFor(g, 0)
 
   const [discussSys] = buildMessages('discuss', view, '', {})

@@ -57,7 +57,7 @@ test('completed heuristic games leak nothing at any seat', async () => {
   for (const playerCount of [5, 7, 10]) {
     for (let s = 0; s < 5; s++) {
       const seed = `leak-full-${playerCount}-${s}`
-      const g = createGame({ seed, playerCount, talk: { preProposal: 1, postProposal: 0 } })
+      const g = createGame({ seed, playerCount, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
       const agents = new Map<Seat, AvalonAgent>(
         g.players.map((p) => [p.seat, createHeuristicAgent({ seed, seat: p.seat })]),
       )
@@ -69,7 +69,7 @@ test('completed heuristic games leak nothing at any seat', async () => {
 
 test('spectator views carry only public events and no private info', async () => {
   const seed = 'leak-spec'
-  const g = createGame({ seed, playerCount: 7, talk: { preProposal: 1, postProposal: 0 } })
+  const g = createGame({ seed, playerCount: 7, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   const agents = new Map<Seat, AvalonAgent>(
     g.players.map((p) => [p.seat, createHeuristicAgent({ seed, seat: p.seat })]),
   )

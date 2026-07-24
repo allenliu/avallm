@@ -39,8 +39,8 @@ export function viewForSpectator(game: Game): PlayerView {
     quests: base.quests,
     proposals: base.proposals,
     currentTeam: base.currentTeam,
-    discussionSlot: base.discussionSlot,
     discussionRound: base.discussionRound,
+    discussionPostRevision: base.discussionPostRevision,
     transcript: base.transcript,
     winner: base.winner,
     winReason: base.winReason,
@@ -63,6 +63,13 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
         team: (ev.payload.team as Seat[]).slice(),
         ...(typeof ev.payload.pitch === 'string' ? { pitch: ev.payload.pitch } : {}),
       })
+    } else if (ev.type === 'proposalRevised') {
+      // The leader changed the team at finalize: the record keeps ONE entry
+      // per proposal cycle, showing the final team with the original preserved.
+      const rec = proposals[proposals.length - 1]
+      rec.team = (ev.payload.to as Seat[]).slice()
+      rec.revisedFrom = (ev.payload.from as Seat[]).slice()
+      if (typeof ev.payload.reason === 'string') rec.revisedReason = ev.payload.reason
     } else if (ev.type === 'voteReveal') {
       const rec = proposals[proposals.length - 1]
       rec.votes = (ev.payload.votes as ProposalRecord['votes'])!.map((v) => ({ ...v }))
@@ -107,8 +114,8 @@ export function viewFor(game: Game, seat: Seat): PlayerView {
     quests: game.quests.map((q) => ({ ...q, team: q.team?.slice() })),
     proposals,
     currentTeam: game.currentTeam?.slice(),
-    discussionSlot: game.discussion?.slot,
     discussionRound: game.discussion?.roundNum,
+    discussionPostRevision: game.discussion?.postRevision,
     transcript,
     events,
     winner: game.winner,

@@ -25,6 +25,9 @@ rl.on('line', (line) => {
       decision = { kind: 'propose', team }
       break
     }
+    case 'finalize':
+      decision = { kind: 'finalize', stick: true }
+      break
     case 'vote':
       decision = { kind: 'vote', vote: 'approve' }
       break

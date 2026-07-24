@@ -7,7 +7,8 @@ import { viewFor, viewForSpectator } from '../server/engine/view.ts'
 import { transcriptText } from '../server/agents/prompts.ts'
 
 test('rename updates the player, emits a public event, and re-labels history', () => {
-  const g = createGame({ seed: 'rn', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const g = createGame({ seed: 'rn', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
   const [req] = expectedDecisions(g)
   applyDecision(g, req.seat, { kind: 'discuss', say: 'hello table' })
 

@@ -9,7 +9,7 @@ import { buildMessages } from '../server/agents/prompts.ts'
 
 // Drive a 5p game to a vote with a team on the table.
 function gameAtVote() {
-  const g = createGame({ seed: 'vl', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed: 'vl', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
   assert.equal(g.phase, 'vote')
   return g

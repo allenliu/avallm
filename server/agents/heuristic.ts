@@ -183,8 +183,9 @@ function decideAssassinate(view: PlayerView, rng: Rng): Decision {
 }
 
 function decideDiscuss(view: PlayerView, rng: Rng): Decision {
-  // Lean: when a team is on the table, signal how we'd vote right now.
-  const lean = view.currentTeam
+  // Lean: when a team is on the table, signal how we'd vote right now. The
+  // leader never leans — their signals are the pitch and the finalize turn.
+  const lean = view.currentTeam && view.leaderSeat !== view.seat
     ? (decideVote(view, rng) as { vote: 'approve' | 'reject' }).vote
     : undefined
   // Passing is natural, and later rounds are mostly for whoever still has
@@ -232,6 +233,9 @@ export function heuristicDecide(
   switch (req.kind) {
     case 'discuss': return decideDiscuss(view, rng)
     case 'propose': return decidePropose(view, rng)
+    // The heuristic keeps its proposal: revision is a judgment about the
+    // discussion, which the heuristic doesn't model.
+    case 'finalize': return { kind: 'finalize', stick: true }
     case 'vote': return decideVote(view, rng)
     case 'quest': return decideQuest(view, rng)
     case 'assassinate': return decideAssassinate(view, rng)

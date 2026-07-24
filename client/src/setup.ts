@@ -65,10 +65,10 @@ export const winReasonText = (reason: string): string => WIN_REASONS[reason] ?? 
 
 export const RULES_SUMMARY = [
   'Good wins by succeeding 3 of 5 quests. Evil wins by failing 3 quests, or by assassinating Merlin after good wins.',
-  'Each round the leader proposes a quest team and everyone votes. A strict majority approves; a tie rejects. Only 4 proposals per round can be rejected; the 5th (the "hammer") is locked in automatically, with no vote.',
+  'Each round the leader proposes a quest team with a pitch, the table discusses it, and once talk winds down the leader may revise the team once before everyone votes. A strict majority approves; a tie rejects. Only 4 proposals per round can be rejected; the 5th (the "hammer") is locked in automatically, with no vote.',
   'Approved teams play quest cards in secret: good must play Success, evil may play Fail. Only the number of Fail cards is revealed.',
   'Roles are secret, but some players know things (see the role list). Discussion is free and anyone may lie. The public vote record is the best evidence in the game.',
-  'While a team is on the table, you can signal a non-binding lean (for, against, or unsure) during discussion before votes are cast.',
+  'During discussion you can signal a non-binding lean on the team (for, against, or unsure). Leans steer the leader\'s revise-or-lock call; when everyone\'s lean holds steady for a round, the table moves on.',
 ]
 
 // Optional specials the user can toggle. Merlin & Assassin come as a pair —

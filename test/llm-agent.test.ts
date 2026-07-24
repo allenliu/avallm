@@ -23,7 +23,7 @@ function fakeClient(handler: (opts: CallOpts, messages: Msg[]) => string): OpenR
   }
 }
 
-const game = createGame({ seed: 'llm-t', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+const game = createGame({ seed: 'llm-t', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
 const view0 = viewFor(game, 0)
 
 test('clean decision carries thinking into the Decision', async () => {
@@ -74,9 +74,9 @@ test('propose is commit-then-explain: pitch generated with the team locked', asy
   const client = fakeClient((opts, messages) => {
     if (opts.tag?.endsWith('/propose')) return '{"thinking": "clean pair", "team": [0, 2]}'
     if (opts.tag?.endsWith('/pitch')) {
-      // The pitch prompt must carry the locked team, by name.
+      // The pitch prompt must carry the chosen team, by name.
       const user = messages.find((m) => m.role === 'user')!
-      assert.match(user.content, /locked in/)
+      assert.match(user.content, /your proposed team for quest/)
       assert.ok(user.content.includes(view0.players[0].name))
       assert.ok(user.content.includes(view0.players[2].name))
       return '{"thinking": "sell it", "pitch": "Clean start with a proven pair."}'
@@ -112,7 +112,7 @@ test('two failures throw (the runner then degrades to heuristic)', async () => {
 
 test('an always-broken llm agent degrades but the game completes', async () => {
   const seed = 'llm-degrade'
-  const g = createGame({ seed, playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed, playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   const broken = createLlmAgent({ modelId: 'glm', client: fakeClient(() => '???') })
   const agents = new Map<Seat, AvalonAgent>(
     g.players.map((p) => [
@@ -128,7 +128,7 @@ test('an always-broken llm agent degrades but the game completes', async () => {
 
 test('reflect fires after a quest resolves and feeds the next prompt', async () => {
   const seed = 'llm-reflect'
-  const g = createGame({ seed, playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed, playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   let sawScratchpadInPrompt = false
   const client = fakeClient((opts, messages) => {
     if (opts.tag?.endsWith('/reflect')) {

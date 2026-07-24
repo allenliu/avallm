@@ -95,6 +95,16 @@ export function stripSeatRefs(text: string, players: Player[]): string {
   })
 }
 
+// Order-insensitive team equality. Teams are canonically stored sorted, but
+// callers compare against LLM/human-supplied teams that may not be — sort both
+// defensively so "same members" is the only thing that matters.
+export function teamsEqual(a: Seat[], b: Seat[]): boolean {
+  if (a.length !== b.length) return false
+  const x = [...a].sort((m, n) => m - n)
+  const y = [...b].sort((m, n) => m - n)
+  return x.every((s, i) => s === y[i])
+}
+
 // The knowledge matrix (research doc §3.3). The ONLY producer of night-phase
 // knowledge — deal, viewFor, and tests all share it.
 export function computeKnowledge(players: Player[], seat: Seat): PrivateInfo {

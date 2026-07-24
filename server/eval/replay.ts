@@ -124,6 +124,33 @@ function extractSteps(log: GameEvent[]): ReplayStep[] {
         })
         break
       }
+      case 'proposalLocked': {
+        const seat = p.leader as Seat
+        const pre = take(seat, ev.seq)
+        steps.push({
+          firstSeq: pre.firstSeq, actionSeq: ev.seq, seat,
+          action: {
+            kind: 'finalize', stick: true,
+            ...(pre.thinking !== undefined ? { thinking: pre.thinking } : {}),
+            ...(pre.notes !== undefined ? { notes: pre.notes } : {}),
+          },
+        })
+        break
+      }
+      case 'proposalRevised': {
+        const seat = p.leader as Seat
+        const pre = take(seat, ev.seq)
+        steps.push({
+          firstSeq: pre.firstSeq, actionSeq: ev.seq, seat,
+          action: {
+            kind: 'finalize', stick: false, team: (p.to as Seat[]).slice(),
+            ...(typeof p.reason === 'string' ? { reason: p.reason } : {}),
+            ...(pre.thinking !== undefined ? { thinking: pre.thinking } : {}),
+            ...(pre.notes !== undefined ? { notes: pre.notes } : {}),
+          },
+        })
+        break
+      }
       case 'rename':
         steps.push({
           firstSeq: ev.seq, actionSeq: ev.seq, seat: p.seat as Seat,
@@ -151,6 +178,12 @@ function verifyPrefix(a: GameArtifact, game: Game): void {
 // omit untilSeq to replay the whole game. The returned Game's log is verified
 // to be an exact prefix of the artifact's.
 export function replayGame(a: GameArtifact, untilSeq?: number): Game {
+  if (a.schema < 3) {
+    throw new Error(
+      `artifact ${a.id} is schema ${a.schema} (pre proposal-flow redesign): `
+      + `readable as data, but the engine that produced its log no longer exists, so it cannot be replayed`,
+    )
+  }
   const created = a.log[0]
   if (created?.type !== 'gameCreated') throw new Error('artifact log must start with gameCreated')
   const game = createGame({
@@ -200,8 +233,9 @@ export interface DecisionSnapshot {
 }
 
 // The situation-bank extractor: the full decision context at event seq.
-// seq must be a decision's action event (utterance/proposal/voteCast/
-// questCard/assassination) — engine-emitted consequences have no decider.
+// seq must be a decision's action event (utterance/proposal/proposalLocked/
+// proposalRevised/voteCast/questCard/assassination) — engine-emitted
+// consequences have no decider.
 export function snapshotAt(a: GameArtifact, seq: number): DecisionSnapshot {
   const step = extractSteps(a.log).find((s) => s.firstSeq <= seq && seq <= s.actionSeq)
   if (!step || step.action.kind === 'rename') {

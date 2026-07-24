@@ -2,11 +2,11 @@
 // explicit parseFailed on garbage.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createGame } from '../server/engine/game.ts'
+import { applyDecision, createGame } from '../server/engine/game.ts'
 import { viewFor } from '../server/engine/view.ts'
 import { parseDecision, legalityError } from '../server/agents/parse.ts'
 
-const game = createGame({ seed: 'parse', playerCount: 7, talk: { preProposal: 0, postProposal: 0 } })
+const game = createGame({ seed: 'parse', playerCount: 7, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
 const view = viewFor(game, 0)
 
 test('vote: clean JSON, word salvage, and failure', () => {
@@ -65,6 +65,35 @@ test('discuss: prose is speech, JSON debris is not', () => {
   assert.equal((prose.decision as any).say, 'No strong reads yet.')
   const debris = parseDecision('discuss', '"say": [,', view)
   assert.equal(debris.parseFailed, true)
+})
+
+test('finalize: stick, revise, missing team fails, identical team is illegal', () => {
+  const stick = parseDecision('finalize', '{"thinking":"fine","stick":true}', view)
+  assert.equal(stick.parseFailed, false)
+  assert.deepEqual(stick.decision, { kind: 'finalize', stick: true, thinking: 'fine' })
+
+  const revise = parseDecision('finalize', '{"stick":false,"team":[0,3],"reason":"swapping in a cleaner pair"}', view)
+  assert.equal(revise.parseFailed, false)
+  assert.deepEqual((revise.decision as any).team, [0, 3])
+  assert.equal((revise.decision as any).reason, 'swapping in a cleaner pair')
+
+  // Stringly-typed stick still parses.
+  assert.equal((parseDecision('finalize', '{"stick":"true"}', view).decision as any).stick, true)
+
+  // stick:false with no team is indecision, not a revision — retry, don't coerce.
+  const noTeam = parseDecision('finalize', '{"stick":false}', view)
+  assert.equal(noTeam.parseFailed, true)
+  assert.match(noTeam.error!, /team/)
+
+  assert.equal(parseDecision('finalize', 'I will keep my team.', view).parseFailed, true)
+
+  // Legality: the revised team must be legal AND differ from the current team.
+  const g2 = createGame({ seed: 'parse-fin', playerCount: 7, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
+  applyDecision(g2, g2.leaderSeat, { kind: 'propose', team: [0, 1] })
+  const v2 = viewFor(g2, g2.leaderSeat)
+  assert.match(legalityError({ kind: 'finalize', stick: false, team: [1, 0] }, v2)!, /identical/)
+  assert.equal(legalityError({ kind: 'finalize', stick: false, team: [0, 2] }, v2), null)
+  assert.match(legalityError({ kind: 'finalize', stick: false, team: [0, 1, 2] }, v2)!, /exactly 2/)
 })
 
 test('pitch: clean JSON, prose salvage, empty fails', () => {

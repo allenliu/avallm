@@ -15,7 +15,7 @@ const dummyPath = fileURLToPath(new URL('../server/agents/dummy-stdio-agent.mjs'
 
 test('a stdio child process can drive a seat through a full game', async () => {
   const seed = 'stdio-1'
-  const game = createGame({ seed, playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const game = createGame({ seed, playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   const agents = new Map<Seat, AvalonAgent>(
     game.players.map((p) => [
       p.seat,
@@ -34,7 +34,7 @@ test('a stdio child process can drive a seat through a full game', async () => {
 
 test('a dead external agent degrades to the heuristic instead of stalling', async () => {
   const seed = 'stdio-dead'
-  const game = createGame({ seed, playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const game = createGame({ seed, playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   const agents = new Map<Seat, AvalonAgent>(
     game.players.map((p) => [
       p.seat,

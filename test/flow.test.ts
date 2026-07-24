@@ -7,7 +7,8 @@ import { applyDecision, createGame, expectedDecisions } from '../server/engine/g
 import type { Game, Seat } from '../server/engine/types.ts'
 
 function mk(playerCount = 7, seed = 'flow'): Game {
-  return createGame({ seed, playerCount, talk: { preProposal: 0, postProposal: 0 } })
+  // maxRounds 0: no discussion and no finalize — propose goes straight to vote.
+  return createGame({ seed, playerCount, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
 }
 
 function propose(g: Game, team: Seat[]): void {
@@ -64,7 +65,9 @@ test('the 5th proposal is auto-approved with no vote, leader rotating after each
     assert.equal(leaders[i], (leaders[i - 1] + 1) % 7, 'leader rotates after each rejection')
   }
 
-  // The hammer: the 5th proposal skips post-talk and the vote entirely.
+  // The hammer: with maxRounds 0 the 5th proposal goes straight to the quest —
+  // no vote (the full-flow hammer path is covered in 'the hammer gets
+  // discussion and finalize' below).
   assert.equal(g.proposalNum, 5)
   const team = [g.leaderSeat, (g.leaderSeat + 1) % 7].sort((a, b) => a - b)
   propose(g, team)
@@ -176,51 +179,80 @@ test('illegal decisions are rejected without corrupting state', () => {
   assert.equal(g.phase, 'proposal')
 })
 
-test('post-proposal talk runs extra rounds while people speak, ends early when silent', () => {
-  const g = createGame({ seed: 'rounds', playerCount: 5, talk: { preProposal: 0, postProposal: 3 } })
+// Drives one full discussion round; leanFor(seat) may return undefined (no lean).
+function talkRound(g: Game, leanFor: (seat: Seat) => 'approve' | 'reject' | 'unsure' | undefined, sayFor: (seat: Seat) => string = () => ''): void {
+  const n = g.discussion!.remaining.length
+  for (let i = 0; i < n; i++) {
+    const [req] = expectedDecisions(g)
+    applyDecision(g, req.seat, { kind: 'discuss', say: sayFor(req.seat), lean: leanFor(req.seat) })
+  }
+}
+
+test('lean settlement: a declaring round extends, a stable round settles into finalize', () => {
+  const g = createGame({ seed: 'rounds', playerCount: 5, talk: { maxRounds: 3, maxRoundsAfterChange: 0, leaderInDiscussion: 'none' } })
   propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
   assert.equal(g.phase, 'discussion')
 
-  // Round 1: one player speaks (with a lean), others pass — earns round 2.
-  for (let i = 0; i < 5; i++) {
-    const [req] = expectedDecisions(g)
-    applyDecision(g, req.seat, {
-      kind: 'discuss',
-      say: i === 2 ? 'I do not like this team.' : '',
-      lean: i === 2 ? 'reject' : undefined,
-    })
-  }
+  // Round 1: leans appear — first declarations count as changes, so no settle.
+  talkRound(g, () => 'approve')
   assert.equal(g.phase, 'discussion')
   assert.equal(g.discussion!.roundNum, 2)
 
-  // Round 2: everyone passes — discussion ends despite maxRounds=3.
-  for (let i = 0; i < 5; i++) {
-    const [req] = expectedDecisions(g)
-    applyDecision(g, req.seat, { kind: 'discuss', say: '' })
-  }
-  assert.equal(g.phase, 'vote')
-
-  // The lean was recorded publicly on the utterance.
-  const leaned = g.log.find((ev) => ev.type === 'utterance' && ev.payload.lean !== undefined)
-  assert.ok(leaned)
-  assert.equal(leaned!.payload.lean, 'reject')
+  // Round 2: same leans repeated — settled, leader's finalize turn is next.
+  talkRound(g, () => 'approve')
+  assert.equal(g.phase, 'finalize')
+  assert.deepEqual(expectedDecisions(g), [
+    { kind: 'finalize', seat: g.leaderSeat, round: 1, proposalNum: 1 },
+  ])
 })
 
-test('a lean outside a pending proposal is dropped, invalid lean throws', () => {
-  const g = createGame({ seed: 'lean2', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+test('a lean flip keeps discussion alive until the cap', () => {
+  const g = createGame({ seed: 'flip', playerCount: 5, talk: { maxRounds: 3, maxRoundsAfterChange: 0, leaderInDiscussion: 'none' } })
+  propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
+  talkRound(g, () => 'unsure')   // round 1: declarations (all "changes")
+  talkRound(g, () => 'reject')   // round 2: everyone flips — still changing
+  assert.equal(g.phase, 'discussion')
+  assert.equal(g.discussion!.roundNum, 3, 'the flips earned round 3')
+  talkRound(g, () => 'reject')   // round 3: stable, and the cap regardless
+  assert.equal(g.phase, 'finalize')
+})
+
+test('a lean-less quiet round settles immediately (nobody objects — vote)', () => {
+  const g = createGame({ seed: 'quiet', playerCount: 5, talk: { maxRounds: 3, maxRoundsAfterChange: 0, leaderInDiscussion: 'none' } })
+  propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
+  talkRound(g, () => undefined)
+  assert.equal(g.phase, 'finalize')
+})
+
+test('the leader cannot lean; a non-leader lean-less utterance is legal; invalid lean throws', () => {
+  const g = createGame({ seed: 'lean2', playerCount: 5, talk: { maxRounds: 2, maxRoundsAfterChange: 0, leaderInDiscussion: 'last' } })
+  propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
+  // Non-leader without a lean: legal.
   const [req] = expectedDecisions(g)
-  applyDecision(g, req.seat, { kind: 'discuss', say: 'hello', lean: 'approve' }) // no team yet
-  const ev = g.log.filter((e) => e.type === 'utterance').at(-1)!
-  assert.equal(ev.payload.lean, undefined)
+  assert.notEqual(req.seat, g.leaderSeat)
+  applyDecision(g, req.seat, { kind: 'discuss', say: 'hm' })
+  assert.equal(g.log.filter((e) => e.type === 'utterance').at(-1)!.payload.lean, undefined)
+  // Invalid lean value: throws.
   const [req2] = expectedDecisions(g)
   assert.throws(
     () => applyDecision(g, req2.seat, { kind: 'discuss', say: '', lean: 'maybe' as any }),
     /invalid lean/,
   )
+  // Walk to the leader's turn (last in the round) — their lean is dropped.
+  while (expectedDecisions(g)[0].seat !== g.leaderSeat) {
+    const [r] = expectedDecisions(g)
+    applyDecision(g, r.seat, { kind: 'discuss', say: '' })
+  }
+  applyDecision(g, g.leaderSeat, { kind: 'discuss', say: 'trust me', lean: 'approve' })
+  const leaderUtt = g.log.filter((e) => e.type === 'utterance').at(-1)!
+  assert.equal(leaderUtt.payload.seat, g.leaderSeat)
+  assert.equal(leaderUtt.payload.lean, undefined, 'leader lean dropped at the chokepoint')
 })
 
-test('discussion turns walk the table from the leader', () => {
-  const g = createGame({ seed: 'talk', playerCount: 5, talk: { preProposal: 1, postProposal: 1 } })
+test('discussion walks non-leaders from the leader\'s left, leader speaks last', () => {
+  const g = createGame({ seed: 'talk', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0, leaderInDiscussion: 'last' } })
+  assert.equal(g.phase, 'proposal', 'the crown opens with a proposal, no pre-talk')
+  propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
   assert.equal(g.phase, 'discussion')
   const order: Seat[] = []
   for (let i = 0; i < 5; i++) {
@@ -229,16 +261,114 @@ test('discussion turns walk the table from the leader', () => {
     order.push(req.seat)
     applyDecision(g, req.seat, { kind: 'discuss', say: i % 2 ? 'hm' : '' })
   }
-  assert.equal(order[0], g.leaderSeat)
+  assert.equal(order[0], (g.leaderSeat + 1) % 5, 'starts left of the leader')
+  assert.equal(order.at(-1), g.leaderSeat, 'leader closes the round')
   assert.equal(new Set(order).size, 5, 'everyone speaks exactly once')
-  assert.equal(g.phase, 'proposal')
+  assert.equal(g.phase, 'finalize')
+})
+
+test('leaderInDiscussion none excludes the leader from the rotation', () => {
+  const g = createGame({ seed: 'noleader', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0, leaderInDiscussion: 'none' } })
   propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
-  assert.equal(g.phase, 'discussion') // post-proposal talk round
-  for (let i = 0; i < 5; i++) {
+  const order: Seat[] = []
+  for (let i = 0; i < 4; i++) {
     const [req] = expectedDecisions(g)
+    order.push(req.seat)
     applyDecision(g, req.seat, { kind: 'discuss', say: '' })
   }
+  assert.ok(!order.includes(g.leaderSeat))
+  assert.equal(g.phase, 'finalize')
+})
+
+test('finalize stick: proposalLocked, then the vote on the unchanged team', () => {
+  const g = createGame({ seed: 'stick', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 2, leaderInDiscussion: 'none' } })
+  const team = [g.leaderSeat, (g.leaderSeat + 1) % 5].sort((a, b) => a - b)
+  propose(g, team)
+  talkRound(g, () => undefined)
+  assert.equal(g.phase, 'finalize')
+  applyDecision(g, g.leaderSeat, { kind: 'finalize', stick: true })
+  const locked = g.log.at(-1)!
+  assert.equal(locked.type, 'proposalLocked')
+  assert.equal(locked.visibility, 'public')
+  assert.deepEqual(locked.payload.team, team)
   assert.equal(g.phase, 'vote')
+  assert.deepEqual(g.currentTeam, team)
+})
+
+test('finalize revise: new team, lean reset, one post-revision round, no second finalize', () => {
+  const g = createGame({ seed: 'revise', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 1, leaderInDiscussion: 'none' } })
+  const leader = g.leaderSeat
+  const from = [leader, (leader + 1) % 5].sort((a, b) => a - b)
+  propose(g, from)
+  talkRound(g, () => 'reject')
+  assert.equal(g.phase, 'finalize')
+
+  // Identical "revision" is rejected.
+  assert.throws(
+    () => applyDecision(g, leader, { kind: 'finalize', stick: false, team: from }),
+    /identical/,
+  )
+
+  const to = [leader, (leader + 2) % 5].sort((a, b) => a - b)
+  applyDecision(g, leader, { kind: 'finalize', stick: false, team: to, reason: 'fine, swapping.' })
+  const revised = g.log.filter((e) => e.type === 'proposalRevised').at(-1)!
+  assert.deepEqual(revised.payload.from, from)
+  assert.deepEqual(revised.payload.to, to)
+  assert.equal(revised.payload.reason, 'fine, swapping.')
+  assert.deepEqual(g.currentTeam, to)
+
+  // Post-revision segment: fresh leans, roundNum restarts, postRevision set.
+  assert.equal(g.phase, 'discussion')
+  assert.equal(g.discussion!.roundNum, 1)
+  assert.equal(g.discussion!.postRevision, true)
+  assert.deepEqual(g.discussion!.leans, {})
+
+  // One round (the cap), then straight to vote — no second finalize.
+  talkRound(g, () => 'approve')
+  assert.equal(g.phase, 'vote')
+
+  // The record shows ONE proposal with the final team and the revision preserved.
+  voteAll(g, () => 'approve')
+  const utt = g.log.filter((e) => e.type === 'utterance' && e.payload.postRevision === true)
+  assert.equal(utt.length, 4, 'post-revision utterances are marked')
+  assert.equal(g.phase, 'quest')
+  assert.deepEqual(g.quests[0].team, to)
+})
+
+test('maxRoundsAfterChange 0: a revision goes straight to the vote', () => {
+  const g = createGame({ seed: 'revise0', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0, leaderInDiscussion: 'none' } })
+  const leader = g.leaderSeat
+  propose(g, [leader, (leader + 1) % 5])
+  talkRound(g, () => undefined)
+  const to = [leader, (leader + 2) % 5].sort((a, b) => a - b)
+  applyDecision(g, leader, { kind: 'finalize', stick: false, team: to })
+  assert.equal(g.phase, 'vote')
+  assert.deepEqual(g.currentTeam, to)
+})
+
+test('the hammer gets discussion and finalize, then skips only the vote', () => {
+  const g = createGame({ seed: 'hammer-talk', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 1, leaderInDiscussion: 'none' } })
+  for (let i = 1; i <= 4; i++) {
+    propose(g, [g.leaderSeat, (g.leaderSeat + 1) % 5])
+    talkRound(g, () => undefined)
+    applyDecision(g, g.leaderSeat, { kind: 'finalize', stick: true })
+    voteAll(g, () => 'reject')
+  }
+  assert.equal(g.proposalNum, 5)
+  const leader = g.leaderSeat
+  const team = [leader, (leader + 1) % 5].sort((a, b) => a - b)
+  propose(g, team)
+  assert.equal(g.phase, 'discussion', 'the hammer still gets discussed')
+  talkRound(g, () => 'reject')
+  assert.equal(g.phase, 'finalize', 'the hammer leader still gets the revision turn')
+  const to = [leader, (leader + 2) % 5].sort((a, b) => a - b)
+  applyDecision(g, leader, { kind: 'finalize', stick: false, team: to, reason: 'heard you.' })
+  talkRound(g, () => undefined)
+  // Post-revision talk done: auto-approved voteReveal, straight to quest.
+  assert.equal(g.phase, 'quest')
+  const auto = g.log.find((ev) => ev.type === 'voteReveal' && ev.payload.auto === true)!
+  assert.deepEqual(auto.payload.team, to)
+  assert.deepEqual(g.quests[0].team, to)
 })
 
 test('a public leadChange marks the leader at the start of every proposal cycle', () => {

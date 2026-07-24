@@ -164,22 +164,36 @@ Replaying the event log reproduces the game exactly — that's the debugging sto
 Phases per the rules doc ([research-rules-and-visuals.md](research-rules-and-visuals.md)):
 
 ```
-setup ─→ reveal ─→ ┌─────────────── round loop (per proposal) ──────────────┐
-                   │ discussion → proposal → discussion → vote ──approved──→ quest │──→ next round
-                   │                                  └─rejected─→ (leader rotates; │
-                   │                                     5th proposal skips talk +  │
-                   │                                     vote: auto-approved)       │
-                   └────────────────────────────────────────────────────────┘
+setup ─→ reveal ─→ ┌──────────────── round loop (per proposal) ─────────────────┐
+                   │ proposal(+pitch) → discussion → finalize ──stick──→ vote     │──→ next round
+                   │                        ↑            └─revise─→ discussion → vote
+                   │                        │ (lean settlement or cap ends talk)  │
+                   │   vote ──approved──→ quest;  ──rejected─→ (leader rotates)   │
+                   │   5th proposal: full discussion + finalize, then NO vote —   │
+                   │   auto-approved straight to quest                            │
+                   └──────────────────────────────────────────────────────────┘
    3 quest successes → assassination → gameOver
    3 quest failures  → gameOver (evil)
 ```
 
+The crown opens with a proposal (no pre-proposal talk — playtests showed leaders open with
+their intended team anyway). One discussion phase follows: non-leaders react round-robin from
+the leader's left, each utterance carrying an optional public `lean` (approve/reject/unsure;
+the leader never leans — their signals are the pitch and the finalize turn, and by default
+they close each round with a lean-free turn). Discussion winds down by **lean settlement** — a
+full round in which no lean was newly declared or changed — or at the round cap
+(`TalkConfig.maxRounds`). Then the leader's one-time `finalize` decision: stick (→ vote) or
+revise the team with a reason (→ one more capped discussion segment with leans reset, then the
+vote, no second finalize). The vote track is unchanged: `proposalNum` ticks only on failed
+votes, so a revision costs nothing on the track.
+
 Represent as a flat `phase` discriminated union on the game state:
-`'setup' | 'reveal' | 'discussion' | 'proposal' | 'vote' | 'quest' | 'assassination' | 'gameOver'`
-plus cursor fields (`round`, `proposalNum`, `leaderSeat`, `speakerCursor` for discussion
-turn-taking). No nested state-machine library needed — a `switch` in the reducer plus an
-`expectedDecisions(state)` selector ("who owes what decision right now") is the whole machine, and
-the selector doubles as the driver loop's work queue.
+`'setup' | 'reveal' | 'discussion' | 'proposal' | 'finalize' | 'vote' | 'quest' | 'assassination' | 'gameOver'`
+plus cursor fields (`round`, `proposalNum`, `leaderSeat`, and the discussion segment state:
+speaker queue, round number, per-seat leans, lean-changed flag, postRevision). No nested
+state-machine library needed — a `switch` in the reducer plus an `expectedDecisions(state)`
+selector ("who owes what decision right now") is the whole machine, and the selector doubles
+as the driver loop's work queue.
 
 ### Data model (sketch)
 
@@ -389,9 +403,18 @@ career record across games (localStorage): win rate as good/evil vs. you.
 
 Bounded, structured rounds — free-for-all chat with 6 bots is a token bonfire and a UX mess:
 
-- After a quest result and before/after each proposal: **one table-talk round** = each player
-  speaks once in seat order from the leader's left (the `speakerCursor` in the discussion phase).
-  Config: 1 round pre-proposal, 1 post-proposal pitch/objection round; tune in playtests.
+- Discussion happens **after** each proposal (the pitch is the leader's opening statement):
+  one table-talk round = each non-leader speaks once in seat order from the leader's left,
+  with the leader closing the round lean-free (`leaderInDiscussion: 'last'`, the default).
+- Every non-leader utterance is asked to carry a **lean** (approve/reject/unsure, non-binding).
+  Wind-down is **lean settlement**: a full round with no new-or-changed lean ends discussion
+  (first declarations count as changes, so an actively-leaning table always gets ≥2 rounds; a
+  lean-less quiet round settles immediately). `TalkConfig.maxRounds` (default 3) is the hard
+  cap; `maxRoundsAfterChange` (default 2) caps the post-revision segment. `maxRounds: 0` skips
+  discussion AND finalize (test/sim scaffolding).
+- After wind-down the leader takes the one-time **finalize** turn: stick, or revise the team
+  with a spoken reason. The `eval/metrics.ts` `discussion` block (settled vs capped segments,
+  stick vs revise) is the tuning signal for the settlement rule.
 - **The human speaks at their seat turn** via free-text input (skippable). Optional "interject"
   budget (1/round) so the human can jump the queue without inviting bots to do the same.
 - Utterance budget: prompts ask for ≤60 words; `max_tokens` 300 hard-caps; parse truncates.
@@ -523,7 +546,8 @@ than distorting the baseline heuristics further.
 1. **Latency.** Sequential discussion with 6 bots at ~2-5s/call = 15-30s of table talk per round;
    a full game maybe 15-25 min wall-clock. Mitigations: parallel votes/quest cards (rules-accurate),
    cheap fast models, "thinking" indicators that make waiting diegetic, config to shrink discussion
-   rounds. Open: is one pre-proposal talk round enough to feel social?
+   rounds. Open (2026-07-24 flow redesign): does lean settlement ever fire with chatty models, or
+   does the cap always end discussion? Watch the `discussion` metrics block in eval runs.
 2. **Semantic hidden-info leaks.** Structural leaks are closed by `viewFor` + tests, but a bot can
    still *say* "us evil folks" or Merlin can be too knowing. Prompt discipline helps; the output
    filter catches string-level slips; the rest is model quality. Open: acceptable leak rate? Do we

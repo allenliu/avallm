@@ -9,14 +9,21 @@ export type Alignment = 'good' | 'evil'
 export type Seat = number
 
 export type Phase =
-  | 'discussion' | 'proposal' | 'vote' | 'quest' | 'assassination' | 'gameOver'
+  | 'discussion' | 'proposal' | 'finalize' | 'vote' | 'quest' | 'assassination' | 'gameOver'
 
 export interface TalkConfig {
-  // MAX table-talk rounds before / after each proposal. Rounds terminate
-  // early: a full round in which nobody speaks ends the discussion, so these
-  // are caps, not fixed counts. Passing is a normal move.
-  preProposal: number
-  postProposal: number
+  // MAX discussion rounds after the initial proposal. Rounds end early on
+  // "lean settlement": a full round in which no non-leader lean was newly
+  // declared or changed. 0 = no discussion AND no finalize — the proposal
+  // goes straight to vote (test/sim scaffolding).
+  maxRounds: number
+  // MAX discussion rounds after a revised proposal. 0 = a revision goes
+  // straight to vote; revising is still allowed, there is just no talk after.
+  maxRoundsAfterChange: number
+  // Whether the leader takes a lean-free speaking turn at the END of each
+  // discussion round ('last'), or is excluded from the rotation ('none') —
+  // the leader already speaks via the proposal pitch and the finalize turn.
+  leaderInDiscussion: 'none' | 'last'
 }
 
 export interface GameConfig {
@@ -46,7 +53,8 @@ export type Visibility = 'public' | { only: Seat[] }
 
 export type EventType =
   | 'gameCreated' | 'roleDealt' | 'knowledge' | 'leadChange'
-  | 'utterance' | 'proposal' | 'voteCast' | 'voteReveal'
+  | 'utterance' | 'proposal' | 'proposalLocked' | 'proposalRevised'
+  | 'voteCast' | 'voteReveal'
   | 'questCard' | 'questResult' | 'assassination' | 'gameOver'
   | 'thinking' | 'rename' | 'scratchpad'
 
@@ -68,11 +76,14 @@ export interface Game {
   players: Player[]
   quests: Quest[]
   discussion?: {
-    slot: 'pre' | 'post'
     remaining: Seat[]     // speakers left in the current round
-    roundNum: number      // 1-based
-    maxRounds: number
-    anySpoke: boolean     // did anyone speak (non-empty say) this round?
+    roundNum: number      // 1-based; restarts at 1 after a revision
+    maxRounds: number     // snapshot of the applicable cap
+    postRevision: boolean // false = initial segment, true = after proposalRevised
+    // Current declared lean per NON-LEADER seat. Lives on the discussion
+    // segment (not Game) so a revision resets leans for free.
+    leans: Partial<Record<Seat, Lean>>
+    leanChangedThisRound: boolean // any declaration this round that was new or different
   }
   currentTeam?: Seat[]
   pendingVotes: Record<Seat, 'approve' | 'reject'>
@@ -84,7 +95,7 @@ export interface Game {
 
 // ---- Decisions (the agent boundary) ----
 
-export type DecisionKind = 'discuss' | 'propose' | 'vote' | 'quest' | 'assassinate'
+export type DecisionKind = 'discuss' | 'propose' | 'finalize' | 'vote' | 'quest' | 'assassinate'
 
 export interface DecisionRequest {
   kind: DecisionKind
@@ -103,6 +114,8 @@ export type Lean = 'approve' | 'reject' | 'unsure'
 export type Decision =
   | { kind: 'discuss'; say: string; lean?: Lean; thinking?: string; notes?: string }
   | { kind: 'propose'; team: Seat[]; pitch?: string; thinking?: string; notes?: string }
+  | { kind: 'finalize'; stick: true; thinking?: string; notes?: string }
+  | { kind: 'finalize'; stick: false; team: Seat[]; reason?: string; thinking?: string; notes?: string }
   | { kind: 'vote'; vote: 'approve' | 'reject'; thinking?: string; notes?: string }
   | { kind: 'quest'; card: 'success' | 'fail'; thinking?: string; notes?: string }
   | { kind: 'assassinate'; target: Seat; thinking?: string; notes?: string }
@@ -119,8 +132,10 @@ export interface ProposalRecord {
   round: number
   proposalNum: number
   leader: Seat
-  team: Seat[]
+  team: Seat[]          // the FINAL team (post-revision if revised)
   pitch?: string
+  revisedFrom?: Seat[]  // original team, present iff the leader revised at finalize
+  revisedReason?: string
   votes?: { seat: Seat; vote: 'approve' | 'reject' }[]
   approved?: boolean
   auto?: boolean   // 5th ("hammer") proposal: approved automatically, no vote
@@ -147,8 +162,8 @@ export interface PlayerView {
   quests: Quest[]               // quest teams/results/failCounts are public
   proposals: ProposalRecord[]
   currentTeam?: Seat[]
-  discussionSlot?: 'pre' | 'post'
   discussionRound?: number
+  discussionPostRevision?: boolean
   transcript: { seat: Seat; name: string; text: string; lean?: Lean }[]
   events: GameEvent[]           // only events visible to this seat
   winner?: Alignment

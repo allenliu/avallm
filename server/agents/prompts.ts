@@ -13,7 +13,7 @@ import type { LlmCallKind } from '../llm/call-params.ts'
 export const RULES_DIGEST = `You are playing The Resistance: Avalon.
 Good (loyal servants of Arthur, Merlin, Percival) wins by succeeding 3 of 5 quests.
 Evil (minions of Mordred: Assassin, Morgana, Mordred, Oberon, Minions) wins by failing 3 quests, or — if good succeeds 3 quests — by the Assassin correctly identifying Merlin at the end.
-Each round: the leader proposes a team of the required size, everyone votes approve/reject (strict majority approves; a tie rejects). Only 4 proposals per round can be rejected: the 5th ("hammer") proposal is approved automatically with NO vote, so whoever leads the 5th proposal single-handedly picks that quest team. Approved teams play quest cards in secret: good players MUST play Success; evil players may play Success or Fail. The number of Fail cards is revealed, not who played them.
+Each round: the leader proposes a team of the required size with a pitch; the table discusses it (players signal non-binding approve/reject/unsure leans); after discussion the leader may revise the team ONCE; then everyone votes approve/reject (strict majority approves; a tie rejects). Only 4 proposals per round can be rejected: the 5th ("hammer") proposal is approved automatically with NO vote, so whoever leads the 5th proposal single-handedly picks that quest team. Approved teams play quest cards in secret: good players MUST play Success; evil players may play Success or Fail. The number of Fail cards is revealed, not who played them.
 Merlin knows who is evil (except Mordred) but must hide it: if evil identifies Merlin at the end, evil wins. Percival sees Merlin and Morgana but not which is which. Evil players (except Oberon) know each other.
 Votes are public once revealed. Watch the vote history — it is the main evidence in this game.`
 
@@ -44,9 +44,10 @@ export const ROLE_GUIDANCE: Record<string, string> = {
 }
 
 export const OUTPUT_CONTRACTS: Record<LlmCallKind, string> = {
-  discuss: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=60 words>", "say": "<what you say aloud, <=50 words, or empty string to pass>", "lean": "approve"|"reject"|"unsure"}. "say" is heard by everyone — never reveal private knowledge in it. "lean" is your public signal about the proposed team (include it only when a team is on the table; it is not binding). Passing (empty say) is normal when nothing is aimed at you — but never pass when someone has just addressed or accused you.`,
-  propose: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "team": [<seat numbers, exactly the required team size>]}. Keep "thinking" short so the whole object fits — the "team" field comes last and MUST be present. Choose the team only — you will address the table about it in a separate step once it is locked.`,
-  pitch: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "pitch": "<one or two spoken sentences to the table about your team>"}. The team is FINAL and cannot be changed here. If it differs from anything you said during table talk, acknowledge the change and give a reason — a silent flip-flop reads as evasive.`,
+  discuss: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=60 words>", "say": "<what you say aloud, <=50 words, or empty string to pass>", "lean": "approve"|"reject"|"unsure"}. "say" is heard by everyone — never reveal private knowledge in it. "lean" is your public signal about the proposed team — include it every turn ("unsure" is fine; it is not binding). If YOU are the leader, omit "lean": your pitch and your stick-or-revise turn are your signal. Passing (empty say) is normal when nothing is aimed at you — but never pass when someone has just addressed or accused you.`,
+  propose: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "team": [<seat numbers, exactly the required team size>]}. Keep "thinking" short so the whole object fits — the "team" field comes last and MUST be present. Choose the team only — you will address the table about it in a separate step.`,
+  pitch: `Reply with ONLY a JSON object: {"thinking": "<private reasoning>", "pitch": "<one or two spoken sentences to the table about your team>"}. You cannot change the team in this reply — pitch the team you chose; after the table discusses it you will get ONE chance to revise. If the team differs from anything you said during table talk, acknowledge the change and give a reason — a silent flip-flop reads as evasive.`,
+  finalize: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=30 words>", "stick": true or false, "team": [<seat numbers, ONLY when stick is false>], "reason": "<one spoken sentence to the table explaining the change, ONLY when stick is false>"}. "stick": true sends your proposed team forward unchanged — this is the normal move. "stick": false revises the team ONCE in response to the discussion; the new team and your reason are announced to the table. Keep "thinking" short — the "stick" field MUST be present.`,
   vote: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "vote": "approve" or "reject"}. Keep "thinking" short so the whole object fits in the reply — the "vote" field comes last and MUST be present.`,
   quest: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "card": "success" or "fail"}. Keep "thinking" short so the whole object fits — the "card" field comes last and MUST be present.`,
   assassinate: `Reply with ONLY a JSON object: {"thinking": "<your private reasoning, <=25 words>", "target": <seat number of the player you believe is Merlin>}. Keep "thinking" short so the whole object fits — the "target" field comes last and MUST be present.`,
@@ -153,6 +154,20 @@ export function ownRecentLean(view: PlayerView): Lean | undefined {
   return undefined
 }
 
+// Latest declared lean per seat on the CURRENT team: utterance leans since
+// the most recent proposal or proposalRevised event. Public events only, so
+// this is the same tally every player (and the finalize-turn leader) can see.
+export function declaredLeans(view: PlayerView): { name: string; lean: Lean }[] {
+  const latest = new Map<Seat, Lean>()
+  for (const ev of view.events) {
+    if (ev.type === 'proposal' || ev.type === 'proposalRevised') latest.clear()
+    else if (ev.type === 'utterance' && ev.payload.lean !== undefined) {
+      latest.set(ev.payload.seat as Seat, ev.payload.lean as Lean)
+    }
+  }
+  return [...latest.entries()].map(([seat, lean]) => ({ name: view.players[seat].name, lean }))
+}
+
 export interface AskExtra {
   chosenTeam?: Seat[]
 }
@@ -160,10 +175,13 @@ export interface AskExtra {
 const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> = {
   discuss: (v) => {
     const round = v.discussionRound ?? 1
+    const revisedNote = v.discussionPostRevision
+      ? ` The leader has REVISED the team — react to the new team, not the old one.`
+      : ''
     const teamNote = v.currentTeam
       ? (v.leaderSeat === v.seat
-        ? ` The team on the table is YOUR proposal — defend it, answer questions about it, and do not argue against your own team.`
-        : ` A team is on the table — react to it and include your lean.`)
+        ? ` The team on the table is YOUR proposal — defend it, answer questions about it, and do not argue against your own team. After this discussion you will decide whether to keep or revise it.`
+        : ` A team is on the table — react to it and include your lean.`) + revisedNote
       : ''
     const addressed = directAddresses(v)
     const addressNote = addressed.length
@@ -171,10 +189,21 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
       : ''
     return `It is your turn in table-talk round ${round}.${teamNote}${addressNote} Speak when you have something real to add — a fresh read, a contradiction to point out, or a result or vote that implicates you and calls for a response. Pass when you genuinely have nothing to add and nothing is aimed at you.`
   },
-  propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}. If you announced an intended team during table talk, propose THAT team unless you have a real reason to change — you will get to explain your choice to the table next.`,
+  propose: (v) => `You are the leader. Choose exactly ${v.quests[v.round - 1].teamSize} players (seat numbers, you may include yourself) for quest ${v.round}. The table will discuss your team next, and you will get ONE chance to revise it before the vote. If you committed to an intended team in earlier table talk, propose THAT team unless you have a real reason to change — you will get to explain your choice to the table next.`,
   pitch: (v, extra) => {
     const team = (extra?.chosenTeam ?? []).map((s) => nameOf(v, s)).join(', ')
-    return `You are the leader and your team for quest ${v.round} is locked in: ${team}. Address the table: pitch this team in one or two sentences.`
+    return `You are the leader and your proposed team for quest ${v.round} is: ${team}. Address the table: pitch this team in one or two sentences.`
+  },
+  finalize: (v) => {
+    const team = (v.currentTeam ?? []).map((s) => nameOf(v, s)).join(', ')
+    const leans = declaredLeans(v)
+    const tally = leans.length
+      ? ` Declared leans: ${leans.map((l) => `${l.name}: ${l.lean}`).join(', ')}.`
+      : ` Nobody declared a lean.`
+    const hammer = v.proposalNum === MAX_PROPOSALS
+      ? ` THIS IS THE HAMMER: there is no vote — the team you lock in goes straight on the quest.`
+      : ''
+    return `Discussion has wound down. Your proposed team for quest ${v.round}: ${team}.${tally}${hammer} Decide: stick with this team, or revise it ONCE. Sticking is the normal move — revise only if the discussion surfaced a real objection you believe, and tell the table why.`
   },
   vote: (v) => {
     const lean = ownRecentLean(v)

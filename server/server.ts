@@ -164,7 +164,7 @@ function fixtureGame(): Game {
   const game = createGame({
     seed: 'agent-preview-fixture', playerCount: 7,
     names: ['Ada', 'Brutus', 'Circe', 'Dagonet', 'Elaine', 'Fergus', 'Gwen'],
-    talk: { preProposal: 1, postProposal: 1 },
+    talk: { maxRounds: 1, maxRoundsAfterChange: 0 },
   })
   let guard = 0
   while (!(game.round >= 2 && game.phase === 'discussion') && game.phase !== 'gameOver' && guard++ < 800) {
@@ -349,7 +349,7 @@ function startLobby(l: Lobby): void {
 
   const game = createGame({
     seed, playerCount, names, roles: l.config.roles,
-    talk: { preProposal: 1, postProposal: 2 },
+    talk: { maxRounds: 3, maxRoundsAfterChange: 2, leaderInDiscussion: 'last' },
   })
   botSeatList.forEach((seat, i) => {
     agents.set(seat, createAgentFromDef(defs[i], { seed, seat }, table[i].model))

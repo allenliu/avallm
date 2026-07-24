@@ -27,6 +27,7 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
   switch (ask.kind) {
     case 'discuss': return <Discuss view={view} onDecide={onDecide} />
     case 'propose': return <Propose view={view} onDecide={onDecide} />
+    case 'finalize': return <Finalize view={view} onDecide={onDecide} />
     case 'vote': return <Vote view={view} onDecide={onDecide} />
     case 'quest': return <QuestCard view={view} onDecide={onDecide} />
     case 'assassinate': return <Assassinate view={view} onDecide={onDecide} />
@@ -43,30 +44,25 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   // stays sticky across speaking turns (and survives a refresh) — re-choose
   // only to change it. A fresh proposal has no prior utterances, so this is null.
   const [lean, setLean] = useState<string | null>(() => latestLeans(view).get(view.seat) ?? null)
+  const isLeader = view.leaderSeat === view.seat
   const teamPending = !!view.currentTeam
+  // The leader never leans — their signals are the pitch and the finalize turn.
+  const showLean = teamPending && !isLeader
   const round = view.discussionRound ?? 1
-  // You lead this quest and the pre-proposal talk has just opened on you: the
-  // table has nothing to react to yet, so passing here tends to stall everyone.
-  const leadOpening = view.leaderSeat === view.seat && view.discussionSlot === 'pre' && !teamPending
   const submit = (text: string) => {
-    onDecide({ kind: 'discuss', say: text, lean: lean ?? undefined })
+    onDecide({ kind: 'discuss', say: text, lean: showLean && lean ? lean : undefined })
     setSay('')
   }
   return (
     <div className="action-bar your-turn column discuss2" data-kind="discuss">
-      {leadOpening && (
-        <span className="action-hint">
-          ♛ You lead quest {view.round}. Open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
-        </span>
-      )}
       <div className="discuss-top">
         <TurnTag>Your turn to speak</TurnTag>
         <span className="action-label">
-          {round > 1 ? `Round ${round}` : teamPending ? 'React to the team' : 'Address the table'}
+          {round > 1 ? `Round ${round}` : isLeader ? 'Defend your team' : 'React to the team'}
         </span>
       </div>
       <div className="discuss-bottom">
-        {teamPending && (
+        {showLean && (
           <span className="lean-seg" title="Signal how you're leaning on this team (not binding)">
             <span className="lean-lbl">lean</span>
             {(['approve', 'reject', 'unsure'] as const).map((l) => (
@@ -82,12 +78,12 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
         )}
         <input
           autoFocus value={say} maxLength={300}
-          placeholder={teamPending ? 'React to the proposed team…' : 'Say something to the table…'}
+          placeholder={isLeader ? 'Defend your proposal…' : teamPending ? 'React to the proposed team…' : 'Say something to the table…'}
           onChange={(e) => setSay(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit(say) }}
         />
         <button className="say-btn" data-t="say" onClick={() => submit(say)}>Say</button>
-        <button className="ghost pass-btn" data-t="pass" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
+        <button className="ghost pass-btn" data-t="pass" onClick={() => submit('')}>{showLean && lean ? 'Signal only' : 'Pass'}</button>
       </div>
     </div>
   )
@@ -125,6 +121,67 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
           disabled={team.length !== size}
           onClick={() => onDecide({ kind: 'propose', team, pitch: pitch || undefined })}
         >Propose team</button>
+      </div>
+    </div>
+  )
+}
+
+// The leader's one-time stick-or-change turn after discussion winds down.
+// A revision requires a spoken reason — a silent team swap reads as evasive
+// and the engine announces the reason to the table.
+function Finalize({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
+  const size = view.quests[view.round - 1].teamSize
+  const current = view.currentTeam ?? []
+  const [revising, setRevising] = useState(false)
+  const [team, setTeam] = useState<Seat[]>(current)
+  const [reason, setReason] = useState('')
+  const hammer = view.proposalNum === 5
+  const teamNames = current.map((s) => s === view.seat ? 'You' : view.players[s].name).join(' · ')
+  const sameTeam = team.length === current.length
+    && [...team].sort((a, b) => a - b).every((s, i) => s === current[i])
+  const toggle = (s: Seat) => setTeam((t) => t.includes(s) ? t.filter((x) => x !== s) : t.length < size ? [...t, s] : t)
+  if (!revising) {
+    return (
+      <div className="action-bar your-turn" data-kind="finalize">
+        <TurnTag>Lock it in?</TurnTag>
+        <span className="action-label">
+          Discussion has wound down on <b className="team-gold">{teamNames}</b>
+          {hammer ? '. The hammer: your locked team goes straight on the quest.' : '.'}
+        </span>
+        <span className="bar-spacer" />
+        <button data-t="finalize-stick" onClick={() => onDecide({ kind: 'finalize', stick: true })}>Keep team</button>
+        <button className="ghost" data-t="finalize-revise" onClick={() => setRevising(true)}>Revise…</button>
+      </div>
+    )
+  }
+  return (
+    <div className="action-bar your-turn column" data-kind="finalize">
+      <div className="row">
+        <TurnTag>Revise your team</TurnTag>
+        <span className="action-label">Pick {size} players ({team.length}/{size}), one revision only</span>
+      </div>
+      <div className="seat-picker">
+        {view.players.map((p) => (
+          <button
+            key={p.seat}
+            data-t="seat-pick"
+            className={`pick${team.includes(p.seat) ? ' picked' : ''}`}
+            onClick={() => toggle(p.seat)}
+          >{p.seat === view.seat ? 'You' : p.name}</button>
+        ))}
+      </div>
+      <div className="row">
+        <input
+          value={reason} maxLength={200}
+          placeholder="Tell the table why (required)"
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <button
+          data-t="finalize-confirm"
+          disabled={team.length !== size || sameTeam || !reason.trim()}
+          onClick={() => onDecide({ kind: 'finalize', stick: false, team, reason: reason.trim() })}
+        >Change team</button>
+        <button className="ghost" data-t="finalize-back" onClick={() => { setRevising(false); setTeam(current) }}>Back</button>
       </div>
     </div>
   )

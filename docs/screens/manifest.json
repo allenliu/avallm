@@ -1,6 +1,7 @@
 {
   "shots": [
     "components/act-assassinate.jpg",
+    "components/act-finalize.jpg",
     "components/act-propose.jpg",
     "components/act-quest-evil.jpg",
     "components/act-quest-good.jpg",
@@ -13,14 +14,15 @@
     "components/role-spectator.jpg",
     "components/tip-quest.jpg",
     "components/tip-seat.jpg",
-    "desktop/assassin-beat.jpg",
     "desktop/codex-sheet.jpg",
     "desktop/discuss.jpg",
+    "desktop/finalize.jpg",
     "desktop/game-start.jpg",
     "desktop/join-screen.jpg",
     "desktop/lobby-host.jpg",
     "desktop/propose.jpg",
     "desktop/quest-ballot.jpg",
+    "desktop/quest-card.jpg",
     "desktop/reconnect-banner.jpg",
     "desktop/record-sheet.jpg",
     "desktop/reveal-thinking.jpg",
@@ -31,13 +33,13 @@
     "desktop/spectator.jpg",
     "desktop/vote-ballot.jpg",
     "desktop/vote.jpg",
-    "mobile/assassinate.jpg",
+    "mobile/assassin-beat.jpg",
     "mobile/codex-sheet.jpg",
     "mobile/discuss.jpg",
+    "mobile/finalize.jpg",
     "mobile/game-start.jpg",
     "mobile/propose.jpg",
     "mobile/quest-ballot.jpg",
-    "mobile/quest-card.jpg",
     "mobile/reconnect-banner.jpg",
     "mobile/record-sheet.jpg",
     "mobile/reveal-thinking.jpg",
@@ -48,5 +50,5 @@
     "mobile/vote-ballot.jpg",
     "mobile/vote.jpg"
   ],
-  "sourceHash": "e8f69794bd021498"
+  "sourceHash": "a6e14664d4108262"
 }

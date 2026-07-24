@@ -25,7 +25,7 @@ interface Captured {
 
 async function playAndCapture(seed: string, playerCount: number): Promise<{ artifact: GameArtifact; captured: Captured[] }> {
   const captured: Captured[] = []
-  const game = createGame({ seed, playerCount, talk: { preProposal: 1, postProposal: 1 } })
+  const game = createGame({ seed, playerCount, talk: { maxRounds: 1, maxRoundsAfterChange: 1 } })
   const agents = new Map<Seat, AvalonAgent>(game.players.map((p) => [p.seat, {
     async decide(req, view) {
       captured.push({ req, view: JSON.parse(JSON.stringify(view)) })
@@ -53,7 +53,7 @@ test('snapshotAt reproduces every decision view bit-for-bit', async () => {
   const { artifact, captured } = await playAndCapture('snap', 7)
   // Decision action events, in order, correspond 1:1 to captured decisions.
   const actionSeqs = artifact.log
-    .filter((ev) => ['utterance', 'proposal', 'voteCast', 'questCard', 'assassination'].includes(ev.type))
+    .filter((ev) => ['utterance', 'proposal', 'proposalLocked', 'proposalRevised', 'voteCast', 'questCard', 'assassination'].includes(ev.type))
     .map((ev) => ev.seq)
   assert.equal(actionSeqs.length, captured.length)
   // Spot-check a spread of decisions (full sweep would be slow: one replay each).

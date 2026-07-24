@@ -140,7 +140,7 @@ async function soloRun(browser, viewportName, viewport) {
       const bar = document.querySelector('.action-bar')
       return {
         // `data-kind` is the stable phase hook (ActionBar.tsx): waiting | discuss |
-        // propose | vote | quest | assassinate. null = the action bar isn't up yet.
+        // propose | finalize | vote | quest | assassinate. null = the bar isn't up yet.
         kind: bar?.dataset.kind ?? null,
         hasInput: !!bar?.querySelector('input'),
         teamPending: !!bar?.querySelector('[data-t="lean-approve"]'),
@@ -207,6 +207,12 @@ async function soloRun(browser, viewportName, viewport) {
       await sleep(150)
       if (!seen.has('propose')) { seen.add('propose'); await shot('propose') }
       await clickT(page, 'propose')
+    } else if (st.kind === 'finalize') {
+      // The leader's one-time stick-or-change turn after discussion winds down.
+      // Keep the team so the run stays on rails; the revise picker itself is
+      // covered deterministically by the fixture gallery (act-finalize).
+      if (!seen.has('finalize')) { seen.add('finalize'); await shot('finalize') }
+      await clickT(page, 'finalize-stick')
     } else if (st.kind === 'assassinate') {
       await page.evaluate(() => document.querySelector('.action-bar [data-t="seat-pick"]')?.click())
       await sleep(150)

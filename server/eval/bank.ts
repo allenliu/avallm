@@ -93,6 +93,11 @@ function describeDecision(d: Decision, view: PlayerView): string {
       const team = d.team.map((s) => view.players[s]?.name ?? `seat ${s}`).join('/')
       return `proposes [${team}]${d.pitch ? ` — "${sanitizeSpeech(d.pitch)}"` : ''}`
     }
+    case 'finalize': {
+      if (d.stick) return `sticks with the proposed team`
+      const team = d.team.map((s) => view.players[s]?.name ?? `seat ${s}`).join('/')
+      return `revises the team to [${team}]${d.reason ? ` — "${sanitizeSpeech(d.reason)}"` : ''}`
+    }
     case 'vote': return `votes ${d.vote}`
     case 'quest': return `plays ${d.card}`
     case 'assassinate': return `targets ${view.players[d.target]?.name ?? `seat ${d.target}`}`

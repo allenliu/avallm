@@ -52,8 +52,8 @@ export function HistoryGrid({ view, bots, onClose }: {
                   <th className="hg-name" />
                   {rounds.flatMap((r) => r.proposals.map((p) => (
                     <th key={`${p.round}.${p.proposalNum}`} className={`hg-prop${p.approved === false ? ' rejected' : ''}`}
-                      title={`Proposal ${p.proposalNum}/5 · leader ${view.players[p.leader]?.name}${p.pitch ? ` · “${p.pitch}”` : ''}`}>
-                      {p.proposalNum}{p.proposalNum === 5 ? '🔨' : ''}
+                      title={`Proposal ${p.proposalNum}/5 · leader ${view.players[p.leader]?.name}${p.pitch ? ` · “${p.pitch}”` : ''}${p.revisedFrom ? ` · revised from ${p.revisedFrom.map((s) => view.players[s]?.name).join('/')}${p.revisedReason ? `: “${p.revisedReason}”` : ''}` : ''}`}>
+                      {p.proposalNum}{p.revisedFrom ? '⟲' : ''}{p.proposalNum === 5 ? '🔨' : ''}
                     </th>
                   )))}
                 </tr>
@@ -89,7 +89,7 @@ export function HistoryGrid({ view, bots, onClose }: {
           </div>
         )}
         <p className="hg-legend">
-          <span className="hg-key-team">gold</span> = on the proposed team · ♛ leader · ✓ approved · ✗ rejected · dimmed column = proposal was rejected · 🔨 hammer (5th proposal, locked in automatically, no vote)
+          <span className="hg-key-team">gold</span> = on the proposed team · ♛ leader · ✓ approved · ✗ rejected · ⟲ revised at finalize · dimmed column = proposal was rejected · 🔨 hammer (5th proposal, locked in automatically, no vote)
         </p>
       </div>
     </div>

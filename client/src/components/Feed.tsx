@@ -328,17 +328,18 @@ function PendingIndicator({ view, bots, pending, name }: {
     )
   }
 
-  // discussion / proposal: ghost rows for bots mid-decision (humans use the
-  // action bar). Same illuminated-line vocabulary as the rest of the feed —
-  // colour carries who, the italic verb carries the action.
+  // discussion / proposal / finalize: ghost rows for bots mid-decision (humans
+  // use the action bar). Same illuminated-line vocabulary as the rest of the
+  // feed — colour carries who, the italic verb carries the action.
   const botsPending = [...pending].filter((s) => s !== view.seat && s in bots)
+  const verb = view.phase === 'finalize' ? 'weighs the team' : 'is thinking'
   return (
     <>
       {botsPending.map((s) => (
         <div key={`thinking-${s}`} className="c-line think"
           style={{ ['--mc' as string]: bots[s]?.color ?? 'var(--gold)' }}>
           <b className="cl-nm">{name(s)}</b>
-          <i className="cl-verb">is thinking</i>
+          <i className="cl-verb">{verb}</i>
           <Dots />
         </div>
       ))}
@@ -405,6 +406,24 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, view: PlayerVie
         key: ev.seq, kind: 'deed', seat: p.leader, verb: you(p.leader) ? 'propose' : 'proposes',
         text: `${team} for quest ${p.round} · proposal ${p.proposalNum} of 5`,
         pitch: p.pitch ? String(p.pitch) : undefined,
+      }
+    }
+    case 'proposalLocked': {
+      const seat = p.leader as number
+      return {
+        key: ev.seq, kind: 'deed', glyph: '🔏 ', seat,
+        verb: you(seat) ? 'lock in the team' : 'locks in the team',
+        text: '· to the vote',
+      }
+    }
+    case 'proposalRevised': {
+      const seat = p.leader as number
+      const to = (p.to as number[]).map(name).join(' · ')
+      return {
+        key: ev.seq, kind: 'deed', glyph: '⟲ ', seat,
+        verb: you(seat) ? 'revise the team' : 'revises the team',
+        text: `${to} · quest ${p.round}`,
+        pitch: p.reason ? String(p.reason) : undefined,
       }
     }
     case 'voteReveal': {

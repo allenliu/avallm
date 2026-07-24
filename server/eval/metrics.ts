@@ -52,6 +52,17 @@ export interface GameMetrics {
     virtualAssassinRate: number | null // probe hit rate, null if not probed
   }
   assassination?: { assassin: Seat; target: Seat; wasMerlin: boolean }
+  // Discussion wind-down + finalize outcomes (schema >= 3 flow): the tuning
+  // signal for lean-settlement — does discussion ever settle early, or does
+  // the cap always fire, and how often does the leader actually revise?
+  discussion?: {
+    segments: number    // discussion segments with at least one round of talk
+    settled: number     // ended before the cap (lean settlement fired)
+    capped: number      // ran to the cap (includes a coincidental settle AT the cap)
+    roundsTotal: number
+    finalizes: number   // leader stick-or-change turns taken
+    revised: number     // ... of which changed the team
+  }
   judge?: {
     model: string
     blindedMerlinCorrect: boolean
@@ -84,6 +95,10 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
       case 'proposal':
         pendingTeam = (p.team as Seat[]).slice()
         break
+      case 'proposalRevised':
+        // Leans after a revision are about the NEW team.
+        pendingTeam = (p.to as Seat[]).slice()
+        break
       case 'utterance': {
         const seat = p.seat as Seat
         const t = talk.get(seat)!
@@ -115,6 +130,46 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
         }
         break
     }
+  }
+
+  // Segment accounting: a segment opens at proposal/proposalRevised and closes
+  // at the next finalize event or voteReveal. "Settled" = ended under the cap;
+  // rounds come from the max utterance round seen (0-round segments — e.g.
+  // maxRounds 0 — are not counted).
+  let discussion: GameMetrics['discussion']
+  if (a.schema >= 3) {
+    const talkCfg = a.talk as { maxRounds?: number; maxRoundsAfterChange?: number }
+    const acc = { segments: 0, settled: 0, capped: 0, roundsTotal: 0, finalizes: 0, revised: 0 }
+    let open = false
+    let segCap = 0
+    let segRounds = 0
+    const close = () => {
+      if (!open) return
+      open = false
+      if (segRounds === 0) return
+      acc.segments++
+      acc.roundsTotal += segRounds
+      if (segRounds < segCap) acc.settled++
+      else acc.capped++
+    }
+    for (const ev of a.log) {
+      if (ev.visibility !== 'public') continue
+      const p = ev.payload
+      if (ev.type === 'proposal') {
+        close(); open = true; segCap = talkCfg.maxRounds ?? 0; segRounds = 0
+      } else if (ev.type === 'utterance') {
+        if (open) segRounds = Math.max(segRounds, (p.round as number) ?? 1)
+      } else if (ev.type === 'proposalLocked') {
+        close(); acc.finalizes++
+      } else if (ev.type === 'proposalRevised') {
+        close(); acc.finalizes++; acc.revised++
+        open = true; segCap = talkCfg.maxRoundsAfterChange ?? 0; segRounds = 0
+      } else if (ev.type === 'voteReveal') {
+        close()
+      }
+    }
+    close()
+    if (acc.segments || acc.finalizes) discussion = acc
   }
 
   const ledger: Ledger = buildLedger(a.log)
@@ -183,6 +238,7 @@ export function computeMetrics(a: GameArtifact): GameMetrics {
     seats,
     ...(merlin ? { merlin } : {}),
     ...(assassination ? { assassination } : {}),
+    ...(discussion ? { discussion } : {}),
     ...(judge ? { judge } : {}),
   }
 }

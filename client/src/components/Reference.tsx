@@ -165,9 +165,11 @@ function SetupTab({ view }: { view: PlayerView }) {
       <div className="ref-row"><span className="role-toggle-name">Table talk</span>
         <span className="role-toggle-desc">
           {created?.talk
-            ? `up to ${created.talk.preProposal} round(s) before a proposal, ${created.talk.postProposal} after; a silent round ends talk early`
+            ? `after each proposal, up to ${created.talk.maxRounds} round(s) of discussion (${created.talk.maxRoundsAfterChange} after a revised team); talk ends early once every lean holds steady for a full round`
             : '—'}
         </span></div>
+      <div className="ref-row"><span className="role-toggle-name">Revision</span>
+        <span className="role-toggle-desc">when discussion winds down, the leader locks the team in or revises it (once) before the vote</span></div>
       <div className="ref-row"><span className="role-toggle-name">Proposals</span>
         <span className="role-toggle-desc">up to 5 per quest; after 4 rejections the 5th ("hammer") team is locked in automatically, no vote</span></div>
     </div>

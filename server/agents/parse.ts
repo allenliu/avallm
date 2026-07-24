@@ -2,6 +2,7 @@
 // salvage first, explicit parseFailed distinct from empty). Legality beyond
 // shape (team size, seat ranges) is checked by the agent/engine, not here.
 
+import { teamsEqual } from '../engine/rules.ts'
 import type { Decision, PlayerView, Seat } from '../engine/types.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
 
@@ -106,6 +107,30 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
       return fail(`expected {"team": [${size} seat numbers]}`)
     }
 
+    case 'finalize': {
+      const stickRaw = o?.stick
+      const stick = stickRaw === true || stickRaw === 'true' ? true
+        : stickRaw === false || stickRaw === 'false' ? false : undefined
+      if (stick === true) {
+        return { decision: { kind: 'finalize', stick: true, thinking }, thinking, parseFailed: false }
+      }
+      if (stick === false) {
+        const team = Array.isArray(o?.team) ? o.team : null
+        if (team && team.length > 0 && team.every((s) => Number.isInteger(s))) {
+          const reason = typeof o?.reason === 'string' && o.reason.trim()
+            ? o.reason.trim().slice(0, SAY_MAX_CHARS) : undefined
+          return {
+            decision: { kind: 'finalize', stick: false, team: team as Seat[], reason, thinking },
+            thinking, parseFailed: false,
+          }
+        }
+        // stick:false with no usable team is closer to indecision than to a
+        // revision — do not silently coerce to stick; ask again.
+        return fail('"stick" is false but "team" is missing — give the revised team as seat numbers, or reply {"stick": true}')
+      }
+      return fail('expected {"stick": true} or {"stick": false, "team": [<seats>], "reason": "..."}')
+    }
+
     case 'vote': {
       const v = typeof o?.vote === 'string' ? o.vote.toLowerCase() : ''
       if (v === 'approve' || v === 'reject') {
@@ -189,11 +214,16 @@ export function parseDecision(kind: LlmCallKind, content: string, view: PlayerVi
 // Shape-level legality the agent can check before handing to the engine, so
 // the correction retry gets a specific error message.
 export function legalityError(d: Decision, view: PlayerView): string | null {
-  if (d.kind === 'propose') {
+  if (d.kind === 'propose' || (d.kind === 'finalize' && d.stick === false)) {
     const size = view.quests[view.round - 1].teamSize
     if (d.team.length !== size) return `team must have exactly ${size} members, got ${d.team.length}`
     if (new Set(d.team).size !== d.team.length) return 'team has duplicate seats'
     if (d.team.some((s) => s < 0 || s >= view.playerCount)) return 'team has an invalid seat number'
+  }
+  if (d.kind === 'finalize' && d.stick === false) {
+    if (teamsEqual(d.team, view.currentTeam ?? [])) {
+      return 'revised team is identical to the current proposal — reply {"stick": true} instead'
+    }
   }
   if (d.kind === 'assassinate') {
     if (d.target < 0 || d.target >= view.playerCount) return 'target is not a valid seat'

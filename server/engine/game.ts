@@ -6,7 +6,7 @@
 import {
   DEFAULT_ROLES, EVIL_COUNT, MAX_PLAYERS, MAX_PROPOSALS, MIN_PLAYERS,
   QUESTS_PER_GAME, QUESTS_TO_WIN, ROLE_ALIGNMENT, TEAM_SIZES,
-  computeKnowledge, failsRequired, nameIsReserved, stripSeatRefs, validateRoles,
+  computeKnowledge, failsRequired, nameIsReserved, stripSeatRefs, teamsEqual, validateRoles,
 } from './rules.ts'
 import { makeRng } from './prng.ts'
 import type {
@@ -38,7 +38,9 @@ export function createGame(opts: CreateGameOpts): Game {
   validateRoles(playerCount, roles)
   const names = opts.names ?? Array.from({ length: playerCount }, (_, i) => `P${i}`)
   if (names.length !== playerCount) throw new EngineError('names length mismatch')
-  const talk: TalkConfig = { preProposal: 1, postProposal: 1, ...opts.talk }
+  const talk: TalkConfig = {
+    maxRounds: 3, maxRoundsAfterChange: 2, leaderInDiscussion: 'last', ...opts.talk,
+  }
 
   const rng = makeRng(`deal:${opts.seed}`)
   const dealtRoles = rng.shuffle(roles)
@@ -87,24 +89,37 @@ export function createGame(opts: CreateGameOpts): Game {
 
 // ---- phase transitions ----
 
+// Discussion rotation: non-leaders in seat order from the leader's left. The
+// leader's proposal pitch was their opening statement, so they don't re-open
+// the round — under 'last' they close each round instead (lean-free), having
+// heard the whole table before their turn and before finalize.
 function speakerOrder(game: Game): Seat[] {
   const n = game.config.playerCount
-  return Array.from({ length: n }, (_, i) => (game.leaderSeat + i) % n)
+  const order = Array.from({ length: n - 1 }, (_, i) => (game.leaderSeat + 1 + i) % n)
+  if (game.config.talk.leaderInDiscussion === 'last') order.push(game.leaderSeat)
+  return order
 }
 
-function startDiscussion(game: Game, slot: 'pre' | 'post', maxRounds: number): boolean {
-  if (maxRounds <= 0) return false
+function startDiscussion(game: Game, postRevision: boolean): boolean {
+  const cap = postRevision
+    ? game.config.talk.maxRoundsAfterChange
+    : game.config.talk.maxRounds
+  if (cap <= 0) return false
   game.phase = 'discussion'
   game.discussion = {
-    slot, remaining: speakerOrder(game), roundNum: 1, maxRounds, anySpoke: false,
+    remaining: speakerOrder(game), roundNum: 1, maxRounds: cap,
+    postRevision, leans: {}, leanChangedThisRound: false,
   }
   return true
 }
 
 function endDiscussion(game: Game): void {
-  const slot = game.discussion!.slot
+  const postRevision = game.discussion!.postRevision
   game.discussion = undefined
-  game.phase = slot === 'pre' ? 'proposal' : 'vote'
+  // The initial discussion segment ends in the leader's stick-or-change turn;
+  // the post-revision segment goes straight to the vote — one revision only.
+  if (postRevision) goToVoteOrQuest(game)
+  else game.phase = 'finalize'
 }
 
 function enterProposalCycle(game: Game): void {
@@ -119,19 +134,26 @@ function enterProposalCycle(game: Game): void {
   emit(game, 'leadChange', {
     seat: game.leaderSeat, round: game.round, proposalNum: game.proposalNum,
   }, 'public')
-  if (!startDiscussion(game, 'pre', game.config.talk.preProposal)) {
-    game.phase = 'proposal'
-  }
+  game.phase = 'proposal'
 }
 
 function afterProposal(game: Game): void {
+  // maxRounds 0 = no discussion and nothing to finalize against: straight to
+  // the vote (or the hammer auto-approve).
+  if (!startDiscussion(game, false)) goToVoteOrQuest(game)
+}
+
+// The single exit from a proposal cycle toward resolution — and the one place
+// the hammer lives. House rule: the 5th ("hammer") proposal is approved
+// automatically, no vote. Under the official rule a 5th rejection ends the
+// game for evil, so a rational table always approves it anyway; auto-approving
+// removes the pure-blunder loss. Recorded as a public voteReveal
+// (votes: [], auto: true) so the proposal record, history UI, and bot prompts
+// all see the outcome through the usual event. The hammer still gets full
+// discussion and the finalize turn — the leader's one revision is the only
+// check on a team that goes straight to the quest.
+function goToVoteOrQuest(game: Game): void {
   if (game.proposalNum >= MAX_PROPOSALS) {
-    // House rule: the 5th ("hammer") proposal is approved automatically — no
-    // post-proposal talk, no vote. Under the official rule a 5th rejection
-    // ends the game for evil, so a rational table always approves it anyway;
-    // auto-approving removes the pure-blunder loss. Recorded as a public
-    // voteReveal (votes: [], auto: true) so the proposal record, history UI,
-    // and bot prompts all see the outcome through the usual event.
     emit(game, 'voteReveal', {
       round: game.round, proposalNum: game.proposalNum,
       team: game.currentTeam, votes: [], approved: true, auto: true,
@@ -139,9 +161,23 @@ function afterProposal(game: Game): void {
     startQuest(game)
     return
   }
-  if (!startDiscussion(game, 'post', game.config.talk.postProposal)) {
-    game.phase = 'vote'
+  game.phase = 'vote'
+}
+
+function validateTeam(game: Game, team: unknown): Seat[] {
+  const size = game.quests[game.round - 1].teamSize
+  if (!Array.isArray(team) || team.length !== size) {
+    throw new EngineError(`team must have exactly ${size} members`)
   }
+  const seen = new Set<Seat>()
+  for (const s of team) {
+    if (!Number.isInteger(s) || s < 0 || s >= game.config.playerCount) {
+      throw new EngineError(`invalid seat on team: ${s}`)
+    }
+    if (seen.has(s)) throw new EngineError(`duplicate seat on team: ${s}`)
+    seen.add(s)
+  }
+  return team.slice().sort((a, b) => a - b)
 }
 
 function startQuest(game: Game): void {
@@ -202,6 +238,8 @@ export function expectedDecisions(game: Game): DecisionRequest[] {
       return [{ kind: 'discuss', seat: game.discussion!.remaining[0], ...base }]
     case 'proposal':
       return [{ kind: 'propose', seat: game.leaderSeat, ...base }]
+    case 'finalize':
+      return [{ kind: 'finalize', seat: game.leaderSeat, ...base }]
     case 'vote':
       return game.players
         .filter((p) => game.pendingVotes[p.seat] === undefined)
@@ -250,43 +288,40 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
       }
       const say = stripSeatRefs(decision.say, game.players).slice(0, 600)
       const d = game.discussion!
-      // A lean is a public signal about the team on the table — only
-      // meaningful while a proposal is pending.
-      const withLean = lean !== undefined && game.currentTeam ? { lean } : {}
+      const isLeader = seat === game.leaderSeat
+      // The leader's lean is dropped, not rejected: their signal channels are
+      // the pitch and the finalize turn, and throwing here would just burn an
+      // LLM retry on a harmless extra field.
+      if (!isLeader && lean !== undefined) {
+        if (d.leans[seat] !== lean) d.leanChangedThisRound = true
+        d.leans[seat] = lean
+      }
       emit(game, 'utterance', {
-        seat, text: say, slot: d.slot, round: d.roundNum, ...withLean,
+        seat, text: say, round: d.roundNum,
+        ...(!isLeader && lean !== undefined ? { lean } : {}),
+        ...(d.postRevision ? { postRevision: true } : {}),
       }, 'public')
-      if (say.trim() !== '') d.anySpoke = true
       d.remaining.shift()
       if (d.remaining.length === 0) {
-        // Another round only if this one had any speech and rounds remain —
-        // a silent table is done talking.
-        if (d.anySpoke && d.roundNum < d.maxRounds) {
-          d.roundNum += 1
-          d.anySpoke = false
-          d.remaining = speakerOrder(game)
-        } else {
+        // Lean settlement: a full round in which no lean was newly declared
+        // or changed means positions are stable — call the question. A first
+        // declaration counts as a change, so a round where leans appear can
+        // never settle; a lean-less quiet round settles immediately
+        // (tabletop: nobody objects, vote). The cap bounds the worst case.
+        const settled = !d.leanChangedThisRound
+        if (settled || d.roundNum >= d.maxRounds) {
           endDiscussion(game)
+        } else {
+          d.roundNum += 1
+          d.leanChangedThisRound = false
+          d.remaining = speakerOrder(game)
         }
       }
       return game
     }
 
     case 'propose': {
-      const size = game.quests[game.round - 1].teamSize
-      const team = decision.team
-      if (!Array.isArray(team) || team.length !== size) {
-        throw new EngineError(`team must have exactly ${size} members`)
-      }
-      const seen = new Set<Seat>()
-      for (const s of team) {
-        if (!Number.isInteger(s) || s < 0 || s >= game.config.playerCount) {
-          throw new EngineError(`invalid seat on team: ${s}`)
-        }
-        if (seen.has(s)) throw new EngineError(`duplicate seat on team: ${s}`)
-        seen.add(s)
-      }
-      game.currentTeam = team.slice().sort((a, b) => a - b)
+      game.currentTeam = validateTeam(game, decision.team)
       emit(game, 'proposal', {
         round: game.round, proposalNum: game.proposalNum,
         leader: seat, team: game.currentTeam,
@@ -295,6 +330,33 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
           : {}),
       }, 'public')
       afterProposal(game)
+      return game
+    }
+
+    case 'finalize': {
+      if (decision.stick === true) {
+        emit(game, 'proposalLocked', {
+          round: game.round, proposalNum: game.proposalNum,
+          leader: seat, team: game.currentTeam!.slice(),
+        }, 'public')
+        goToVoteOrQuest(game)
+        return game
+      }
+      if (decision.stick !== false) throw new EngineError('stick must be true or false')
+      const to = validateTeam(game, decision.team)
+      const from = game.currentTeam!
+      if (teamsEqual(to, from)) {
+        throw new EngineError('revised team is identical to the proposal — use stick: true')
+      }
+      game.currentTeam = to
+      emit(game, 'proposalRevised', {
+        round: game.round, proposalNum: game.proposalNum,
+        leader: seat, from: from.slice(), to: to.slice(),
+        ...(typeof decision.reason === 'string' && decision.reason.trim()
+          ? { reason: stripSeatRefs(decision.reason.trim(), game.players).slice(0, 400) }
+          : {}),
+      }, 'public')
+      if (!startDiscussion(game, true)) goToVoteOrQuest(game)
       return game
     }
 
@@ -318,7 +380,7 @@ export function applyDecision(game: Game, seat: Seat, decision: Decision): Game 
           startQuest(game)
         } else {
           // Only proposals 1-4 are ever voted on — the 5th is auto-approved
-          // in afterProposal — so a rejection always has a next proposal.
+          // in goToVoteOrQuest — so a rejection always has a next proposal.
           game.proposalNum += 1
           rotateLeader(game)
           enterProposalCycle(game)

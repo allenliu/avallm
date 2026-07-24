@@ -24,7 +24,7 @@ const mkLog = (events: Ev[]): GameEvent[] =>
   events.map((e, seq) => ({ seq, visibility: 'public', ...e }))
 
 const say = (seat: Seat, text: string, lean?: string): Ev =>
-  ({ type: 'utterance', payload: { seat, text, slot: 'post', round: 1, ...(lean ? { lean } : {}) } })
+  ({ type: 'utterance', payload: { seat, text, round: 1, ...(lean ? { lean } : {}) } })
 
 const proposal = (leader: Seat, team: Seat[], round = 1, proposalNum = 1): Ev =>
   ({ type: 'proposal', payload: { round, proposalNum, leader, team } })
@@ -108,7 +108,7 @@ function syntheticArtifact(log: GameEvent[]): GameArtifact {
   const roles = ['merlin', 'percival', 'servant', 'morgana', 'assassin'] as const
   return {
     schema: 2, id: 'g', seed: 's', createdAt: new Date().toISOString(),
-    playerCount: 5, roles: [...roles], talk: { preProposal: 1, postProposal: 0 },
+    playerCount: 5, roles: [...roles], talk: { maxRounds: 1, maxRoundsAfterChange: 0 },
     players: roles.map((role, seat) => ({
       seat, name: `P${seat}`, role,
       alignment: role === 'morgana' || role === 'assassin' ? 'evil' : 'good',
@@ -163,7 +163,7 @@ test('metrics: leans count only while a team is on the table', () => {
 // ---- artifact roundtrip on a real game ----
 
 test('artifact: real heuristic game roundtrips through JSONL and computes metrics', async () => {
-  const game = createGame({ seed: 'eval-rt', playerCount: 7, talk: { preProposal: 1, postProposal: 0 } })
+  const game = createGame({ seed: 'eval-rt', playerCount: 7, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   const agents = new Map<Seat, AvalonAgent>(
     game.players.map((p) => [p.seat, createAgent({ type: 'heuristic' }, { seed: 'eval-rt', seat: p.seat })]),
   )
@@ -204,7 +204,7 @@ test('bench: paired runs share the deal and differ only in tags', async () => {
     games: 2,
     seedBase: 'bench-test',
     playerCount: 5,
-    talk: { preProposal: 1, postProposal: 0 },
+    talk: { maxRounds: 1, maxRoundsAfterChange: 0 },
   })
   assert.equal(artifacts.length, 4)
 

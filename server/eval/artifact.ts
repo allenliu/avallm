@@ -15,7 +15,11 @@ import type { Alignment, Game, GameEvent, Role, Seat, TalkConfig } from '../engi
 // readArtifacts accepts anything <= current so old corpora stay analyzable
 // (the whole premise of the format), and only refuses artifacts from a FUTURE
 // schema it cannot understand.
-export const ARTIFACT_SCHEMA = 2
+// v3: the proposal-flow redesign (propose -> discuss -> finalize -> vote,
+// TalkConfig reshaped to maxRounds/maxRoundsAfterChange). Pre-v3 artifacts
+// remain readable as data but are NOT replayable — the engine that produced
+// their logs no longer exists (replayGame refuses them).
+export const ARTIFACT_SCHEMA = 3
 
 export interface ArtifactPlayer {
   seat: Seat

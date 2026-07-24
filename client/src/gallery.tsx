@@ -126,6 +126,7 @@ const VARIANTS: Variant[] = [
   // is picked onto an approved team, is dealt evil, or is the Assassin after a good
   // win). `discuss` and `vote` are left to the playthrough — every player hits those.
   { id: 'act-propose', sel: '.youredge', node: <Edge role="Loyal Servant · Good"><ActionBar view={v({ phase: 'proposal' })} ask={ask('propose')} onDecide={noop} /></Edge> },
+  { id: 'act-finalize', sel: '.youredge', node: <Edge role="Loyal Servant · Good"><ActionBar view={v({ phase: 'finalize', leaderSeat: 0, currentTeam: [0, 2] })} ask={ask('finalize')} onDecide={noop} /></Edge> },
   { id: 'act-quest-good', sel: '.youredge', node: <Edge role="Loyal Servant · Good"><ActionBar view={v({ phase: 'quest' })} ask={ask('quest')} onDecide={noop} /></Edge> },
   { id: 'act-quest-evil', sel: '.youredge', node: <Edge role="The Knife · Assassin"><ActionBar view={v({ role: 'assassin', alignment: 'evil', phase: 'quest' })} ask={ask('quest')} onDecide={noop} /></Edge> },
   { id: 'act-assassinate', sel: '.youredge', node: <Edge role="The Knife · Assassin"><ActionBar view={v({ role: 'assassin', alignment: 'evil', phase: 'assassination' })} ask={ask('assassinate')} onDecide={noop} /></Edge> },

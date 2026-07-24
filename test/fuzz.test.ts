@@ -11,7 +11,7 @@ import type { Game, Seat } from '../server/engine/types.ts'
 
 async function play(
   playerCount: number, seed: string, spec: AgentSpec,
-  talk: { preProposal: number; postProposal: number },
+  talk: { maxRounds: number; maxRoundsAfterChange: number },
 ): Promise<{ game: Game; degradedCount: number }> {
   const game = createGame({ seed, playerCount, talk })
   const agents = new Map<Seat, AvalonAgent>(
@@ -44,7 +44,7 @@ test('heuristic games terminate cleanly at every player count', async () => {
   for (let playerCount = 5; playerCount <= 10; playerCount++) {
     for (let s = 0; s < 15; s++) {
       const ctx = `heuristic ${playerCount}p seed=${s}`
-      const talk = s % 3 === 0 ? { preProposal: 1, postProposal: 0 } : { preProposal: 0, postProposal: 0 }
+      const talk = s % 3 === 0 ? { maxRounds: 2, maxRoundsAfterChange: 1 } : { maxRounds: 0, maxRoundsAfterChange: 0 }
       const { game, degradedCount } = await play(playerCount, `fz-${playerCount}-${s}`, { type: 'heuristic' }, talk)
       checkInvariants(game, ctx)
       assert.equal(degradedCount, 0, `${ctx}: heuristic decisions must always be legal`)
@@ -56,8 +56,10 @@ test('random-legal games terminate cleanly', async () => {
   for (let playerCount = 5; playerCount <= 10; playerCount++) {
     for (let s = 0; s < 8; s++) {
       const ctx = `random ${playerCount}p seed=${s}`
+      // maxRounds 3,2 so random leans exercise settlement tracking and the
+      // random agent's 20% revise exercises the post-revision segment.
       const { game, degradedCount } = await play(
-        playerCount, `fzr-${playerCount}-${s}`, { type: 'random' }, { preProposal: 0, postProposal: 0 },
+        playerCount, `fzr-${playerCount}-${s}`, { type: 'random' }, { maxRounds: 3, maxRoundsAfterChange: 2 },
       )
       checkInvariants(game, ctx)
       assert.equal(degradedCount, 0, `${ctx}: random agent must always be legal`)
@@ -68,7 +70,7 @@ test('random-legal games terminate cleanly', async () => {
 test('both sides can win under heuristic play', async () => {
   const winners = new Set<string>()
   for (let s = 0; s < 40 && winners.size < 2; s++) {
-    const { game } = await play(7, `win-${s}`, { type: 'heuristic' }, { preProposal: 0, postProposal: 0 })
+    const { game } = await play(7, `win-${s}`, { type: 'heuristic' }, { maxRounds: 0, maxRoundsAfterChange: 0 })
     winners.add(game.winner!)
   }
   assert.ok(winners.has('good'), 'good never won in 40 games — heuristics degenerate')
@@ -77,8 +79,8 @@ test('both sides can win under heuristic play', async () => {
 
 test('replay determinism: same seed and agents produce identical event logs', async () => {
   for (const [playerCount, seed] of [[5, 'det-a'], [7, 'det-b'], [10, 'det-c']] as const) {
-    const a = await play(playerCount, seed, { type: 'heuristic' }, { preProposal: 1, postProposal: 1 })
-    const b = await play(playerCount, seed, { type: 'heuristic' }, { preProposal: 1, postProposal: 1 })
+    const a = await play(playerCount, seed, { type: 'heuristic' }, { maxRounds: 2, maxRoundsAfterChange: 1 })
+    const b = await play(playerCount, seed, { type: 'heuristic' }, { maxRounds: 2, maxRoundsAfterChange: 1 })
     assert.equal(JSON.stringify(a.game.log), JSON.stringify(b.game.log), `${playerCount}p ${seed}`)
   }
 })

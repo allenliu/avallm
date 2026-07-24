@@ -13,7 +13,7 @@ import type { AvalonAgent } from '../server/agents/types.ts'
 import type { Seat } from '../server/engine/types.ts'
 
 async function finishedGame(seed = 'transcript', playerCount = 5) {
-  const game = createGame({ seed, playerCount, talk: { preProposal: 0, postProposal: 0 } })
+  const game = createGame({ seed, playerCount, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   const agents = new Map<Seat, AvalonAgent>(
     game.players.map((p) => [p.seat, createAgent({ type: 'heuristic' }, { seed, seat: p.seat })]),
   )
@@ -74,7 +74,7 @@ test('backticks in free-form text do not break the code fences', async () => {
   game.log.push({
     seq: game.log.length,
     type: 'utterance',
-    payload: { seat: 0, text: 'try ```rm -rf``` lol', slot: 'pre', round: 1 },
+    payload: { seat: 0, text: 'try ```rm -rf``` lol', round: 1 },
     visibility: 'public',
   })
   const text = renderTranscript({

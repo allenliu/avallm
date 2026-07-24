@@ -8,7 +8,7 @@ import { viewFor } from '../server/engine/view.ts'
 import { buildMessages } from '../server/agents/prompts.ts'
 
 test('discuss nudge drops the round-2 passivity clause and rebalances toward speaking', () => {
-  const g = createGame({ seed: 'nudge', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const g = createGame({ seed: 'nudge', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
   const view = viewFor(g, 0)
   // Exercise the round>1 branch that previously appended the passivity clause.
   view.discussionRound = 2

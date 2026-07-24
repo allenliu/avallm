@@ -43,7 +43,8 @@ test('knowledge lines follow the role matrix', () => {
 })
 
 test('prompts carry the contract, state, and sanitized transcript', () => {
-  const g = createGame({ seed: 'pp', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
+  const g = createGame({ seed: 'pp', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
   // Have the first speaker attempt an injection.
   const [req] = expectedDecisions(g)
   applyDecision(g, req.seat, {
@@ -67,7 +68,7 @@ test('prompts carry the contract, state, and sanitized transcript', () => {
 })
 
 test('public state includes the vote record and hammer note', () => {
-  const g = createGame({ seed: 'ph', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed: 'ph', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   for (let i = 0; i < 4; i++) {
     applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
     for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'reject' })
@@ -87,8 +88,9 @@ test('public state includes the vote record and hammer note', () => {
 })
 
 test('discuss prompts carry table-talk norms and flag direct addresses', () => {
-  const g = createGame({ seed: 'addr', playerCount: 5, talk: { preProposal: 1, postProposal: 0 } })
-  // Speaker order starts at the leader; find the first two speakers.
+  const g = createGame({ seed: 'addr', playerCount: 5, talk: { maxRounds: 1, maxRoundsAfterChange: 0 } })
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  // Speaker order starts left of the leader; find the first two speakers.
   const [first] = expectedDecisions(g)
   const targetSeat = (first.seat + 2) % 5
   const targetName = g.players[targetSeat].name
@@ -115,7 +117,7 @@ test('discuss prompts carry table-talk norms and flag direct addresses', () => {
 })
 
 test('proposal pitches reach bot prompts, live and in the vote record', () => {
-  const g = createGame({ seed: 'pitchvis', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed: 'pitchvis', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   applyDecision(g, g.leaderSeat, {
     kind: 'propose', team: [0, 1], pitch: 'A clean opening pair — trust me.',
   })

@@ -11,6 +11,10 @@
 // What counts as a commitment (deterministic sources only — speech content
 // analysis is judge territory):
 //   - proposing a team          -> 'for' that team  (via 'proposal')
+//   - revising a team at
+//     finalize                  -> 'for' the NEW team (via 'proposal'); positions
+//                                  taken on the old team stay recorded but can
+//                                  never be contradicted (like a rejected team)
 //   - a lean signal on the
 //     pending team              -> 'for'/'against'  (via 'lean'; 'unsure' is none)
 //   - a revealed vote           -> 'for'/'against'  (via 'vote'; hammer auto-
@@ -90,6 +94,24 @@ export function buildLedger(log: GameEvent[]): Ledger {
           round: p.round as number,
           proposalNum: p.proposalNum as number,
           team: (p.team as Seat[]).slice(),
+          commitments: [],
+        }
+        add({
+          seat: p.leader as Seat, stance: 'for',
+          round: pending.round, proposalNum: pending.proposalNum,
+          team: pending.team, seq: ev.seq, via: 'proposal',
+        }, pending)
+        break
+      }
+
+      case 'proposalRevised': {
+        // Fresh pending record for the new team: old-team commitments stay in
+        // the global ledger but never enter the approved set, so the revised
+        // team's quest result cannot contradict them.
+        pending = {
+          round: p.round as number,
+          proposalNum: p.proposalNum as number,
+          team: (p.to as Seat[]).slice(),
           commitments: [],
         }
         add({

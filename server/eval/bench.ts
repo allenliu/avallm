@@ -125,7 +125,7 @@ async function main(): Promise<void> {
       games: { type: 'string', default: '10' },
       seed: { type: 'string', default: 'bench' },
       players: { type: 'string', default: '7' },
-      talk: { type: 'string', default: '1,0' },
+      talk: { type: 'string', default: '2,1' },   // maxRounds[,maxRoundsAfterChange]
       table: { type: 'string', default: 'heuristic' }, // heuristic | llm
       out: { type: 'string' },
       quiet: { type: 'boolean', default: false },
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   }
   const role = values.role as Role
   const table = values.table as 'heuristic' | 'llm'
-  const [pre, post] = values.talk!.split(',').map(Number)
+  const [maxRounds, maxRoundsAfterChange = 0] = values.talk!.split(',').map(Number)
   const out = values.out ?? `data/eval/bench-${role}-${values.seed}.jsonl`
 
   const artifacts = await runBench({
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
     games: Number(values.games),
     seedBase: values.seed!,
     playerCount: Number(values.players),
-    talk: { preProposal: pre, postProposal: post },
+    talk: { maxRounds, maxRoundsAfterChange },
     table,
     out,
     onProgress: values.quiet ? undefined : (line) => console.log(line),

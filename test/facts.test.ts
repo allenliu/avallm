@@ -105,7 +105,7 @@ test('hammer proximity appears only when the runway is short', () => {
 // for every seat never names another player's role/alignment or private data.
 test('dossier leaks no hidden information across a full game, every seat', async () => {
   for (const seed of ['facts-a', 'facts-b', 'facts-c']) {
-    const game = createGame({ seed, playerCount: 7, talk: { preProposal: 0, postProposal: 0 } })
+    const game = createGame({ seed, playerCount: 7, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
     const agents = new Map<Seat, ReturnType<typeof heuristicAgent>>()
     function heuristicAgent(seat: Seat) {
       return { async decide(req: any, v: PlayerView) {

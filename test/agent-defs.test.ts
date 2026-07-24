@@ -138,7 +138,7 @@ test('validateDef: legacy string versions read as integers; lenient mode keeps d
 })
 
 test('strategy and kindGuidance layer into the prompt in design-doc order', () => {
-  const g = createGame({ seed: 'defs-layers', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed: 'defs-layers', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   const view = viewFor(g, 0)
   const [sys] = buildMessages('vote', view, '', {
     strategy: 'STRATEGY-MARKER trust the vote record',
@@ -161,7 +161,7 @@ test('strategy and kindGuidance layer into the prompt in design-doc order', () =
 })
 
 test('personality and roleGuidance layer into the prompt; contracts stay fixed', () => {
-  const g = createGame({ seed: 'defs-p', playerCount: 5, talk: { preProposal: 0, postProposal: 0 } })
+  const g = createGame({ seed: 'defs-p', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
   const view = viewFor(g, 0)
   const [plain] = buildMessages('vote', view, '')
   const [layered] = buildMessages('vote', view, '', {
