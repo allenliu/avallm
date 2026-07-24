@@ -42,14 +42,21 @@ node server/server.ts                      # serve at http://localhost:8787
 
 Expectations:
 
-- **Regenerate when a commit visibly changes the client UI** (styles, layout, component
+- **Regenerate only when a commit visibly changes the client UI** (styles, layout, component
   markup), and include the refreshed images in that commit so reviewers get a before/after
-  diff. Don't regenerate for non-visual changes — image churn drowns the signal.
-- Command: `npm --prefix client run build && node tools/screenshots.mjs` (~4–5 min; spawns
-  its own server on port 18917; Chrome at the default Windows path or `CHROME` env). The run
-  writes `docs/screens/manifest.json` and **exits non-zero if a required shot is missing**;
-  luck-of-the-deal misses (propose/quest-card/assassinate) are logged as a note, not a
-  failure. What's required vs. optional lives in `tools/screens-expected.mjs`.
+  diff. Don't regenerate for non-visual changes — image churn drowns the signal, and each run
+  is ~5 min. To decide cheaply (no Chrome): `node tools/screenshots.mjs --check` reports
+  whether any UI source changed since the committed screenshots (it hashes `client/src/**` +
+  `client/*.html` into `manifest.json`). If it's stale but your change has no visual effect,
+  `node tools/screenshots.mjs --accept` records that without regenerating.
+- Command: `npm --prefix client run build && node tools/screenshots.mjs` (~4–5 min; spawns its
+  own server, auto-picking a free port from 18917 up; Chrome at the default Windows path or
+  `CHROME` env). The run writes `docs/screens/manifest.json` and **exits non-zero if a required
+  shot is missing**; luck-of-the-deal misses (propose/quest-card/assassinate) are logged as a
+  note and their stale images pruned. What's required vs. optional lives in `tools/screens-expected.mjs`.
+- The harness drives the live client through **stable `data-kind` / `data-t` hooks** on the
+  action bar (`client/src/components/ActionBar.tsx`), not button copy or CSS classes — so keep
+  those hooks when restyling. Setup/lobby/sheet/reveal are still matched by their (stable) text.
 - `test/screens.test.ts` (part of `npm test`) is the cheap drift guard: it asserts every
   required shot exists and is non-empty (no Chrome, no pixels) — so a partial run or a lost
   image reddens the suite. It skips entirely if the gallery was never generated in a checkout.

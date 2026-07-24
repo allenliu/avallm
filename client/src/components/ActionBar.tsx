@@ -3,6 +3,11 @@ import type { DecisionRequest, PlayerView, Seat } from '../types.ts'
 import { latestLeans } from '../leans.ts'
 import { Emblem } from './Arcana.tsx'
 
+// `data-kind` (the decision kind, or "waiting") and `data-t` (per-button role) are
+// stable automation hooks for the screenshot harness (tools/screenshots.mjs). They
+// are intentionally decoupled from visual class names and button copy, both of which
+// get redesigned often — keep them when restyling so the harness doesn't break.
+
 export function ActionBar({ view, ask, onDecide, waitingOn }: {
   view: PlayerView
   ask: DecisionRequest | undefined
@@ -12,7 +17,7 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
   if (!ask) {
     const others = (waitingOn ?? []).filter((n) => n !== view.name)
     return (
-      <div className="action-bar waiting">
+      <div className="action-bar waiting" data-kind="waiting">
         {others.length
           ? `Waiting on ${others.join(', ')}… (no rush — this table plays like mail chess)`
           : 'The table is playing… watch the feed.'}
@@ -48,7 +53,7 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
     setSay('')
   }
   return (
-    <div className="action-bar your-turn column discuss2">
+    <div className="action-bar your-turn column discuss2" data-kind="discuss">
       {leadOpening && (
         <span className="action-hint">
           ♛ You lead quest {view.round} — open the discussion with the team you're leaning toward, so the table has something to react to before you propose.
@@ -67,6 +72,7 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
             {(['approve', 'reject', 'unsure'] as const).map((l) => (
               <button
                 key={l}
+                data-t={`lean-${l}`}
                 className={`lean-seg-btn ${l}${lean === l ? ' active' : ''}`}
                 title={`lean ${l === 'approve' ? 'aye' : l === 'reject' ? 'nay' : 'unsure'}`}
                 onClick={() => setLean(lean === l ? null : l)}
@@ -80,8 +86,8 @@ function Discuss({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
           onChange={(e) => setSay(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') submit(say) }}
         />
-        <button className="say-btn" onClick={() => submit(say)}>Say</button>
-        <button className="ghost pass-btn" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
+        <button className="say-btn" data-t="say" onClick={() => submit(say)}>Say</button>
+        <button className="ghost pass-btn" data-t="pass" onClick={() => submit('')}>{lean ? 'Signal only' : 'Pass'}</button>
       </div>
     </div>
   )
@@ -93,7 +99,7 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   const [pitch, setPitch] = useState('')
   const toggle = (s: Seat) => setTeam((t) => t.includes(s) ? t.filter((x) => x !== s) : t.length < size ? [...t, s] : t)
   return (
-    <div className="action-bar your-turn column">
+    <div className="action-bar your-turn column" data-kind="propose">
       <div className="row">
         <TurnTag>You lead</TurnTag>
         <span className="action-label">Quest {view.round} — pick {size} players ({team.length}/{size})</span>
@@ -102,6 +108,7 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
         {view.players.map((p) => (
           <button
             key={p.seat}
+            data-t="seat-pick"
             className={`pick${team.includes(p.seat) ? ' picked' : ''}`}
             onClick={() => toggle(p.seat)}
           >{p.seat === view.seat ? 'You' : p.name}</button>
@@ -114,6 +121,7 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
           onChange={(e) => setPitch(e.target.value)}
         />
         <button
+          data-t="propose"
           disabled={team.length !== size}
           onClick={() => onDecide({ kind: 'propose', team, pitch: pitch || undefined })}
         >Propose team</button>
@@ -127,12 +135,12 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
 function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const team = (view.currentTeam ?? []).map((s) => s === view.seat ? 'You' : view.players[s].name).join(' · ')
   return (
-    <div className="action-bar your-turn">
+    <div className="action-bar your-turn" data-kind="vote">
       <TurnTag>Play a card</TurnTag>
       <span className="action-label">Approve <b className="team-gold">{team}</b> for quest {view.round}?</span>
       <span className="bar-spacer" />
       <div className="playcards">
-        <button className="play approve" title="The Chariot — approve, send them forth" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
+        <button className="play approve" data-t="vote-approve" title="The Chariot — approve, send them forth" onClick={() => onDecide({ kind: 'vote', vote: 'approve' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
           <span className="pnum">VII</span>
           <span className="pem-frame"><Emblem id="chariot" className="pem" /></span>
@@ -140,7 +148,7 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
           <span className="pt vote-title"><span className="ptx-arc">The Chariot</span><span className="ptx-plain">Approve</span></span>
           <span className="ps">send them forth</span>
         </button>
-        <button className="play reject" title="The Hanged Man — reject, force a new leader" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
+        <button className="play reject" data-t="vote-reject" title="The Hanged Man — reject, force a new leader" onClick={() => onDecide({ kind: 'vote', vote: 'reject' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
           <span className="pnum">XII</span>
           <span className="pem-frame"><Emblem id="hanged" className="pem" /></span>
@@ -155,21 +163,21 @@ function Vote({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<strin
 function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const good = view.alignment === 'good'
   return (
-    <div className="action-bar your-turn">
+    <div className="action-bar your-turn" data-kind="quest">
       <TurnTag>The quest</TurnTag>
       <span className="action-label">
         Play your card in secret{good ? ' — good must play Success' : ''}:
       </span>
       <span className="bar-spacer" />
       <div className="playcards">
-        <button className="play approve" onClick={() => onDecide({ kind: 'quest', card: 'success' })}>
+        <button className="play approve" data-t="quest-success" onClick={() => onDecide({ kind: 'quest', card: 'success' })}>
           <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
           <span className="pnum">XIX</span>
           <span className="pem-frame"><Emblem id="laurel" className="pem" /></span>
           <span className="pt">Success</span>
         </button>
         {!good && (
-          <button className="play reject" onClick={() => onDecide({ kind: 'quest', card: 'fail' })}>
+          <button className="play reject" data-t="quest-fail" onClick={() => onDecide({ kind: 'quest', card: 'fail' })}>
             <span className="pc-star tl">✦</span><span className="pc-star br">✦</span>
             <span className="pnum">XVI</span>
             <span className="pem-frame"><Emblem id="dagger" className="pem" /></span>
@@ -184,7 +192,7 @@ function QuestCard({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<
 function Assassinate({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<string, unknown>) => void }) {
   const [target, setTarget] = useState<Seat | null>(null)
   return (
-    <div className="action-bar your-turn column">
+    <div className="action-bar your-turn column" data-kind="assassinate">
       <div className="row">
         <TurnTag>The Knife</TurnTag>
         <span className="action-label">Good has three quests — but you are the Assassin. Who is Merlin?</span>
@@ -194,12 +202,13 @@ function Assassinate({ view, onDecide }: { view: PlayerView; onDecide: (d: Recor
           {view.players.filter((p) => p.seat !== view.seat).map((p) => (
             <button
               key={p.seat}
+              data-t="seat-pick"
               className={`pick${target === p.seat ? ' picked danger-pick' : ''}`}
               onClick={() => setTarget(p.seat)}
             >{p.name}</button>
           ))}
         </div>
-        <button className="play reject compact" disabled={target === null}
+        <button className="play reject compact" data-t="assassinate" disabled={target === null}
           onClick={() => onDecide({ kind: 'assassinate', target })}>
           <Emblem id="dagger" className="pem" /><span className="pt">Assassinate</span>
         </button>

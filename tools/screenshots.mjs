@@ -19,6 +19,8 @@
 // TODO: error/reconnect banner (needs a way to sever SSE mid-shoot).
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
+import net from 'node:net'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,8 +31,10 @@ const require = createRequire(path.join(root, 'client', 'package.json'))
 const puppeteer = require('puppeteer-core')
 
 const CHROME = process.env.CHROME ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
-const PORT = Number(process.env.PORT ?? 18917)
-const BASE = `http://localhost:${PORT}`
+// PORT/BASE are mutable: a prior run's server can orphan and hold the port (a killed
+// child isn't always reaped promptly on Windows), so we probe for a free one at startup.
+let PORT = Number(process.env.PORT ?? 18917)
+let BASE = `http://localhost:${PORT}`
 const OUT = path.join(root, 'docs', 'screens')
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -53,6 +57,18 @@ async function clickByText(page, text) {
     return false
   }, text)
   if (!ok) throw new Error(`no button "${text}"`)
+}
+// Click an action-bar control by its stable `data-t` hook (see ActionBar.tsx). The
+// in-game action rail is redesigned often, so it exposes data-* automation anchors;
+// prefer these over button copy/classes there. clickByText stays for the setup,
+// lobby, sheet, and reveal UIs, whose plain labels have been stable.
+async function clickT(page, t) {
+  const ok = await page.evaluate((t) => {
+    const el = document.querySelector(`.action-bar [data-t="${t}"]`)
+    if (el) { el.click(); return true }
+    return false
+  }, t)
+  if (!ok) throw new Error(`no action-bar [data-t="${t}"]`)
 }
 async function typeInto(page, selector, value) {
   await page.evaluate((selector, value) => {
@@ -121,13 +137,13 @@ async function soloRun(browser, viewportName, viewport) {
     await sleep(350)
     const st = await page.evaluate(() => {
       const bar = document.querySelector('.action-bar')
-      const buttons = bar ? [...bar.querySelectorAll('button')].map((b) => (b.querySelector('.ptx-plain') ?? b.querySelector('.pt') ?? b).textContent.trim()) : []
       return {
-        buttons,
+        // `data-kind` is the stable phase hook (ActionBar.tsx): waiting | discuss |
+        // propose | vote | quest | assassinate. null = the action bar isn't up yet.
+        kind: bar?.dataset.kind ?? null,
         hasInput: !!bar?.querySelector('input'),
-        teamPending: !!bar?.querySelector('.lean-seg'),
+        teamPending: !!bar?.querySelector('[data-t="lean-approve"]'),
         reveal: !!document.querySelector('.reveal'),
-        waiting: bar?.classList.contains('waiting') ?? false,
       }
     })
     if (st.reveal) {
@@ -138,7 +154,7 @@ async function soloRun(browser, viewportName, viewport) {
       await shot('reveal-thinking', true)
       break
     }
-    if (st.waiting) {
+    if (st.kind === 'waiting') {
       // bots deciding while we wait — capture the transient live-edge indicators
       const kind = await page.evaluate(() => {
         if (document.querySelector('.assassin-beat')) return 'assassin-beat'
@@ -150,7 +166,7 @@ async function soloRun(browser, viewportName, viewport) {
       if (kind && !seen.has(kind)) { seen.add(kind); await shot(kind) }
       continue
     }
-    if (!st.buttons.length && !st.hasInput) continue
+    if (!st.kind) continue // action bar not up yet
 
     if (!modalsDone && seen.size >= 2) {
       modalsDone = true
@@ -166,36 +182,36 @@ async function soloRun(browser, viewportName, viewport) {
       await sleep(200)
     }
 
-    if (st.buttons.includes('Approve') && st.buttons.includes('Reject')) {
+    if (st.kind === 'vote') {
       if (!seen.has('vote')) { seen.add('vote'); await shot('vote') }
       if (!seen.has('vote-ballot') && await page.$('.feed-row.ballot')) { seen.add('vote-ballot'); await shot('vote-ballot') }
-      if (!rejectedOnce) { rejectedOnce = true; await clickByText(page, 'Reject') }
-      else await clickByText(page, 'Approve')
-    } else if (st.buttons.includes('Success')) {
+      // Reject the first proposal (to exercise a re-vote), approve the rest.
+      if (!rejectedOnce) { rejectedOnce = true; await clickT(page, 'vote-reject') }
+      else await clickT(page, 'vote-approve')
+    } else if (st.kind === 'quest') {
+      // Good sees only Success; evil sees Success + Fail. Always play Success so the
+      // game keeps moving (the Fail card's presence is captured by the fixture gallery).
       if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
       if (!seen.has('quest-ballot') && await page.$('.feed-row.qseal')) { seen.add('quest-ballot'); await shot('quest-ballot') }
-      await clickByText(page, 'Success')
-    } else if (st.buttons.includes('Fail')) {
-      if (!seen.has('quest')) { seen.add('quest'); await shot('quest-card') }
-      await clickByText(page, 'Success')
-    } else if (st.buttons.includes('Propose team')) {
+      await clickT(page, 'quest-success')
+    } else if (st.kind === 'propose') {
       const size = await page.evaluate(() => {
         const m = document.querySelector('.action-label')?.textContent.match(/pick (\d+)/)
         return m ? Number(m[1]) : 2
       })
       await page.evaluate((size) => {
-        const picks = [...document.querySelectorAll('.seat-picker .pick')]
+        const picks = [...document.querySelectorAll('.action-bar [data-t="seat-pick"]')]
         for (let i = 0; i < size && i < picks.length; i++) picks[i].click()
       }, size)
       await sleep(150)
       if (!seen.has('propose')) { seen.add('propose'); await shot('propose') }
-      await clickByText(page, 'Propose team')
-    } else if (st.buttons.includes('Assassinate')) {
-      await page.evaluate(() => document.querySelector('.seat-picker .pick')?.click())
+      await clickT(page, 'propose')
+    } else if (st.kind === 'assassinate') {
+      await page.evaluate(() => document.querySelector('.action-bar [data-t="seat-pick"]')?.click())
       await sleep(150)
       if (!seen.has('assassinate')) { seen.add('assassinate'); await shot('assassinate') }
-      await clickByText(page, 'Assassinate')
-    } else if (st.hasInput) {
+      await clickT(page, 'assassinate')
+    } else if (st.kind === 'discuss') {
       // discuss.jpg prefers the react-to-team frame (lean picker ✓/✕/? engaged,
       // which the plain opening turn — identical to game-start — lacks), but must
       // ALWAYS exist so the required-shot check can't spuriously fail: capture the
@@ -204,7 +220,7 @@ async function soloRun(browser, viewportName, viewport) {
       // reaches a post-proposal turn keeps the plain (game-start-like) fallback.
       if (!discussIsReact) {
         if (st.teamPending) {
-          await page.evaluate(() => document.querySelector('.action-bar .lean-seg-btn.approve')?.click())
+          await clickT(page, 'lean-approve')
           await sleep(120)
           await shot('discuss')
           discussIsReact = true
@@ -217,12 +233,11 @@ async function soloRun(browser, viewportName, viewport) {
         saidSomething = true
         await typeInto(page, '.action-bar input', "I'm just a humble servant — watch the votes with me.")
         await sleep(100)
-        await clickByText(page, 'Say')
+        await clickT(page, 'say')
       } else {
-        // The pass button reads "Pass" normally but "Signal only" once a lean is
-        // engaged (both just submit an empty utterance) — click by its stable class,
-        // not the label (and not `.secondary`, which the action rail doesn't use).
-        await page.evaluate(() => document.querySelector('.action-bar .pass-btn')?.click())
+        // "pass" submits an empty utterance (its label is "Pass", or "Signal only"
+        // once a lean is engaged) — click by data-t so neither label nor class matters.
+        await clickT(page, 'pass')
       }
     }
   }
@@ -310,6 +325,61 @@ async function galleryRun(browser) {
   await ctx.close()
 }
 
+// ---------- source fingerprint (regenerate-only-on-visual-change support) ----------
+// A hash of everything that affects how the client renders — the gallery is a
+// layout/design diff, so a run is only worth its ~5 min when this changes. It over-
+// approximates (flags non-visual edits to these files too), so it's a prompt for a
+// human to judge, not an auto-gate: `--check` reports drift, `--accept` records "I
+// looked, no screenshot change needed" without regenerating.
+function uiSourceFiles() {
+  const out = []
+  const walk = (d) => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (/\.(tsx?|css)$/.test(e.name)) out.push(p)
+    }
+  }
+  walk(path.join(root, 'client', 'src'))
+  for (const f of fs.readdirSync(path.join(root, 'client')))
+    if (f.endsWith('.html')) out.push(path.join(root, 'client', f))
+  return out.sort()
+}
+function uiSourceHash() {
+  const h = crypto.createHash('sha256')
+  for (const f of uiSourceFiles()) {
+    h.update(path.relative(root, f).split(path.sep).join('/') + '\0')
+    h.update(fs.readFileSync(f))
+    h.update('\0')
+  }
+  return h.digest('hex').slice(0, 16)
+}
+const manifestPath = () => path.join(OUT, 'manifest.json')
+const readManifest = () => fs.existsSync(manifestPath()) ? JSON.parse(fs.readFileSync(manifestPath(), 'utf8')) : null
+
+// `--check`: cheap (no Chrome) — is the committed gallery stale vs. current UI source?
+function checkMode() {
+  const m = readManifest()
+  const cur = uiSourceHash()
+  if (!m) { console.log('no manifest — screenshots have never been generated'); process.exit(1) }
+  if (m.sourceHash === cur) { console.log(`screenshots up to date with UI source (${cur})`); process.exit(0) }
+  console.log(`STALE — UI source changed since the last screenshot regen (${m.sourceHash ?? 'none'} → ${cur}).`)
+  console.log('  Review the client diff. If the change is visual, regenerate:')
+  console.log('    npm --prefix client run build && node tools/screenshots.mjs')
+  console.log('  If it does not affect any screenshot, record that without regenerating:')
+  console.log('    node tools/screenshots.mjs --accept')
+  process.exit(1)
+}
+// `--accept`: bump the stored fingerprint to the current source without a regen —
+// for a UI-source edit you've judged to have no visual effect.
+function acceptMode() {
+  const m = readManifest() ?? { shots: [] }
+  m.sourceHash = uiSourceHash()
+  fs.writeFileSync(manifestPath(), JSON.stringify(m, null, 2) + '\n')
+  console.log(`accepted current UI source as up to date (${m.sourceHash}) — no regeneration`)
+  process.exit(0)
+}
+
 // ---------- manifest + drift/degradation report ----------
 function writeManifest() {
   // An optional shot this run didn't reproduce is now stale — a leftover from an
@@ -321,7 +391,7 @@ function writeManifest() {
   for (const f of stale) { fs.rmSync(f); console.log('stale (removed):', path.relative(root, f)) }
 
   const shots = [...produced].sort()
-  fs.writeFileSync(path.join(OUT, 'manifest.json'), JSON.stringify({ shots }, null, 2) + '\n')
+  fs.writeFileSync(manifestPath(), JSON.stringify({ shots, sourceHash: uiSourceHash() }, null, 2) + '\n')
   console.log(`manifest: ${shots.length} shots → ${path.relative(root, path.join(OUT, 'manifest.json'))}`)
 
   // Optional misses are a known-degradation note, not a failure: the unseeded deal
@@ -340,6 +410,29 @@ function writeManifest() {
 }
 
 // ---------- main ----------
+// Cheap, Chrome-free modes: `--check` reports staleness, `--accept` records it away.
+if (process.argv.includes('--check')) checkMode()
+if (process.argv.includes('--accept')) acceptMode()
+
+// Is `port` bindable right now? Probe on all interfaces, exactly as the game server
+// binds ('::'), so a leftover listener on either stack counts as taken.
+function portFree(port) {
+  return new Promise((resolve) => {
+    const probe = net.createServer()
+    probe.once('error', () => resolve(false))
+    probe.once('listening', () => probe.close(() => resolve(true)))
+    probe.listen(port)
+  })
+}
+// Advance PORT/BASE to the first free port at/above the requested one, so an orphaned
+// server from a previous run can't fail this one with EADDRINUSE.
+for (let tries = 0; ; tries++) {
+  if (await portFree(PORT)) break
+  if (tries >= 20) throw new Error(`no free port near ${PORT}`)
+  console.log(`port ${PORT} busy — trying ${PORT + 1}`)
+  PORT += 1; BASE = `http://localhost:${PORT}`
+}
+
 // The bot-decision delay holds the transient thinking / sealing-ballot / beat
 // UI long enough to snapshot (autopilot otherwise decides in zero frames).
 const server = spawn(process.execPath, ['server/server.ts'], {
@@ -366,5 +459,13 @@ try {
   writeManifest()
   console.log('gallery complete →', path.relative(root, OUT))
 } finally {
+  // Ensure the child is actually dead before we exit — otherwise it can orphan and
+  // hold the port for the next run. SIGTERM first, SIGKILL if it lingers (Windows
+  // doesn't reap on parent exit).
   server.kill()
+  await new Promise((resolve) => {
+    if (server.exitCode !== null || server.signalCode !== null) return resolve()
+    const t = setTimeout(() => { try { server.kill('SIGKILL') } catch {} resolve() }, 3000)
+    server.once('exit', () => { clearTimeout(t); resolve() })
+  })
 }
