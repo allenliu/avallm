@@ -194,7 +194,11 @@ test('assassinate prompt lists eligible Merlin candidates and rules out known ev
   const g = createGame({ seed: 'assn', playerCount: 5, roles: ['merlin', 'percival', 'servant', 'morgana', 'assassin'] })
   const by = playersByRole(g)
   const [, user] = buildMessages('assassinate', viewFor(g, by.assassin.seat), '')
-  const pool = user.content.slice(user.content.indexOf('ruled out):'))
+  // The candidate pool is the first line, after this anchor; slice to the
+  // newline so only the enumerated names are checked, not the method bullets.
+  const anchor = user.content.indexOf('you do NOT know to be evil:')
+  assert.ok(anchor >= 0, 'the prompt enumerates the candidate pool')
+  const pool = user.content.slice(anchor, user.content.indexOf('\n', anchor))
   assert.ok(pool.includes(by.merlin.name), 'Merlin is offered as a candidate')
   assert.ok(!pool.includes(by.assassin.name), 'the assassin is not its own target')
   assert.ok(!pool.includes(by.morgana.name), 'a known evil partner is ruled out')
