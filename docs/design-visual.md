@@ -60,8 +60,8 @@ cartouche, engraved emblem in an oval frame, title plate, corner stars. Emblems 
 | Morgana — **The Mirror** | XVIII | facing crescents | The Moon is XVIII |
 | Mordred — **The Veiled** | XV | shrouded crown | The Devil is XV |
 | Oberon — **The Stranger** | IX | lantern | The Hermit is IX |
-| Quest success — **The Sun** | XIX | sun | quest card flips to this |
-| Quest fail — **The Tower** | XVI | struck tower | fail count on title plate |
+| Quest success — **Loyal** | — | shield (Loyal sigil) | quest card flips to this; result speaks faction, not arcana |
+| Quest fail — **Sabotaged** | — | dagger (Evil sigil) | fail count on title plate |
 | Spectator — **The Witness** | 0 | open book | unaligned; the Fool's position |
 | Seat sigils — **celestial bodies** | — | ☿ ♊ ☉ ☽ ♃ ♄ … | pick O2 (2026-07-23): each agent is a body in the constellation, brand-colored; humans are ⊕ Earth; autopilot is ⚙ the Clockwork; custom agents draw deterministically from the outer pool (`celestialFor` in Arcana.tsx). Unicode for now — converting the chosen set to SVG is an open polish item. |
 | Vote approve | AYE | laurel | also good's forced Success card |
@@ -211,7 +211,7 @@ remain future options (Zodiac's seat-linking lines double as a turn-order diagra
   the *sealing* capture). Vote reveal = **Option A**: each ballot flips from face-down to
   the voter's aye/nay, staggered, staying as labeled cards (replaces the text tally).
   Quest reveal = **Q1**: the team's face-down cards gather → shuffle → a single card flips
-  to the aggregate (The Sun / The Tower + fail count); individual plays never shown. Both
+  to the aggregate (Loyal shield / Evil dagger + fail count); individual plays never shown. Both
   honor `prefers-reduced-motion` (land on the final state). Live standalone of the quest
   reveal: https://claude.ai/code/artifact/185f1da7-76ad-45f7-b543-3063be2eb2b6
 - [x] **Dev-only bot-decision delay** (`AVALON_BOT_DELAY_MS`, 0/off in prod) holds the

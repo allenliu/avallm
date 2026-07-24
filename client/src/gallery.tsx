@@ -45,7 +45,7 @@ const noop = () => {}
 // Bots for the seat tooltip — the tooltip surfaces model + about, so fixtures
 // need them populated.
 const bot = (id: string, name: string, model: string, color: string, about: string): AgentInfo =>
-  ({ id, name, model, color, monogram: name.slice(0, 2).toUpperCase(), about, custom: false })
+  ({ id, name, model, color, monogram: name.slice(0, 2).toUpperCase(), about, custom: false, tunedChars: 0, tier: 'builtin' })
 const bots: Record<number, AgentInfo> = {
   1: bot('gemini', 'Gemini', 'google/gemini-3.1-flash-lite', '#6c8fd9', 'Fast and confident; over-commits early.'),
   2: bot('deepseek', 'DeepSeek', 'deepseek/deepseek-v4-flash', '#c9a84c', 'Terse and punchy. Occasionally forgets it is playing a game.'),

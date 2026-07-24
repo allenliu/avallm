@@ -74,7 +74,7 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
 
         if (row.kind === 'questreveal') {
           // Q1: the sealed cards gather, shuffle, then a single card flips to the
-          // aggregate (The Sun / The Tower + fail count) — individual plays are
+          // aggregate (Loyal shield / Evil dagger + fail count) — individual plays are
           // never shown, the shuffle IS the anonymity. Same stage as the sealing
           // indicator, so the moment reads as one continuous element. Mount-driven,
           // so it plays in full even when the server resolved instantly.
@@ -87,9 +87,9 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
                 {Array.from({ length: size }).map((_, i) => (
                   <span key={i} className="qr-card" style={qfan(i, size)} />
                 ))}
-                <span className={`qr-result ${won ? 'sun' : 'tower'}`}>
-                  <Emblem id={won ? 'sun' : 'tower'} className="qr-em" />
-                  <span className="qr-word">{won ? 'THE SUN' : `TOWER ·${row.failCount}`}</span>
+                <span className={`qr-result ${won ? 'won' : 'lost'}`}>
+                  <Emblem id={won ? 'shield' : 'dagger'} className="qr-em" />
+                  <span className="qr-word">{won ? 'LOYAL' : `SABOTAGE ·${row.failCount}`}</span>
                 </span>
               </span>
               <span className="qr-caption">
@@ -345,7 +345,7 @@ function renderEvent(ev: GameEvent, name: (s: number) => string, view: PlayerVie
         kind: 'questreveal',
         cls: won ? 'ok' : 'bad',
         teamSize, failCount: p.failCount,
-        text: `Quest ${p.round} · ${won ? 'The Sun — SUCCESS' : 'The Tower — FAILED'}`,
+        text: `Quest ${p.round} · ${won ? 'SUCCESS' : 'SABOTAGED'}`,
         sub: `${p.failCount} fail card${p.failCount === 1 ? '' : 's'} revealed, ${p.failsRequired} needed`,
       }
     }

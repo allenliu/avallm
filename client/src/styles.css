@@ -787,8 +787,8 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   opacity: 0;
 }
 .feed-row.questreveal .qr-result { animation: qreveal 3s ease both; }
-.qr-result.sun { color: var(--good); }
-.qr-result.tower { color: var(--evil); }
+.qr-result.won { color: var(--good); }
+.qr-result.lost { color: var(--evil); }
 .qr-em { width: 30px; height: 30px; }
 .qr-word { font: 700 0.5rem var(--mono); letter-spacing: 0.1em; }
 @keyframes qreveal {

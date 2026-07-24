@@ -2,7 +2,8 @@ import type { PlayerView } from '../types.ts'
 import { Emblem } from './Arcana.tsx'
 
 // The quest line as a five-card spread lying on the felt: face-down = future,
-// glowing = current, flipped = resolved (The Sun / The Tower). Details live in
+// glowing = current, flipped = resolved to the faction that won it (Loyal shield
+// / Evil dagger — the sigils players already know from the role sheets). Details live in
 // arcane tooltips (who went, fails revealed); the tally plaque carries the
 // score where hover doesn't exist (mobile).
 export function QuestBoard({ view }: { view: PlayerView }) {
@@ -14,7 +15,7 @@ export function QuestBoard({ view }: { view: PlayerView }) {
           const tip = (
             <span className="tooltip tip-up" role="tooltip">
               <span className="t-title"><span className="t-num">Q·{q.num}</span>
-                {q.result === 'success' ? 'The Sun' : q.result === 'fail' ? 'The Tower' : q.num === view.round ? 'Current quest' : 'Future quest'}
+                {q.result === 'success' ? 'Loyal victory' : q.result === 'fail' ? 'Sabotaged' : q.num === view.round ? 'Current quest' : 'Future quest'}
               </span>
               <span className="t-rows">
                 {q.team
@@ -30,8 +31,8 @@ export function QuestBoard({ view }: { view: PlayerView }) {
             return (
               <div key={q.num} className="qcard face won">
                 <span className="qn">Q·{q.num}</span>
-                <Emblem id="sun" className="qem" />
-                <span className="word">THE SUN</span>
+                <Emblem id="shield" className="qem" />
+                <span className="word">LOYAL</span>
                 {tip}
               </div>
             )
@@ -40,8 +41,8 @@ export function QuestBoard({ view }: { view: PlayerView }) {
             return (
               <div key={q.num} className="qcard face lost">
                 <span className="qn">Q·{q.num}</span>
-                <Emblem id="tower" className="qem" />
-                <span className="word">TOWER ·{q.failCount}</span>
+                <Emblem id="dagger" className="qem" />
+                <span className="word">SABOTAGE ·{q.failCount}</span>
                 {tip}
               </div>
             )
