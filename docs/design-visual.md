@@ -123,8 +123,12 @@ Audit finding IDs: see the audit artifact. `[ ]` = not started.
 
 ### Lower priority
 
-- [ ] Lobby / join screens in the language (tokens only so far — hero/panel layout pass
-  still open).
+- [x] Lobby / join screens in the language: landing-page hero + starfield ground, a
+  "constellation rule" divider, and card-panels. Join = an "Invitation" panel (host,
+  seated/open stat pair, bot chips as celestial bodies) + a "Take your seat" panel.
+  Lobby = a loud gold-framed shareable URL, a seat roster (humans as ⊕ Earth, host
+  crowned ♛, open slots breathing) + machine chips, auto-start status line. Staggered
+  page-load reveal (reduced-motion lands on final state); mobile verified at 390×844.
 - [x] Custom-agent form styling (panelized, "Inscribe your own agent"); spectator chrome
   (◎ chip at the near edge).
 - [x] Vote tally as a row of played cards in the feed — per-player aye/nay chips with the

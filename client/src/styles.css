@@ -308,23 +308,162 @@ input::placeholder { color: var(--faint); }
   display: flex; flex-direction: column; gap: 0.35rem;
 }
 
-/* ---- lobby / join ---- */
+/* ---- lobby / join (The Invitation — Arcane Table skin) ---- */
+/* Both screens ride the landing-page hero + starfield ground. A narrow centered
+   column of card-panels; panels lay in with a staggered page-load reveal. */
+/* no fixed CTA rail on these screens, so drop the launcher's tall bottom gutter */
+.invite-page { max-width: 640px; padding-bottom: 48px; }
+.invite-cols {
+  display: flex; flex-direction: column; gap: 16px;
+  margin-top: 20px;
+}
+.invite-cols > .card-panel, .invite-cols > .invite-back, .invite-cols > .lobby-actions,
+.invite-cols > .invite-loading {
+  opacity: 0;
+  animation: invite-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.invite-cols > *:nth-child(1) { animation-delay: 0.05s; }
+.invite-cols > *:nth-child(2) { animation-delay: 0.14s; }
+.invite-cols > *:nth-child(3) { animation-delay: 0.23s; }
+@keyframes invite-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* thin gold rule with a star node, dividing hero from content */
+.constellation-rule {
+  position: relative; height: 1px; width: min(340px, 70%); margin: 20px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold-deep) 22%, var(--gold-deep) 78%, transparent);
+}
+.constellation-rule span {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--gold); box-shadow: 0 0 10px rgba(201, 168, 76, 0.55);
+}
+
+.invite-panel .body { display: flex; flex-direction: column; gap: 12px; }
+.invite-tagline { margin: 0.7em auto 0; max-width: 46ch; }
+.invite-loading { color: var(--dim); text-align: center; font-style: italic; padding: 2rem 0; }
+.invite-lede { color: var(--text); line-height: 1.55; }
+.invite-host { color: var(--gold-lt); font-weight: 700; }
+.invite-status, .share-hint {
+  color: var(--dim); font-size: 0.86rem; line-height: 1.5;
+}
+
+/* invitation stat pair (humans seated · open seats) */
+.invite-stats { display: flex; gap: 12px; }
+.istat {
+  flex: 1; display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px;
+  background: linear-gradient(180deg, rgba(38, 33, 83, 0.5), rgba(20, 17, 42, 0.2));
+}
+.istat-n { font: 700 1.5rem var(--serif); color: var(--gold); line-height: 1; }
+.istat-n.open { color: var(--good); }
+.istat-n.full { color: var(--faint); }
+.istat-of { font-size: 0.9rem; color: var(--faint); font-weight: 400; }
+/* shared uppercase mono micro-label (stat captions + bot-strip heading) */
+.istat-l, .bot-strip-label {
+  font: 600 0.56rem var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--faint);
+}
+
+/* the shareable join URL — the lobby's headline job, so it reads loud */
+.share-panel .join-url-row {
+  box-shadow: inset 0 0 22px rgba(201, 168, 76, 0.06);
+}
 .join-url-row {
   display: flex; gap: 0.6rem; align-items: center;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 0.6rem 0.8rem;
-  max-width: 34rem;
+  background: var(--night-2);
+  border: 1px solid var(--gold-deep);
+  border-radius: 7px;
+  padding: 0.55rem 0.55rem 0.55rem 0.85rem;
   width: 100%;
 }
 .join-url {
-  flex: 1;
+  flex: 1; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  color: var(--gold);
-  font-size: 0.85rem;
+  color: var(--gold-lt);
+  font-size: 0.82rem;
   font-family: var(--mono);
   text-align: left;
+}
+.copy-btn {
+  flex: 0 0 auto;
+  font: 700 0.68rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: #241c0e; border: 1px solid var(--gold-lt); border-radius: 4px;
+  padding: 0.6em 1em;
+  background: linear-gradient(180deg, var(--gold-lt), var(--gold));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.copy-btn:hover { filter: brightness(1.08); }
+
+/* seat roster — humans as celestial bodies (⊕ Earth), open slots as dashed rows */
+.seat-count {
+  margin-left: auto;
+  font: 400 0.68rem var(--mono); letter-spacing: 0.1em; color: var(--faint); text-transform: none;
+}
+.seat-roster { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.seat-slot {
+  display: flex; align-items: center; gap: 11px;
+  padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px;
+  background: linear-gradient(180deg, rgba(38, 33, 83, 0.45), rgba(20, 17, 42, 0.2));
+}
+.seat-slot.open {
+  border-style: dashed; border-color: var(--line); background: transparent;
+}
+.seat-glyph {
+  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; color: var(--good);
+  border: 1px solid color-mix(in srgb, var(--good) 45%, var(--line));
+  background: radial-gradient(circle at 50% 40%, rgba(111, 143, 217, 0.22), transparent 70%);
+}
+.seat-slot.open .seat-glyph {
+  color: var(--faint); border-color: var(--line); border-style: dashed; background: none;
+  animation: seat-breathe 2.6s ease-in-out infinite;
+}
+@keyframes seat-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
+.seat-name { font-size: 0.96rem; color: var(--text); }
+.seat-slot.open .seat-name { color: var(--faint); font-style: italic; }
+.seat-tag {
+  margin-left: auto;
+  font: 600 0.6rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+}
+.seat-tag.host { color: var(--gold); }
+.seat-tag.waiting { color: var(--faint); letter-spacing: 0.04em; }
+
+/* bot chips — brand-colored celestial glyph + name + model slug
+   (.bot-strip-label shares the uppercase mono micro-label rule with .istat-l) */
+.bot-strip { display: flex; flex-direction: column; gap: 7px; }
+.bot-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.bot-chip {
+  display: inline-flex; align-items: baseline; gap: 7px;
+  padding: 5px 10px; border: 1px solid var(--line); border-radius: 20px;
+  background: var(--night-2);
+}
+.bot-glyph { color: var(--gold); font-size: 0.9rem; align-self: center; }
+.bot-name { font-size: 0.82rem; color: var(--text); }
+.bot-model { font: 500 0.66rem var(--mono); color: var(--faint); }
+
+.spectator-note { color: var(--dim); font-size: 0.84rem; }
+.lobby-status {
+  font: 600 0.82rem var(--serif); font-style: italic;
+  padding-top: 4px; border-top: 1px solid rgba(54, 48, 87, 0.5);
+}
+.lobby-status.waiting { color: var(--dim); }
+.lobby-status.ready { color: var(--gold-lt); }
+
+.invite-join-body { gap: 14px; }
+.invite-join-body .field input { width: 100%; margin-top: 4px; }
+.invite-actions { display: flex; gap: 0.7rem; align-items: center; flex-wrap: wrap; }
+.lobby-actions { justify-content: center; margin-top: 2px; }
+.invite-cta { padding: 0.85em 1.6em; }
+.invite-back, .linkish {
+  background: none; border: none; color: var(--dim);
+  font: 400 0.85rem var(--serif); cursor: pointer; padding: 0.4em; align-self: center;
+}
+.invite-back:hover, .linkish:hover { color: var(--gold); filter: none; }
+.invite-lost .invite-cta { margin-top: 6px; align-self: flex-start; }
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-cols > * { animation: none; opacity: 1; transform: none; }
+  .seat-slot.open .seat-glyph { animation: none; }
 }
 
 /* ---- game layout ---- */
@@ -1485,7 +1624,9 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .rc-em { width: 26px; height: 26px; margin: 0; }
   .role-name { font-size: 0.9rem; }
   .role-card .role-desc, .role-card .roles-in-play { display: none; }
-  .name-editor, .name-edit-toggle { display: none; }
+  /* game footer already carries the near-edge you-chip, so the aside rename is
+     redundant there; the lobby still needs its rename control on mobile. */
+  .game .name-editor, .game .name-edit-toggle { display: none; }
   footer.youredge {
     position: sticky; bottom: 0; z-index: 5;
     padding: 0.55rem 0.7rem calc(0.65rem + env(safe-area-inset-bottom));
@@ -1526,6 +1667,18 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .cta-inner .inplay { font-size: 0.72rem; width: 100%; }
   .cta-inner .cta-msg { width: 100%; text-align: left; }
   .cta { width: 100%; padding: 1.05em 0.6em; }
+
+  /* invitation screens */
+  .invite-page { padding-bottom: 40px; }
+  .invite-cols { margin-top: 14px; gap: 12px; }
+  .constellation-rule { margin-top: 16px; }
+  .join-url-row { flex-wrap: wrap; }
+  .join-url { flex-basis: 100%; font-size: 0.74rem; }
+  .copy-btn { flex: 1; }
+  .invite-actions { flex-direction: column; align-items: stretch; }
+  .invite-actions .cta, .invite-actions > button { width: 100%; }
+  .lobby-actions { flex-direction: column; }
+  .istat-n { font-size: 1.3rem; }
 
   /* reveal */
   .reveal-deal { gap: 10px; }

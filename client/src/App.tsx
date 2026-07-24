@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { AgentInfo, DecisionRequest, Library, LobbyPayload, PreviewResponse, RevealPayload, ServerPayload, TableSeat } from './types.ts'
 import { tokenEstimate as tokenEst } from './agentConfig.ts'
 import { EVIL_COUNT, PRESETS, ROLE_INFO, RULES_SUMMARY, buildRoles } from './setup.ts'
 import type { PresetId, Role, SpecialSelection } from './setup.ts'
 import { ActionBar } from './components/ActionBar.tsx'
-import { ARCANA, HUMAN_CELESTIAL, SPECTATOR_ARCANA } from './components/Arcana.tsx'
+import { ARCANA, HUMAN_CELESTIAL, SPECTATOR_ARCANA, celestialFor } from './components/Arcana.tsx'
 import { Feed } from './components/Feed.tsx'
 import { HistoryGrid } from './components/HistoryGrid.tsx'
 import { NameEditor } from './components/NameEditor.tsx'
@@ -18,6 +19,10 @@ import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
 const Brand = () => <>Ava<span className="llm">LLM</span></>
 
 const REPO_URL = 'https://github.com/allenliu/avallm'
+
+// A model id's short slug for display: the family-qualified form "vendor/model"
+// shows just the model half; a bare id shows whole.
+const modelSlug = (model: string) => (model.includes('/') ? model.split('/')[1] : model)
 const SourceLink = () => (
   <a className="source-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">Source</a>
 )
@@ -380,17 +385,63 @@ export function App() {
   )
 }
 
+// The invitation screens share the landing's starfield ground and hero. A thin
+// gold rule with a star node ("constellation rule") divides hero from content —
+// the same antique-gold structural vocabulary as the setup panels.
+const InviteHero = ({ subtitle, children }: { subtitle: string; children?: ReactNode }) => (
+  <div className="hero">
+    <h1><Brand /></h1>
+    <p className="subtitle">{subtitle}<span className="subtitle-sep"> · </span><SourceLink /></p>
+    {children}
+    <div className="constellation-rule" aria-hidden="true"><span /></div>
+  </div>
+)
+
+// A bot seat as a small celestial chip: brand glyph + name + model slug (mono).
+// Known agents resolve to their branded body; others draw from the outer pool.
+const BotChip = ({ name, model }: { name: string; model: string }) => {
+  const { glyph } = celestialFor(name.toLowerCase(), name)
+  const slug = modelSlug(model)
+  return (
+    <span className="bot-chip">
+      <span className="bot-glyph" aria-hidden="true">{glyph}</span>
+      <span className="bot-name">{name}</span>
+      <span className="bot-model">{slug}</span>
+    </span>
+  )
+}
+
 // A lobby the server doesn't know — never existed, or wiped by a redeploy.
 // Shown from both entry paths: JoinScreen (no token) and LobbyScreen (token).
 function LobbyMissing({ onBack }: { onBack: () => void }) {
   return (
-    <div className="landing">
-      <h1><Brand /></h1>
-      <p className="tagline">That lobby doesn't exist (or the server restarted).</p>
-      <button onClick={onBack}>Start your own game</button>
+    <div className="landing-page invite-page">
+      <InviteHero subtitle="A table that isn't there" />
+      <div className="invite-cols">
+        <section className="card-panel invite-panel invite-lost">
+          <h2><span className="n">✦</span>No such table</h2>
+          <div className="body">
+            <p className="invite-lede">
+              That invitation leads nowhere — the lobby never existed, or the server
+              restarted and swept it away. Games live in memory here.
+            </p>
+            <button className="cta invite-cta" onClick={onBack}>Set your own table</button>
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
+
+// A calm loading card while the lobby preview resolves — never flashes the old skin.
+const InviteLoading = ({ subtitle, note }: { subtitle: string; note: string }) => (
+  <div className="landing-page invite-page">
+    <InviteHero subtitle={subtitle} />
+    <div className="invite-cols">
+      <p className="invite-loading">{note}</p>
+    </div>
+  </div>
+)
 
 function JoinScreen({ lobbyId, onJoined, onBack }: {
   lobbyId: string
@@ -431,29 +482,66 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
   }
 
   if (missing) return <LobbyMissing onBack={onBack} />
-  if (!preview) return <div className="landing"><p className="tagline">Finding the table…</p></div>
+  if (!preview) return <InviteLoading subtitle="You've been invited to a table" note="Finding the table…" />
 
   const started = preview.status === 'started'
+  const seatWord = preview.openSeats === 1 ? 'seat' : 'seats'
   return (
-    <div className="landing">
-      <h1><Brand /></h1>
-      <p className="tagline">
-        <b>{preview.hostName}</b> has a table for {preview.playerCount}: {preview.members.length}/{preview.humanSeats} humans
-        {preview.table.length > 0 && <> + {preview.table.map((t) => t.name).join(', ')}</>}.
-        {started ? ' The game is underway.' : preview.openSeats > 0 ? ` ${preview.openSeats} seat${preview.openSeats === 1 ? '' : 's'} open.` : ' All seats taken.'}
-      </p>
-      <div className="launcher">
-        <label>
-          Your name{' '}
-          <input value={name} maxLength={24} placeholder="Player" onChange={(e) => setName(e.target.value)} />
-        </label>
-        <div className="row">
-          {!started && preview.openSeats > 0 && (
-            <button disabled={busy} onClick={() => join('play')}>Take a seat</button>
-          )}
-          <button className="secondary" disabled={busy} onClick={() => join('spectate')}>Spectate</button>
-        </div>
-        {err && <p className="error">{err}</p>}
+    <div className="landing-page invite-page">
+      <InviteHero subtitle="You've been invited to a table" />
+      <div className="invite-cols">
+        <section className="card-panel invite-panel">
+          <h2><span className="n">✦</span>The Invitation</h2>
+          <div className="body">
+            <p className="invite-lede">
+              <b className="invite-host">{preview.hostName}</b> has kept a seat for you at a
+              table for {preview.playerCount}.
+            </p>
+            <div className="invite-stats">
+              <span className="istat">
+                <span className="istat-n">{preview.members.length}<span className="istat-of">/{preview.humanSeats}</span></span>
+                <span className="istat-l">Humans seated</span>
+              </span>
+              <span className="istat">
+                <span className={`istat-n${started ? '' : preview.openSeats > 0 ? ' open' : ' full'}`}>
+                  {started ? '—' : preview.openSeats}
+                </span>
+                <span className="istat-l">{started ? 'Underway' : `Open ${seatWord}`}</span>
+              </span>
+            </div>
+            {preview.table.length > 0 && (
+              <div className="bot-strip">
+                <span className="bot-strip-label">Also at the table</span>
+                <div className="bot-chips">
+                  {preview.table.map((t, i) => <BotChip key={i} name={t.name} model={t.model} />)}
+                </div>
+              </div>
+            )}
+            <p className="invite-status">
+              {started
+                ? 'The game is already underway — you can still pull up a chair to watch.'
+                : preview.openSeats > 0
+                  ? 'Take a seat to play, or spectate to watch the table’s reasoning unfold.'
+                  : 'Every seat is taken, but you’re welcome to spectate.'}
+            </p>
+          </div>
+        </section>
+        <section className="card-panel invite-panel">
+          <h2><span className="n">II</span>Take your seat</h2>
+          <div className="body invite-join-body">
+            <label className="field">Your name
+              <input value={name} maxLength={24} placeholder="Player" onChange={(e) => setName(e.target.value)} />
+            </label>
+            <div className="invite-actions">
+              {!started && preview.openSeats > 0 && (
+                <button className="cta invite-cta" disabled={busy} onClick={() => join('play')}>Take a seat</button>
+              )}
+              <button className="secondary" disabled={busy} onClick={() => join('spectate')}>Spectate</button>
+            </div>
+            {err && <p className="error">{err}</p>}
+          </div>
+        </section>
+        <button className="linkish invite-back" onClick={onBack}>← Set your own table instead</button>
       </div>
     </div>
   )
@@ -469,56 +557,84 @@ function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
   const [copied, setCopied] = useState(false)
   const joinUrl = `${window.location.origin}/#/join/${lobbyId}`
   if (missing) return <LobbyMissing onBack={onBack} />
-  if (!lobby) return <div className="landing"><p className="tagline">Opening the lobby…</p></div>
+  if (!lobby) return <InviteLoading subtitle="Your table awaits" note="Opening the lobby…" />
   const waitingFor = lobby.humanSeats - lobby.members.length
+  const seats = Array.from({ length: lobby.humanSeats }, (_, i) => lobby.members[i] ?? null)
   return (
-    <div className="landing">
-      <h1><Brand /></h1>
-      <p className="tagline">
-        The game starts automatically when {lobby.humanSeats} human{lobby.humanSeats === 1 ? '' : 's'} are seated.
-        No turn timers — play it like mail chess.
-      </p>
-      <div className="launcher">
-        <div className="join-url-row">
-          <code className="join-url">{joinUrl}</code>
-          <button className="secondary" onClick={() => {
-            navigator.clipboard.writeText(joinUrl).then(() => {
-              setCopied(true)
-              setTimeout(() => setCopied(false), 1500)
-            })
-          }}>{copied ? 'Copied!' : 'Copy invite link'}</button>
-        </div>
-        <div className="table-picker">
-          <span className="action-label">Seated ({lobby.members.length}/{lobby.humanSeats})</span>
-          {lobby.members.map((m, i) => (
-            <div key={i} className="table-picker-row"><span>{m}{i === 0 ? ' (host)' : ''}</span></div>
-          ))}
-          {waitingFor > 0 && (
-            <p className="roles-preview">Waiting for {waitingFor} more player{waitingFor === 1 ? '' : 's'}…</p>
-          )}
-          {lobby.table.length > 0 && (
-            <p className="roles-preview">
-              Bots at this table: {lobby.table.map((t) => `${t.name} (${t.model})`).join(', ')}
+    <div className="landing-page invite-page">
+      <InviteHero subtitle="Your table awaits">
+        <p className="tagline invite-tagline">
+          The game starts once all players are seated. No turn timers, so take your turns whenever you like.
+        </p>
+      </InviteHero>
+      <div className="invite-cols">
+        <section className="card-panel invite-panel share-panel">
+          <h2><span className="n">✦</span>Share the table</h2>
+          <div className="body">
+            <div className="join-url-row">
+              <code className="join-url">{joinUrl}</code>
+              <button className="copy-btn" onClick={() => {
+                // `navigator.clipboard` is undefined on insecure origins (e.g. a
+                // host serving friends over http://<lan-ip>), so guard the whole
+                // chain and swallow a denied write rather than throwing on click.
+                navigator.clipboard?.writeText(joinUrl).then(() => {
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
+                }).catch(() => {})
+              }}>{copied ? '✓ Copied' : 'Copy link'}</button>
+            </div>
+            <p className="share-hint">Send this to a friend to claim an open seat.</p>
+          </div>
+        </section>
+
+        <section className="card-panel invite-panel">
+          <h2><span className="n">II</span>At the table<span className="seat-count">{lobby.members.length}/{lobby.humanSeats}</span></h2>
+          <div className="body">
+            <ul className="seat-roster">
+              {seats.map((m, i) => (
+                <li key={i} className={`seat-slot${m ? '' : ' open'}`}>
+                  <span className="seat-glyph" aria-hidden="true">{m ? HUMAN_CELESTIAL.glyph : '·'}</span>
+                  <span className="seat-name">{m ?? 'Open seat'}</span>
+                  {m && i === 0 && <span className="seat-tag host" title="Host">♛ Host</span>}
+                  {!m && <span className="seat-tag waiting">waiting…</span>}
+                </li>
+              ))}
+            </ul>
+            {lobby.table.length > 0 && (
+              <div className="bot-strip">
+                <span className="bot-strip-label">Machines filling the rest</span>
+                <div className="bot-chips">
+                  {lobby.table.map((t, i) => <BotChip key={i} name={t.name} model={t.model} />)}
+                </div>
+              </div>
+            )}
+            {lobby.spectators > 0 && (
+              <p className="spectator-note">◎ {lobby.spectators} spectator{lobby.spectators === 1 ? '' : 's'} watching</p>
+            )}
+            <p className={`lobby-status${waitingFor > 0 ? ' waiting' : ' ready'}`}>
+              {waitingFor > 0
+                ? `Waiting for ${waitingFor} more player${waitingFor === 1 ? '' : 's'}…`
+                : 'The table is full — dealing in…'}
             </p>
-          )}
-          {lobby.spectators > 0 && (
-            <p className="roles-preview">{lobby.spectators} spectator{lobby.spectators === 1 ? '' : 's'} watching</p>
-          )}
+          </div>
+        </section>
+
+        <div className="invite-actions lobby-actions">
+          <NameEditor
+            current={localStorage.getItem('avalon-name') ?? ''}
+            rename={async (name) => {
+              const res = await fetch(`/api/lobby/${lobbyId}/rename`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, name }),
+              })
+              const data = await res.json().catch(() => ({}))
+              if (!res.ok) throw new Error(data.error ?? 'rename failed')
+              localStorage.setItem('avalon-name', data.name)
+            }}
+          />
+          <button className="secondary" onClick={onBack}>Leave lobby</button>
         </div>
-        <NameEditor
-          current={localStorage.getItem('avalon-name') ?? ''}
-          rename={async (name) => {
-            const res = await fetch(`/api/lobby/${lobbyId}/rename`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token, name }),
-            })
-            const data = await res.json().catch(() => ({}))
-            if (!res.ok) throw new Error(data.error ?? 'rename failed')
-            localStorage.setItem('avalon-name', data.name)
-          }}
-        />
-        <button className="secondary" onClick={onBack}>Leave lobby</button>
       </div>
     </div>
   )
@@ -835,7 +951,7 @@ function TablePicker({ library, table, onChange, onFill }: {
               >
                 {library.agents.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} — {a.model.includes('/') ? a.model.split('/')[1] : a.model}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — pick a model' : ''}
+                    {a.name} — {modelSlug(a.model)}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — pick a model' : ''}
                   </option>
                 ))}
               </select>

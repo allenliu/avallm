@@ -266,6 +266,7 @@ async function lobbyRun(browser) {
   await clickByText(host, 'Create lobby & get invite link')
   await host.waitForSelector('.join-url', { timeout: 10000 })
   const joinUrl = await host.$eval('.join-url', (el) => el.textContent.trim())
+  await sleep(900) // let the invite panels' staggered page-load reveal settle
   await shooter(host, shotDir)('lobby-host')
 
   const playerCtx = await browser.createBrowserContext()
@@ -273,7 +274,7 @@ async function lobbyRun(browser) {
   await player.setViewport({ width: 1280, height: 800 })
   await player.goto(joinUrl, { waitUntil: 'domcontentloaded' })
   await player.waitForSelector('input[placeholder="Player"]', { timeout: 15000 })
-  await sleep(300)
+  await sleep(900) // let the invite panels' staggered page-load reveal settle
   await shooter(player, shotDir)('join-screen')
   await typeInto(player, 'input[placeholder="Player"]', 'Bea')
   await clickByText(player, 'Take a seat')
