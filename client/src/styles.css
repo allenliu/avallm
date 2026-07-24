@@ -1050,7 +1050,10 @@ footer .error::before {
 .pass-btn { align-self: center; min-width: 7rem; text-align: center; }
 
 /* play cards — votes and quest cards are played, not clicked */
-.playcards { display: flex; gap: 0.8rem; }
+/* the hand rises above the table edge (margin-top on .play), so it must sit
+   above the sweeping edge gleam (.youredge.waits::after), which as a footer
+   pseudo-element would otherwise paint over the risen cards */
+.playcards { display: flex; gap: 0.8rem; position: relative; z-index: 1; }
 .play {
   width: 112px; min-height: 150px; border-radius: 7px; cursor: pointer; position: relative;
   display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 0;
