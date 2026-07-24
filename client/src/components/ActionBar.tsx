@@ -94,6 +94,11 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
   const [team, setTeam] = useState<Seat[]>([])
   const [pitch, setPitch] = useState('')
   const toggle = (s: Seat) => setTeam((t) => t.includes(s) ? t.filter((x) => x !== s) : t.length < size ? [...t, s] : t)
+  // Enter submits from the pitch box, but only when the team is complete —
+  // the same guard as the button's `disabled`, so Enter never does more than
+  // the button would. Mirrors the discuss input's Enter-to-submit.
+  const canPropose = team.length === size
+  const propose = () => { if (canPropose) onDecide({ kind: 'propose', team, pitch: pitch || undefined }) }
   return (
     <div className="action-bar your-turn column" data-kind="propose">
       <div className="row">
@@ -115,11 +120,12 @@ function Propose({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<st
           value={pitch} maxLength={200}
           placeholder="One-line pitch (optional)"
           onChange={(e) => setPitch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') propose() }}
         />
         <button
           data-t="propose"
-          disabled={team.length !== size}
-          onClick={() => onDecide({ kind: 'propose', team, pitch: pitch || undefined })}
+          disabled={!canPropose}
+          onClick={propose}
         >Propose team</button>
       </div>
     </div>
@@ -140,6 +146,10 @@ function Finalize({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<s
   const sameTeam = team.length === current.length
     && [...team].sort((a, b) => a - b).every((s, i) => s === current[i])
   const toggle = (s: Seat) => setTeam((t) => t.includes(s) ? t.filter((x) => x !== s) : t.length < size ? [...t, s] : t)
+  // Enter submits the revision, gated on the same guard as the button's
+  // `disabled` (full team, actually changed, reason given) — see Propose.
+  const canRevise = team.length === size && !sameTeam && !!reason.trim()
+  const revise = () => { if (canRevise) onDecide({ kind: 'finalize', stick: false, team, reason: reason.trim() }) }
   if (!revising) {
     return (
       <div className="action-bar your-turn" data-kind="finalize">
@@ -175,11 +185,12 @@ function Finalize({ view, onDecide }: { view: PlayerView; onDecide: (d: Record<s
           value={reason} maxLength={200}
           placeholder="Tell the table why (required)"
           onChange={(e) => setReason(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') revise() }}
         />
         <button
           data-t="finalize-confirm"
-          disabled={team.length !== size || sameTeam || !reason.trim()}
-          onClick={() => onDecide({ kind: 'finalize', stick: false, team, reason: reason.trim() })}
+          disabled={!canRevise}
+          onClick={revise}
         >Change team</button>
         <button className="ghost" data-t="finalize-back" onClick={() => { setRevising(false); setTeam(current) }}>Back</button>
       </div>
