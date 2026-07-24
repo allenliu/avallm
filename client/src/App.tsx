@@ -93,7 +93,7 @@ export function App() {
     // status, and a page unload aborts the stream with readyState CLOSED too —
     // acting on that would wipe the stored seat on every refresh. A truly dead
     // game is caught by the fetch probe on the refresh-restore path instead.
-    es.onerror = () => setError('connection lost — reconnecting…')
+    es.onerror = () => setError('connection lost, reconnecting…')
     esRef.current = es
   }, [])
 
@@ -427,7 +427,7 @@ function LobbyMissing({ onBack }: { onBack: () => void }) {
           <h2><span className="n">✦</span>No such table</h2>
           <div className="body">
             <p className="invite-lede">
-              That invitation leads nowhere — the lobby never existed, or the server
+              That invitation leads nowhere: the lobby never existed, or the server
               restarted and swept it away. Games live in memory here.
             </p>
             <button className="cta invite-cta" onClick={onBack}>Set your own table</button>
@@ -524,7 +524,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
             )}
             <p className="invite-status">
               {started
-                ? 'The game is already underway — you can still pull up a chair to watch.'
+                ? 'The game is already underway, but you can still pull up a chair to watch.'
                 : preview.openSeats > 0
                   ? 'Take a seat to play, or spectate to watch the table’s reasoning unfold.'
                   : 'Every seat is taken, but you’re welcome to spectate.'}
@@ -619,7 +619,7 @@ function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
             <p className={`lobby-status${waitingFor > 0 ? ' waiting' : ' ready'}`}>
               {waitingFor > 0
                 ? `Waiting for ${waitingFor} more player${waitingFor === 1 ? '' : 's'}…`
-                : 'The table is full — dealing in…'}
+                : 'The table is full, dealing in…'}
             </p>
           </div>
         </section>
@@ -956,7 +956,7 @@ function TablePicker({ library, table, onChange, onFill }: {
               >
                 {library.agents.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} — {modelSlug(a.model)}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' — pick a model' : ''}
+                    {a.name} · {modelSlug(a.model)}{a.custom ? ' (custom)' : ''}{a.unavailable ? ' · pick a model' : ''}
                   </option>
                 ))}
               </select>
@@ -969,7 +969,7 @@ function TablePicker({ library, table, onChange, onFill }: {
                 >
                   {/* No "default" option for unavailable agents — their default
                       is the dead model the server would reject. */}
-                  {!info?.unavailable && <option value="">default — {info?.model}</option>}
+                  {!info?.unavailable && <option value="">default ({info?.model})</option>}
                   {library.models.map((m) => (
                     <option key={m.id} value={m.id}>{m.name} ({m.tier})</option>
                   ))}
@@ -1152,7 +1152,7 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
             <span className="custom-agent-name">
               {a.name} v{a.version ?? 1}
               {a.tunedChars > 0 && <span className="tuned-note"> · tuned (~{tokenEst(a.tunedChars)} tokens)</span>}
-              {a.unavailable && <span className="error"> — {a.unavailable}</span>}
+              {a.unavailable && <span className="error"> · {a.unavailable}</span>}
             </span>
             <button className="secondary" onClick={() => startEdit(a)}>edit</button>
             <button className="secondary" onClick={() => del(a)}>delete</button>

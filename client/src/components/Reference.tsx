@@ -94,7 +94,7 @@ function TableTab({ view, bots }: { view: PlayerView; bots: Record<number, Agent
             </span>
             <span className="role-toggle-desc">
               {info.model}{info.version ? ` · v${info.version}` : ''}{info.author ? ` · by ${info.author}` : ''}
-              {info.about ? ` — ${info.about}` : ''}
+              {info.about ? ` · ${info.about}` : ''}
               {info.personality ? ` Persona: ${info.personality}` : ''}
               {info.tunedChars > 0 && ` · tuned (~${tokenEstimate(info.tunedChars)} tokens of custom strategy)`}
             </span>
@@ -118,7 +118,7 @@ function LibraryTab({ library }: { library: Library | null }) {
             {a.model}{a.version ? ` · v${a.version}` : ''}{a.author ? ` · by ${a.author}` : ''}
             {a.custom ? ' · custom' : ''}
             {a.unavailable ? ` · unavailable (${a.unavailable})` : ''}
-            {a.about ? ` — ${a.about}` : ''}
+            {a.about ? ` · ${a.about}` : ''}
             {a.tunedChars > 0 && (
               <details className="prompt-details">
                 <summary>prompt config (~{tokenEstimate(a.tunedChars)} tokens)</summary>

@@ -52,7 +52,7 @@ export function HistoryGrid({ view, bots, onClose }: {
                   <th className="hg-name" />
                   {rounds.flatMap((r) => r.proposals.map((p) => (
                     <th key={`${p.round}.${p.proposalNum}`} className={`hg-prop${p.approved === false ? ' rejected' : ''}`}
-                      title={`Proposal ${p.proposalNum}/5 — leader ${view.players[p.leader]?.name}${p.pitch ? ` — “${p.pitch}”` : ''}`}>
+                      title={`Proposal ${p.proposalNum}/5 · leader ${view.players[p.leader]?.name}${p.pitch ? ` · “${p.pitch}”` : ''}`}>
                       {p.proposalNum}{p.proposalNum === 5 ? '🔨' : ''}
                     </th>
                   )))}

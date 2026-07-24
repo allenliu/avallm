@@ -22,7 +22,7 @@ export function Reveal({ view, reveal, bots, onNewGame, onCopyLog, copyLabel }: 
     <div className="reveal">
       <div className={`winner-banner ${winnerCls}`}>
         {view.winner?.toUpperCase()} WINS
-        <span className="reason"> — {winReasonText(view.winReason ?? '')}</span>
+        <span className="reason">: {winReasonText(view.winReason ?? '')}</span>
       </div>
       {reveal ? (
         <div className="reveal-deal">
@@ -78,7 +78,7 @@ function AgentConfigCards({ reveal, bots }: { reveal: RevealPayload; bots: Recor
           <details key={seat} className="prompt-details">
             <summary>
               <ModelBadge info={bots[Number(seat)] ?? a} />
-              {player?.name ?? a.name} — {a.name} v{a.version ?? 1} ({a.model},
+              {player?.name ?? a.name} · {a.name} v{a.version ?? 1} ({a.model},
               ~{tokenEstimate(a.tunedChars)} tokens of custom prompt)
             </summary>
             <pre>{agentConfigText(a)}</pre>
@@ -125,7 +125,7 @@ function ThinkingTimeline({ reveal, bots }: { reveal: RevealPayload; bots: Recor
           )
         }
         if (ev.type === 'proposal') {
-          return <div key={ev.seq} className="think-row marker">— {name(p.leader)} proposes (Q{p.round}.{p.proposalNum}) —</div>
+          return <div key={ev.seq} className="think-row marker">· {name(p.leader)} proposes (Q{p.round}.{p.proposalNum}) ·</div>
         }
         return <div key={ev.seq} className="think-row marker big">═ Quest {p.round}: {String(p.result).toUpperCase()} ═</div>
       })}

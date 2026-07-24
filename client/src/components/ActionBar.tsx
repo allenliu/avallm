@@ -19,8 +19,8 @@ export function ActionBar({ view, ask, onDecide, waitingOn }: {
     return (
       <div className="action-bar waiting" data-kind="waiting">
         {others.length
-          ? `Waiting on ${others.join(', ')}… (no rush, take your turn whenever you like)`
-          : 'The table is playing… watch the feed.'}
+          ? `Waiting on ${others.join(', ')}; they'll play when ready.`
+          : 'The table is thinking…'}
       </div>
     )
   }

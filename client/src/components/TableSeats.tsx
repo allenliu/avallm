@@ -5,7 +5,7 @@ import { celestialFor } from './Arcana.tsx'
 export function ModelBadge({ info }: { info: AgentInfo | undefined }) {
   if (!info) return null
   return (
-    <span className="badge" style={{ background: info.color }} title={`${info.name} — ${info.model}`}>
+    <span className="badge" style={{ background: info.color }} title={`${info.name} · ${info.model}`}>
       {info.monogram}
     </span>
   )
