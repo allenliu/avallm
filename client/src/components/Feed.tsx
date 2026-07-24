@@ -56,7 +56,7 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
               <span className="votes-lbl">Votes</span>
               <span className="vcards">
                 {row.votes!.map((v, i) => (
-                  <span key={v.seat} className="vcardcol" style={{ ['--d' as string]: `${0.15 + i * 0.09}s` }}>
+                  <span key={v.seat} className="vcardcol" style={{ ['--d' as string]: `${0.12 + i * 0.06}s` }}>
                     <span className={`vflip ${v.vote === 'approve' ? 'aye' : 'nay'}`}>
                       <span className="vf-inner">
                         <span className="vf-front" />
@@ -193,15 +193,23 @@ function PendingIndicator({ view, bots, pending, name }: {
   if (pending.size === 0) return null
 
   if (view.phase === 'vote') {
+    // Same card box, columns, and seat-labels as the votereveal row (votes are
+    // emitted in seat order, matching view.players), so the sealing element and
+    // the reveal read as one continuous moment: the ballots you watch seal are
+    // the same cards, in the same positions, that flip to aye/nay. Compare the
+    // quest phase, which shares its stage the same way.
     const total = view.players.length
     const sealed = total - view.players.filter((p) => pending.has(p.seat)).length
     return (
       <div className="feed-row ballot" role="status">
-        <span className="ballot-lbl">Ballots</span>
-        <span className="bslots">
+        <span className="votes-lbl">Ballots</span>
+        <span className="vcards">
           {view.players.map((p) => (
-            <span key={p.seat} className={`bslot ${pending.has(p.seat) ? 'pending' : 'sealed'}`}
-              title={pending.has(p.seat) ? `${name(p.seat)} — still to vote` : `${name(p.seat)} — sealed`} />
+            <span key={p.seat} className="vcardcol">
+              <span className={`vslot ${pending.has(p.seat) ? 'pending' : 'sealed'}`}
+                title={pending.has(p.seat) ? `${name(p.seat)} — still to vote` : `${name(p.seat)} — sealed`} />
+              <span className="vcard-name">{name(p.seat)}</span>
+            </span>
           ))}
         </span>
         <span className="ballot-prog">{sealed}/{total} sealed<Dots /></span>

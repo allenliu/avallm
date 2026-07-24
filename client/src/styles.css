@@ -632,30 +632,37 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 @keyframes dotpulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
 
 /* ---- sealing ballots (vote + quest) & the assassination beat ---- */
+/* the sealing ballots share the vote reveal's row layout, card box, columns and
+   seat-labels (align-items/gap/label all match .votereveal), so the sealing row
+   and the reveal read as one continuous element — same cards, same positions. */
 .feed-row.ballot {
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: 9px; flex-wrap: wrap;
   border-left: 2px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
   border-radius: 0 3px 3px 0; padding: 0.4rem 0.6rem 0.4rem 0.7rem; margin: 0.15rem 0;
   animation: lay 0.3s ease both;
 }
-.ballot-lbl { font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+.ballot .ballot-prog { align-self: center; }
 .ballot-prog { font: 500 0.72rem var(--mono); color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
-.bslots { display: inline-flex; gap: 5px; }
-/* a sealed vote never shows its value (aye/nay is secret until the reveal) */
-.bslot { width: 22px; height: 30px; border-radius: 3px; }
-.bslot.pending {
+/* a sealing ballot (.vslot) and a flip card (.vflip) are the same size & card-
+   back, so the card you watch seal is visibly the card that flips to aye/nay.
+   The value stays secret until the reveal — the card-back never shows aye/nay. */
+.vslot { position: relative; width: 30px; height: 40px; }
+.vslot, .vf-front {
+  border-radius: 4px;
   background:
-    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
-    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.13) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 7px),
     linear-gradient(180deg, var(--night-2), var(--panel));
-  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep);
-  animation: seal-pulse 1.4s ease-in-out infinite;
 }
-.bslot.sealed {
-  background: var(--night-2); position: relative;
-  box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold);
+.vslot { box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold-deep); }
+.vslot.pending { animation: seal-pulse 1.4s ease-in-out infinite; }
+/* a sealed ballot & the flip-card front carry the brighter gold ring + locked ✦;
+   the reveal simply turns this very card over to expose the vote. */
+.vslot.sealed, .vf-front { box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px var(--gold); }
+.vslot.sealed::after, .vf-front::after {
+  content: "✦"; position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 0.62rem; color: var(--gold);
 }
-.bslot.sealed::after { content: "✦"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.5rem; color: var(--gold); }
 @keyframes seal-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 /* quest sealing — a centered column sharing the reveal's stage & cards, so the
@@ -683,7 +690,7 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bslot.pending, .feed-row.moment.assassin-beat { animation: none; }
+  .vslot.pending, .feed-row.moment.assassin-beat { animation: none; }
 }
 
 /* ---- vote reveal (Option A): ballots flip in place to aye/nay ---- */
@@ -692,10 +699,23 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   border-left: 2px solid var(--gold-deep); background: rgba(201, 168, 76, 0.05);
   border-radius: 0 3px 3px 0; padding: 0.4rem 0.6rem 0.4rem 0.7rem; margin: 0.15rem 0;
 }
-.votereveal .votes-lbl { align-self: center; font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+/* One reserved width for both labels ("Ballots" while sealing, "Votes" on the
+   reveal), sized for the longer word, so the card block starts at the same x in
+   both rows — the pending→reveal swap no longer slides the cards sideways. */
+.ballot .votes-lbl, .votereveal .votes-lbl {
+  /* 7ch + 7×letter-spacing == the exact advance of "Ballots" in this monospace
+     font, so the reserved width fits the longer word regardless of the mono
+     face's glyph metrics (a hard-coded rem guess could under-reserve and let the
+     shift back in). */
+  align-self: center; min-width: calc(7ch + 0.98em);
+  font: 600 0.56rem var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
+}
 .vcards { display: inline-flex; gap: 6px; }
 .vcardcol { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-.vflip { display: inline-block; width: 30px; height: 40px; perspective: 260px; }
+/* A gentle perspective (large distance): the card keeps ~its true width through
+   the whole turn, so a flipping ballot never bulges past its box into a
+   neighbour's gap — the row spacing stays steady as the cards flip. */
+.vflip { display: inline-block; width: 30px; height: 40px; perspective: 700px; }
 .vflip .vf-inner {
   position: relative; display: block; width: 100%; height: 100%;
   transform-style: preserve-3d;
@@ -705,13 +725,8 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   border-radius: 4px; display: grid; place-items: center; font: 700 0.74rem var(--mono);
 }
-.vf-front {
-  background:
-    repeating-linear-gradient(45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 6px),
-    repeating-linear-gradient(-45deg, rgba(201, 168, 76, 0.16) 0 2px, transparent 2px 6px),
-    linear-gradient(180deg, var(--night-2), var(--panel));
-  border: 1px solid var(--gold-deep); box-shadow: inset 0 0 0 1.5px var(--night-2);
-}
+/* .vf-front's card-back (size, ring, ✦) is shared with .vslot above, so the
+   sealed ballot and the flip-card front are the same card. */
 .vf-back { transform: rotateY(180deg); border: 1px solid var(--line); background: var(--night-2); }
 .vflip.aye .vf-back { color: #9cd0a4; border-color: var(--good); background: rgba(111, 143, 217, 0.15); }
 .vflip.nay .vf-back { color: #e6a49a; border-color: var(--evil); background: rgba(194, 94, 84, 0.15); }
