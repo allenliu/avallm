@@ -62,11 +62,20 @@ const severedTokens = new Set<string>()
 
 // Public-deployment gate: when AVALON_INVITE_CODE is set, creating anything
 // that can spend money or write disk (lobbies, games, custom agents) requires
-// the code. Joining an existing lobby by URL is deliberately NOT gated —
+// a code. Joining an existing lobby by URL is deliberately NOT gated —
 // invitees were invited by the person who had the code. Read live so an env
 // edit takes effect without a restart.
-const inviteCode = () => process.env.AVALON_INVITE_CODE || ''
-const inviteOk = (body: any) => !inviteCode() || body?.invite === inviteCode()
+//
+// AVALON_INVITE_CODE may hold several codes separated by commas, so different
+// groups can be handed distinct passcodes; any one of them opens the gate.
+const inviteCodes = () =>
+  (process.env.AVALON_INVITE_CODE || '')
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
+const gateOn = () => inviteCodes().length > 0
+const inviteOk = (body: any) =>
+  !gateOn() || inviteCodes().includes(String(body?.invite ?? '').trim())
 
 // Resolve where user-created agents live BEFORE the first library scan. Load
 // .env up front (the LLM client also loads it lazily, but the boot scan and
@@ -764,7 +773,7 @@ const server = http.createServer(async (req, res) => {
           // rather than hardcoding its own copy.
           caps: { field: FIELD_CAP, aggregate: AGGREGATE_CAP },
         },
-        gated: !!inviteCode(),
+        gated: gateOn(),
       })
       return
     }

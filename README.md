@@ -58,7 +58,8 @@ server runs TypeScript natively on Node 24, which nixpacks won't provide). To de
    deployed commit.
 2. Set variables: `OPENROUTER_API_KEY` (required for LLM bots), `OPENROUTER_MAX_SPEND_USD`
    (recommended hard spend ceiling, e.g. `5`), and `AVALON_INVITE_CODE` (**strongly recommended
-   on any public URL** — without it, anyone who finds the site can start LLM games on your key).
+   on any public URL** — without it, anyone who finds the site can start LLM games on your key;
+   set several comma-separated codes to hand different groups distinct passcodes).
    Railway injects `PORT` automatically; the server honors it.
 3. Generate a domain (Settings → Networking). Done — lobbies, SSE streams, and invite links all
    work over a single HTTP port.
