@@ -265,7 +265,16 @@ const ASKS: Record<LlmCallKind, (view: PlayerView, extra?: AskExtra) => string> 
     const hammerNote = nearHammer
       ? ` Rejections are almost gone: if this team is rejected, the next leader's team becomes the hammer and goes to the quest with NO vote at all. Unless you are genuinely confident this team is dirty, approving a merely-adequate team now beats gambling on who leads the hammer.`
       : ''
-    return `Vote on the proposed team: approve or reject.${leanNote}${hammerNote}`
+    // You are voting on the team you just proposed and locked in. Votes are
+    // public and attributed (voteReveal), so rejecting your own team is a loud
+    // tell, not camouflage — yet bots reach for it to "blend" with how the table
+    // is leaning, which is exactly backwards for the one seat that can't hide.
+    // Fires only for the proposing leader; the hammer has no vote, so it never
+    // collides with hammerNote.
+    const ownTeamNote = v.seat === v.leaderSeat
+      ? ` This is YOUR team: you proposed it, defended it, and locked it in, and your vote is public and attributed. Rejecting your own proposal is one of the loudest tells at the table — do it only when you genuinely want this team off the quest and can defend the reversal out loud, never to blend with the way the table is leaning.`
+      : ''
+    return `Vote on the proposed team: approve or reject.${leanNote}${hammerNote}${ownTeamNote}`
   },
   quest: (v) => {
     if (v.alignment !== 'evil') {
