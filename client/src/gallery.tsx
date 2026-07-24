@@ -13,6 +13,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import type { AgentInfo, DecisionRequest, PlayerView, RevealPayload } from './types.ts'
 import { NameEditor } from './components/NameEditor.tsx'
+import { QuestParty } from './components/QuestParty.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { SpectatorCard } from './components/SpectatorCard.tsx'
 import { ActionBar } from './components/ActionBar.tsx'
@@ -143,6 +144,13 @@ const VARIANTS: Variant[] = [
   { id: 'role-spectator', sel: '.role-card', node: <Aside><SpectatorCard /></Aside> },
   // The expanded name editor — reachable in-app only by clicking "Change name".
   { id: 'name-editor', sel: '.name-editor', node: <Aside><NameEditor initialOpen current="Allen" rename={async () => {}} /></Aside> },
+  // Quest party — the proposed team named atop the aside. A live deal reaches these
+  // only when a team is on the table with the human (seat 0) on it: proposed (picked,
+  // vote underway, You highlighted), on the mission (approved, running), and awaiting
+  // (leader still choosing — the quiet placeholder that keeps the column from jumping).
+  { id: 'quest-party', sel: '.qparty', node: <Aside><QuestParty view={v({ phase: 'vote', round: 2, proposalNum: 1, leaderSeat: 2, currentTeam: [0, 2, 3] })} bots={bots} /></Aside> },
+  { id: 'quest-party-mission', sel: '.qparty', node: <Aside><QuestParty view={v({ phase: 'quest', round: 2, proposalNum: 1, leaderSeat: 2, currentTeam: [0, 2, 3] })} bots={bots} /></Aside> },
+  { id: 'quest-party-awaiting', sel: '.qparty', node: <Aside><QuestParty view={v({ phase: 'proposal', round: 2, proposalNum: 1, leaderSeat: 2 })} bots={bots} /></Aside> },
   // Action bar — states a real game reaches only by luck (whether the human leads,
   // is picked onto an approved team, is dealt evil, or is the Assassin after a good
   // win). `discuss` and `vote` are left to the playthrough — every player hits those.

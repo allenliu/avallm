@@ -6,6 +6,9 @@
     "components/act-quest-evil.jpg",
     "components/act-quest-good.jpg",
     "components/name-editor.jpg",
+    "components/quest-party-awaiting.jpg",
+    "components/quest-party-mission.jpg",
+    "components/quest-party.jpg",
     "components/reveal-assassin.jpg",
     "components/role-merlin.jpg",
     "components/role-minion.jpg",
@@ -15,6 +18,7 @@
     "components/role-spectator.jpg",
     "components/tip-quest.jpg",
     "components/tip-seat.jpg",
+    "desktop/assassinate.jpg",
     "desktop/codex-sheet.jpg",
     "desktop/discuss.jpg",
     "desktop/finalize.jpg",
@@ -50,5 +54,5 @@
     "mobile/vote-ballot.jpg",
     "mobile/vote.jpg"
   ],
-  "sourceHash": "74496129e64507fa"
+  "sourceHash": "9cff3287066cad08"
 }

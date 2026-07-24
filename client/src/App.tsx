@@ -12,6 +12,7 @@ import { NameEditor } from './components/NameEditor.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
 import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
+import { QuestParty } from './components/QuestParty.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { SpectatorCard } from './components/SpectatorCard.tsx'
 import { TableSeats } from './components/TableSeats.tsx'
@@ -344,6 +345,7 @@ export function App() {
       <main>
         <Feed view={view} bots={bots} acting={acting} waitingOn={payload.waitingOn} degradedSeqs={payload.degradedSeqs} />
         <aside>
+          <QuestParty view={view} bots={bots} />
           {payload.spectator ? <SpectatorCard /> : <RoleCard view={view} />}
           {!payload.spectator && !gameOver && (
             <NameEditor

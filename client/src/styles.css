@@ -729,7 +729,13 @@ input::placeholder { color: var(--faint); }
 
 /* ---- main: feed + aside ---- */
 main { display: flex; gap: 0.9rem; flex: 1; min-height: 0; padding: 0.7rem 1.1rem; width: 100%; max-width: 1400px; margin: 0 auto; }
-main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; overflow-y: auto; }
+/* The rail is a fixed-height flex column (main fills 100dvh minus the table). Its
+   panels must keep their natural height rather than being squeezed — a compressed
+   .qparty would clip team members past its rounded overflow — so the column scrolls
+   when tall (quest party sits on top and stays put; the collapsible role card is
+   what scrolls). */
+main aside > * { flex-shrink: 0; }
 
 /* Wrapper is the flex child of main; the feed fills it, and the jump-to-latest
    button floats over it (anchored to the wrapper, so it stays put while the feed
@@ -1100,6 +1106,60 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 .rc-know { font-size: 0.8rem; }
 .roles-in-play { color: var(--faint); font: 500 0.62rem var(--mono); line-height: 1.6; }
 .degraded-note { color: var(--dim); font-size: 0.78rem; padding: 0 0.3rem; }
+
+/* ---- quest party (the proposed team, named — sits atop the aside) ----
+   Gold-accented (quest/attention hue) so it never reads as allegiance the way
+   the blue/red role card below it does. Desktop is a vertical list; mobile
+   (see the breakpoint) collapses it to compact wrapping pills. */
+.qparty {
+  border-radius: 10px; overflow: hidden;
+  background:
+    linear-gradient(160deg, rgba(201, 168, 76, 0.12), transparent 45%),
+    linear-gradient(175deg, var(--panel), var(--night-2));
+  border: 1px solid var(--gold-deep);
+  box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold-deep), 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+.qp-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0.8rem 0.4rem;
+  font: 600 0.56rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold);
+}
+.qp-head .qp-count { color: var(--dim); letter-spacing: 0.12em; }
+.qp-head .qp-count b { color: var(--gold-lt); font-weight: 700; }
+.qp-body { padding: 0.2rem 0.7rem 0.75rem; }
+.qp-status { font: 500 0.58rem var(--mono); letter-spacing: 0.04em; color: var(--faint); margin: 0 0.1rem 0.5rem; }
+.qp-status b { color: var(--dim); font-weight: 600; }
+.qp-empty { display: flex; align-items: center; gap: 0.5rem; padding: 0.1rem 0.1rem 0.2rem; color: var(--faint); font-size: 0.78rem; font-style: italic; }
+.qp-empty .dots { font: 700 0.7rem var(--mono); color: var(--gold-deep); letter-spacing: 0.1em; }
+.qp-list { list-style: none; display: flex; flex-direction: column; gap: 0.32rem; }
+.party-chip {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.26rem 0.5rem 0.26rem 0.32rem; border-radius: 7px;
+  background: color-mix(in srgb, var(--night) 68%, transparent); border: 1px solid var(--line);
+}
+.party-chip .pc-sig {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font: 14px/1 var(--serif); color: var(--mc, var(--gold));
+  border: 1px solid color-mix(in srgb, var(--mc, var(--gold)) 45%, transparent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--mc, var(--gold)) 55%, transparent);
+}
+.party-chip .pc-nm { font-size: 0.84rem; font-weight: 600; color: #ece5d4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.party-chip .pc-tag { margin-left: auto; font: 500 0.5rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.party-chip.leader .pc-tag { color: var(--gold); }
+.party-chip.you {
+  border-color: color-mix(in srgb, var(--gold) 62%, var(--line));
+  background: color-mix(in srgb, var(--gold) 15%, var(--night));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 25%, transparent);
+}
+.party-chip.you .pc-sig { color: var(--gold-lt); border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+.party-chip.you .pc-nm { color: #f6efd9; font-weight: 700; }
+.party-chip.you .pc-tag { color: #14112a; background: var(--gold-lt); padding: 0.06rem 0.32rem; border-radius: 3px; font-weight: 700; }
+/* On the mission: the team is locked and running, not up for a vote — a brighter,
+   fully-struck gold edge (vs. the deep-gold proposal state) marks that shift. */
+.qparty.mission { border-color: var(--gold); box-shadow: inset 0 0 0 2.5px var(--night-2), inset 0 0 0 3.5px var(--gold), 0 6px 16px rgba(0, 0, 0, 0.45); }
+.qparty.mission .qp-head { color: var(--gold-lt); }
+
 /* ---- name editor (your identity at the table) ---- */
 .name-edit-toggle {
   display: inline-flex; align-items: center; gap: 0.45rem;
@@ -1700,6 +1760,19 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   main { flex-direction: column; padding: 0.5rem 0.7rem; gap: 0.5rem; }
   main aside { width: 100%; flex-direction: row; flex-wrap: wrap; order: -1; }
   main aside .role-card { flex: 1; }
+  /* quest party: full-width first row (stacks above the role card, right under
+     the table), and its list collapses to compact wrapping pills to stay short */
+  main aside .qparty { flex-basis: 100%; }
+  .qparty .qp-head { padding: 0.45rem 0.7rem 0.35rem; }
+  .qparty .qp-body { padding: 0.1rem 0.6rem 0.55rem; }
+  .qparty .qp-status { display: none; }       /* the feed alongside already names the proposer */
+  .qparty .qp-list { flex-direction: row; flex-wrap: wrap; gap: 0.35rem; }
+  .party-chip { border-radius: 20px; padding: 0.18rem 0.5rem 0.18rem 0.26rem; gap: 0.35rem; }
+  .party-chip .pc-sig { width: 20px; height: 20px; font-size: 12px; }
+  .party-chip .pc-nm { font-size: 0.78rem; }
+  .party-chip .pc-tag { margin-left: 0; }
+  .party-chip.you .pc-tag { font-size: 0.46rem; padding: 0.05rem 0.26rem; }
+  .qp-empty { padding: 0.05rem 0.1rem 0.2rem; }
   .role-body {
     padding: 0.45rem 0.7rem 0.55rem;
     flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center;

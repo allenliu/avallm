@@ -30,6 +30,8 @@ const DESKTOP_MULTIPLAYER = ['lobby-host', 'join-screen', 'spectator']
 const COMPONENTS = [
   'role-merlin', 'role-percival', 'role-servant', 'role-minion',
   'role-oberon', 'role-spectator', 'name-editor',
+  'quest-party', 'quest-party-mission', 'quest-party-awaiting', // proposed team named in the aside
+
   'act-propose', 'act-finalize', 'act-quest-good', 'act-quest-evil', 'act-assassinate',
   'tip-seat', 'tip-quest', // hover-only tooltips (off on touch)
   'reveal-assassin', // end-game reveal on an Assassin miss (deal, struck card, target line)
