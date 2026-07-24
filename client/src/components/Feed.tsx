@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import type { AgentInfo, GameEvent, PlayerView, Seat } from '../types.ts'
 import { Emblem } from './Arcana.tsx'
 import { winReasonText } from '../setup.ts'
@@ -160,6 +160,12 @@ export function Feed({ view, bots, acting, waitingOn, degradedSeqs }: {
 
 const Dots = () => <span className="tr-dots"><i>●</i><i>●</i><i>●</i></span>
 
+// The questResult reveal is a ~3s mount animation (see .feed-row.questreveal in
+// styles.css). Hold the Knife beat at least this long so it never appears while
+// the deciding quest is still flipping. Small cushion past the 3s so the card
+// has fully landed before the beat joins it.
+const QUEST_REVEAL_MS = 3200
+
 // Fan offset for quest card i of a `size`-card team. Shared by the sealing
 // indicator and the reveal row so the two share one stage: the cards start
 // (and, when sealing, stay) fanned; the reveal's qgather animation collapses
@@ -182,9 +188,31 @@ function PendingIndicator({ view, bots, pending, name }: {
   pending: Set<Seat>
   name: (s: number) => string
 }) {
+  // The deciding quest's success flips the phase straight to 'assassination' in
+  // the same view update that appends its questResult row. That reveal is still
+  // animating, so showing the Knife beat now would spoil the quest outcome (the
+  // game reaching assassination means Good took the quest). Hold the beat until
+  // the reveal has landed. Reduced-motion skips the animation, so skip the wait.
+  const [beatReady, setBeatReady] = useState(false)
+  useEffect(() => {
+    if (view.phase !== 'assassination') { setBeatReady(false); return }
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduced) { setBeatReady(true); return }
+    const t = setTimeout(() => setBeatReady(true), QUEST_REVEAL_MS)
+    return () => clearTimeout(t)
+  }, [view.phase])
+  // The beat mounts ~3s after the feed last auto-scrolled (on the questResult
+  // append), and its arrival changes none of that effect's deps — so pull it
+  // into view here, or a viewer resting at the bottom would miss it off-fold.
+  const beatRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (beatReady) beatRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+  }, [beatReady])
+
   if (view.phase === 'assassination') {
+    if (!beatReady) return null
     return (
-      <div className="feed-row moment assassin-beat" role="status">
+      <div className="feed-row moment assassin-beat" role="status" ref={beatRef}>
         <span className="feed-text">⚔ The Knife is drawn</span>
         <span className="feed-sub">the Assassin studies the table<Dots /></span>
       </div>
