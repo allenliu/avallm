@@ -660,7 +660,8 @@ input::placeholder { color: var(--faint); }
   box-shadow: inset 0 0 0 2.5px #4a2220, inset 0 0 0 3.5px var(--evil), 0 8px 14px rgba(0, 0, 0, 0.5);
 }
 .qcard .qem { width: 33px; height: 33px; }
-.qcard .word { font: 700 0.6rem var(--mono); letter-spacing: 0.08em; margin-top: 3px; }
+.qcard .word { font: 700 0.6rem var(--mono); letter-spacing: 0.08em; margin-top: 3px; white-space: nowrap; }
+.qcard .word-sub { font: 700 0.52rem var(--mono); letter-spacing: 0.06em; white-space: nowrap; opacity: 0.82; text-transform: uppercase; }
 .spread .prop { display: flex; flex-direction: column; gap: 4px; padding-bottom: 5px; }
 .prop-lbl { font: 600 0.62rem var(--mono); letter-spacing: 0.1em; color: var(--dim); text-transform: uppercase; }
 .pips { display: flex; gap: 5px; }
@@ -1644,6 +1645,7 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   .qcard .qn { display: none; }
   .qcard .qem { width: 22px; height: 22px; }
   .qcard .word { font-size: 0.42rem; }
+  .qcard .word-sub { font-size: 0.38rem; }
   .qcard.back .sz { width: 24px; height: 24px; font-size: 0.8rem; }
   .prop-lbl { font-size: 0.48rem; }
   main { flex-direction: column; padding: 0.5rem 0.7rem; gap: 0.5rem; }

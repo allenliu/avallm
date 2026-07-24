@@ -42,7 +42,8 @@ export function QuestBoard({ view }: { view: PlayerView }) {
               <div key={q.num} className="qcard face lost">
                 <span className="qn">Q·{q.num}</span>
                 <Emblem id="dagger" className="qem" />
-                <span className="word">SABOTAGE ·{q.failCount}</span>
+                <span className="word">SABOTAGE</span>
+                <span className="word-sub">{q.failCount} fail{q.failCount === 1 ? '' : 's'}</span>
                 {tip}
               </div>
             )
