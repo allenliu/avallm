@@ -25,10 +25,15 @@ export const ROSTER: RosterEntry[] = [
     id: 'gemini-flash', displayName: 'Gemini Flash', slug: 'google/gemini-3-flash-preview',
     badge: { color: '#34A853', monogram: 'GF' }, tier: 'mid',
   },
-  {
-    id: 'haiku', displayName: 'Haiku', slug: 'anthropic/claude-haiku-4.5',
-    badge: { color: '#D97757', monogram: 'HK' }, tier: 'premium',
-  },
+  // Haiku is temporarily benched: at ~$1/$5 per M tokens it runs an order of
+  // magnitude pricier than every other seat here, which dominates the spend on
+  // a hobby budget. Kept commented (not deleted) so it's a one-line restore
+  // when we want the premium seat back — its reasoning-suppression policy and
+  // Arcana glyph are still wired up.
+  // {
+  //   id: 'haiku', displayName: 'Haiku', slug: 'anthropic/claude-haiku-4.5',
+  //   badge: { color: '#D97757', monogram: 'HK' }, tier: 'premium',
+  // },
   {
     id: 'kimi', displayName: 'Kimi', slug: 'moonshotai/kimi-k2.5',
     badge: { color: '#16A8A8', monogram: 'KM' }, tier: 'mid',
@@ -48,7 +53,9 @@ export const ROSTER: RosterEntry[] = [
 ]
 
 // Default 6-bot table (7p game with one human), family-diverse on purpose.
-export const DEFAULT_TABLE = ['deepseek', 'gemini', 'haiku', 'kimi', 'glm', 'gpt-oss']
+// (Haiku held the 6th seat until it was benched on cost — see above; Seed keeps
+// the family diversity without the premium bill.)
+export const DEFAULT_TABLE = ['deepseek', 'gemini', 'seed', 'kimi', 'glm', 'gpt-oss']
 
 // What a personality-only agent (no model in its def) plays on when the seat
 // doesn't override. Provisional: deepseek is just the cheap starting point —

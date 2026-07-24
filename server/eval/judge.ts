@@ -8,7 +8,7 @@
 // which agent config produced the game — artifacts carry that in tags, which
 // are not rendered — so it grades play, not provenance.
 //
-//   node server/eval/judge.ts <artifacts.jsonl> [...more] [--model haiku]
+//   node server/eval/judge.ts <artifacts.jsonl> [...more] [--model kimi]
 //     [--limit N] [--force]
 
 import { parseArgs } from 'node:util'
@@ -34,14 +34,14 @@ export const INCIDENT_FAMILIES = [
 
 export interface JudgeOpts {
   client: OpenRouterClient
-  model?: string // roster id; default haiku (strongest seat in the roster)
+  model?: string // roster id; default kimi (haiku, the old premium default, is benched on cost)
 }
 
 const clamp10 = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(10, v)) : null
 
 export async function judgeGame(a: GameArtifact, opts: JudgeOpts): Promise<JudgeResult> {
-  const entry = rosterById(opts.model ?? 'haiku')
+  const entry = rosterById(opts.model ?? 'kimi')
   const call = (system: string, user: string, maxTokens: number) =>
     opts.client.call(entry.slug, [
       { role: 'system', content: system },
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
     options: {
-      model: { type: 'string', default: 'haiku' },
+      model: { type: 'string', default: 'kimi' },
       limit: { type: 'string' },
       force: { type: 'boolean', default: false },
     },

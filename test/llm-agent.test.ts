@@ -142,7 +142,7 @@ test('reflect fires after a quest resolves and feeds the next prompt', async () 
     if (opts.tag?.endsWith('/propose')) return '{"team":[0,1]}'
     return '{"say":""}'
   })
-  const agent = createLlmAgent({ modelId: 'haiku', client })
+  const agent = createLlmAgent({ modelId: 'kimi', client })
 
   // Round 1: propose+approve a team, resolve the quest with the llm agent on it.
   const { applyDecision } = await import('../server/engine/game.ts')
@@ -154,7 +154,7 @@ test('reflect fires after a quest resolves and feeds the next prompt', async () 
   const d = await agent.decide({ kind: 'vote', seat: 0, round: 2, proposalNum: 1 }, viewFor(g, 0))
   assert.equal((d as any).kind, 'vote')
   const tags = client.calls.map((c) => c.tag)
-  assert.ok(tags.includes('haiku/reflect'), `expected a reflect call, got ${tags}`)
+  assert.ok(tags.includes('kimi/reflect'), `expected a reflect call, got ${tags}`)
   assert.ok(sawScratchpadInPrompt, 'reflect output should appear in the following prompt')
 
   // The refreshed pad rides the post-reflect decision so the engine can log

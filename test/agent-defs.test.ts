@@ -51,10 +51,10 @@ test('llm model is optional — a personality-only agent validates and rides the
 })
 
 test('resolveModel precedence: seat override > def suggestion > DEFAULT_MODEL', () => {
-  const withModel = validateDef({ id: 'aa', name: 'A', engine: { type: 'llm', model: 'haiku' } })
+  const withModel = validateDef({ id: 'aa', name: 'A', engine: { type: 'llm', model: 'kimi' } })
   const noModel = validateDef({ id: 'bb', name: 'B', engine: { type: 'llm', personality: 'x' } })
   assert.equal(resolveModel(noModel), DEFAULT_MODEL)         // fallback
-  assert.equal(resolveModel(withModel), 'haiku')             // def suggestion
+  assert.equal(resolveModel(withModel), 'kimi')              // def suggestion
   assert.equal(resolveModel(withModel, 'gemini'), 'gemini')  // seat override wins
   assert.equal(resolveModel(noModel, 'kimi'), 'kimi')
   // The override also drives the transparency badge.
@@ -68,12 +68,12 @@ test('parseTableSeat accepts both wire shapes and rejects bad overrides', () => 
     if (!d) throw new Error(`unknown agent: ${id}`)
     return d
   }
-  assert.deepEqual(parseTableSeat('haiku', byId), { agent: 'haiku' })           // legacy bare id
-  assert.deepEqual(parseTableSeat({ agent: 'haiku', model: 'gemini' }, byId), { agent: 'haiku', model: 'gemini' })
+  assert.deepEqual(parseTableSeat('kimi', byId), { agent: 'kimi' })           // legacy bare id
+  assert.deepEqual(parseTableSeat({ agent: 'kimi', model: 'gemini' }, byId), { agent: 'kimi', model: 'gemini' })
   assert.throws(() => parseTableSeat('nope', byId), /unknown agent/)
-  assert.throws(() => parseTableSeat({ agent: 'haiku', model: 'nope' }, byId), /unknown roster/)
+  assert.throws(() => parseTableSeat({ agent: 'kimi', model: 'nope' }, byId), /unknown roster/)
   // A model override on a non-llm engine is a create-time error, not a start-time surprise.
-  assert.throws(() => parseTableSeat({ agent: 'autopilot', model: 'haiku' }, byId), /does not take a model/)
+  assert.throws(() => parseTableSeat({ agent: 'autopilot', model: 'gemini' }, byId), /does not take a model/)
 })
 
 test('validateDef: new layer fields — key checks, caps, temperature, CRLF', () => {
