@@ -213,11 +213,13 @@ function lobbyPayload(l: Lobby) {
     members: l.members.map((m) => m.name),
     spectators: l.spectators.length,
     hostName: l.members[0]?.name ?? '?',
-    // Name + resolved model per bot seat, so invitees see exactly what's
-    // playing (a custom agent's name alone doesn't reveal its model).
+    // Agent id + name + resolved model per bot seat, so invitees see exactly
+    // what's playing (a custom agent's name alone doesn't reveal its model).
+    // The id lets the client pick the same celestial glyph the in-game seat
+    // uses (celestialFor keys on the agent id, not the display name).
     table: l.config.table.map((t) => {
       const info = publicInfo(seatDef(t), t.model)
-      return { name: info.name, model: info.model }
+      return { id: info.id, name: info.name, model: info.model }
     }),
   }
 }

@@ -398,9 +398,10 @@ const InviteHero = ({ subtitle, children }: { subtitle: string; children?: React
 )
 
 // A bot seat as a small celestial chip: brand glyph + name + model slug (mono).
-// Known agents resolve to their branded body; others draw from the outer pool.
-const BotChip = ({ name, model }: { name: string; model: string }) => {
-  const { glyph } = celestialFor(name.toLowerCase(), name)
+// Keyed by agent id (not display name) so the glyph matches the in-game seat —
+// known agents resolve to their branded body, others draw from the outer pool.
+const BotChip = ({ id, name, model }: { id: string; name: string; model: string }) => {
+  const { glyph } = celestialFor(id, name)
   const slug = modelSlug(model)
   return (
     <span className="bot-chip">
@@ -513,7 +514,7 @@ function JoinScreen({ lobbyId, onJoined, onBack }: {
               <div className="bot-strip">
                 <span className="bot-strip-label">Also at the table</span>
                 <div className="bot-chips">
-                  {preview.table.map((t, i) => <BotChip key={i} name={t.name} model={t.model} />)}
+                  {preview.table.map((t, i) => <BotChip key={i} id={t.id} name={t.name} model={t.model} />)}
                 </div>
               </div>
             )}
@@ -604,7 +605,7 @@ function LobbyScreen({ lobby, missing, lobbyId, token, onBack }: {
               <div className="bot-strip">
                 <span className="bot-strip-label">Machines filling the rest</span>
                 <div className="bot-chips">
-                  {lobby.table.map((t, i) => <BotChip key={i} name={t.name} model={t.model} />)}
+                  {lobby.table.map((t, i) => <BotChip key={i} id={t.id} name={t.name} model={t.model} />)}
                 </div>
               </div>
             )}

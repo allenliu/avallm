@@ -140,7 +140,7 @@ export interface LobbyPayload {
   members: string[]
   spectators: number
   hostName: string
-  table: { name: string; model: string }[]
+  table: { id: string; name: string; model: string }[]
 }
 
 export interface RevealPlayer {
