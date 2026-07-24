@@ -6,6 +6,7 @@
     "components/act-quest-evil.jpg",
     "components/act-quest-good.jpg",
     "components/name-editor.jpg",
+    "components/reveal-assassin.jpg",
     "components/role-merlin.jpg",
     "components/role-minion.jpg",
     "components/role-oberon.jpg",
@@ -33,7 +34,6 @@
     "desktop/spectator.jpg",
     "desktop/vote-ballot.jpg",
     "desktop/vote.jpg",
-    "mobile/assassin-beat.jpg",
     "mobile/codex-sheet.jpg",
     "mobile/discuss.jpg",
     "mobile/finalize.jpg",
@@ -50,5 +50,5 @@
     "mobile/vote-ballot.jpg",
     "mobile/vote.jpg"
   ],
-  "sourceHash": "a6e14664d4108262"
+  "sourceHash": "a897a549f5f9d4dc"
 }

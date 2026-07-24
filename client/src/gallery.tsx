@@ -11,13 +11,14 @@
 // before shooting (for the seat/quest tooltips).
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import type { AgentInfo, DecisionRequest, PlayerView } from './types.ts'
+import type { AgentInfo, DecisionRequest, PlayerView, RevealPayload } from './types.ts'
 import { NameEditor } from './components/NameEditor.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { SpectatorCard } from './components/SpectatorCard.tsx'
 import { ActionBar } from './components/ActionBar.tsx'
 import { QuestBoard } from './components/QuestBoard.tsx'
 import { TableSeats } from './components/TableSeats.tsx'
+import { Reveal } from './components/Reveal.tsx'
 import { ArcanaDefs } from './components/Arcana.tsx'
 import './styles.css'
 
@@ -45,7 +46,7 @@ const noop = () => {}
 // Bots for the seat tooltip — the tooltip surfaces model + about, so fixtures
 // need them populated.
 const bot = (id: string, name: string, model: string, color: string, about: string): AgentInfo =>
-  ({ id, name, model, color, monogram: name.slice(0, 2).toUpperCase(), about, custom: false, tunedChars: 0, tier: 'builtin' })
+  ({ id, name, model, color, about, custom: false, tunedChars: 0, tier: 'builtin' })
 const bots: Record<number, AgentInfo> = {
   1: bot('gemini', 'Gemini', 'google/gemini-3.1-flash-lite', '#6c8fd9', 'Fast and confident; over-commits early.'),
   2: bot('deepseek', 'DeepSeek', 'deepseek/deepseek-v4-flash', '#c9a84c', 'Terse and punchy. Occasionally forgets it is playing a game.'),
@@ -84,6 +85,26 @@ const questView = v({
     { num: 5, teamSize: 4, failsRequired: 1 },
   ],
 })
+
+// The end-of-game reveal, on the beat a live run reaches only when good takes
+// three quests AND the Assassin then misses. Merlin (You) survives because the
+// Assassin (GPT-OSS) marked Percival instead — the struck card and the named
+// target are what this fixture exists to show.
+const revealPlayers: RevealPayload['players'] = [
+  { seat: 0, name: 'You', role: 'merlin', alignment: 'good' },
+  { seat: 1, name: 'Gemini', role: 'servant', alignment: 'good' },
+  { seat: 2, name: 'DeepSeek', role: 'morgana', alignment: 'evil' },
+  { seat: 3, name: 'Claude', role: 'percival', alignment: 'good' },
+  { seat: 4, name: 'GPT-OSS', role: 'assassin', alignment: 'evil' },
+  { seat: 5, name: 'Kimi', role: 'oberon', alignment: 'evil' },
+  { seat: 6, name: 'GLM', role: 'servant', alignment: 'good' },
+]
+const revealData: RevealPayload = {
+  players: revealPlayers,
+  log: [{ seq: 1, type: 'assassination', payload: { assassin: 4, target: 3, wasMerlin: false }, visibility: 'public' }],
+  degraded: [],
+}
+const revealView = v({ seat: 0, role: 'merlin', alignment: 'good', phase: 'gameOver', winner: 'good', winReason: 'assassinMissed' })
 
 // Faithful wrappers — mirror App.tsx so the components' parent-scoped styles
 // (aside width, the lacquer action rail, the table zone) resolve as they do in game.
@@ -135,6 +156,9 @@ const VARIANTS: Variant[] = [
   // so the side/up-placed tooltip is fully in frame.
   { id: 'tip-seat', sel: '.gallery-stage', hover: '.farseats .seat:nth-child(3) .seat-card', node: <Table><TableSeats view={tableView} bots={bots} acting={[4]} /></Table> },
   { id: 'tip-quest', sel: '.gallery-stage', hover: '.qcards .qcard:nth-child(1)', node: <Table><QuestBoard view={questView} /></Table> },
+  // End-game reveal on an Assassin miss — the deal-and-flip spread, the struck
+  // card, and the "who marked whom" line. Reached live only by luck of the deal.
+  { id: 'reveal-assassin', sel: '.reveal', node: <main className="reveal-main"><Reveal view={revealView} reveal={revealData} onNewGame={noop} onCopyLog={noop} copyLabel="Copy log" /></main> },
 ]
 
 // Published for the harness to enumerate (id + crop selector + optional hover),

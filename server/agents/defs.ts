@@ -52,7 +52,7 @@ export interface AgentDef {
   version?: number
   author?: string
   about?: string
-  badge?: { color?: string; monogram?: string }
+  badge?: { color?: string }
   engine: AgentEngine
   tier?: AgentTier        // assigned at load, not persisted
   unavailable?: string    // reason this agent can't be seated (assigned at load)
@@ -76,7 +76,6 @@ export interface AgentPublicInfo {
   about?: string
   model: string          // display name of the model, or 'rule-based' / 'external'
   color: string
-  monogram: string
   personality?: string
   strategy?: string
   roleGuidance?: Partial<Record<Role, string>>
@@ -188,11 +187,6 @@ function hashColor(s: string): string {
   return `hsl(${h % 360} 55% 48%)`
 }
 
-function monogramOf(name: string): string {
-  const words = name.trim().split(/\s+/)
-  return ((words[0]?.[0] ?? '?') + (words[1]?.[0] ?? words[0]?.[1] ?? '')).toUpperCase()
-}
-
 export function builtinDefs(): AgentDef[] {
   const models: AgentDef[] = ROSTER.map((r) => ({
     id: r.id,
@@ -213,7 +207,7 @@ export function builtinDefs(): AgentDef[] {
       author: 'built-in',
       version: 1,
       about: 'The rule-based player from the strategy playbook. Free, instant, and unimaginative.',
-      badge: { color: '#5a5f73', monogram: 'AP' },
+      badge: { color: '#5a5f73' },
       engine: { type: 'heuristic' },
       tier: 'builtin',
     },
@@ -423,7 +417,6 @@ export function publicInfo(def: AgentDef, modelOverride?: string): AgentPublicIn
     about: def.about,
     model,
     color: def.badge?.color ?? hashColor(def.id),
-    monogram: def.badge?.monogram ?? monogramOf(def.name),
     personality: e.type === 'llm' ? e.personality : undefined,
     strategy: e.type === 'llm' ? e.strategy : undefined,
     roleGuidance: e.type === 'llm' ? e.roleGuidance : undefined,

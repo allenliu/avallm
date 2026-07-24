@@ -6,7 +6,6 @@ import type { AgentInfo, Library, PlayerView } from '../types.ts'
 import { ROLE_INFO, RULES_SUMMARY } from '../setup.ts'
 import type { Role } from '../setup.ts'
 import { agentConfigText, tokenEstimate } from '../agentConfig.ts'
-import { ModelBadge } from './TableSeats.tsx'
 
 type Tab = 'rules' | 'roles' | 'table' | 'library' | 'setup'
 
@@ -90,7 +89,7 @@ function TableTab({ view, bots }: { view: PlayerView; bots: Record<number, Agent
         return (
           <div key={p.seat} className="ref-row">
             <span className="role-toggle-name agent-name">
-              <ModelBadge info={info} />{info.name}
+              {info.name}
             </span>
             <span className="role-toggle-desc">
               {info.model}{info.version ? ` · v${info.version}` : ''}{info.author ? ` · by ${info.author}` : ''}
@@ -112,7 +111,7 @@ function LibraryTab({ library }: { library: Library | null }) {
       {library.agents.map((a) => (
         <div key={a.id} className="ref-row lib-row">
           <span className="role-toggle-name agent-name">
-            <ModelBadge info={a} />{a.name}
+            {a.name}
           </span>
           <span className="role-toggle-desc lib-desc">
             {a.model}{a.version ? ` · v${a.version}` : ''}{a.author ? ` · by ${a.author}` : ''}

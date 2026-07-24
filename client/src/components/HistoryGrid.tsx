@@ -2,12 +2,10 @@
 // Rows = players; columns = proposals grouped by quest. Shows per proposal:
 // who led (♛), who was on the team (shaded), and how everyone voted.
 // This is core deduction UI: the vote matrix is the game's primary text.
-import type { AgentInfo, PlayerView, ProposalRecord, Seat } from '../types.ts'
-import { ModelBadge } from './TableSeats.tsx'
+import type { PlayerView, ProposalRecord } from '../types.ts'
 
-export function HistoryGrid({ view, bots, onClose }: {
+export function HistoryGrid({ view, onClose }: {
   view: PlayerView
-  bots: Record<number, AgentInfo>
   onClose: () => void
 }) {
   const rounds: { round: number; proposals: ProposalRecord[] }[] = []
@@ -62,7 +60,6 @@ export function HistoryGrid({ view, bots, onClose }: {
                 {view.players.map((player) => (
                   <tr key={player.seat}>
                     <td className="hg-name">
-                      <ModelBadge info={bots[player.seat]} />
                       {player.name}
                     </td>
                     {rounds.flatMap((r) => r.proposals.map((p) => {

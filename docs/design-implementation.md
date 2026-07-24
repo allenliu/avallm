@@ -374,7 +374,7 @@ families):
 | GPT-4o mini     | `openai/gpt-4o-mini`             | recognizable name for the marquee            |
 | Mistral         | `mistralai/mistral-small-*`      | —                                            |
 
-Per-entry config: `{ id, displayName, slug, badge: {color, monogram/logo}, tier }`.
+Per-entry config: `{ id, displayName, slug, badge: {color}, tier }`.
 Seat assignment at setup: default random-from-roster (seeded), with a pre-game "table setup"
 screen to hand-pick your table.
 
@@ -389,8 +389,9 @@ provider pin — all handled at the chokepoint, invisible to prompts.
 
 ### UI treatment
 
-Badge on every seat and every chat message: model monogram + brand-ish color (avoid real logos —
-use text badges/monograms to dodge trademark questions; see the visuals research doc). Post-game
+Every seat carries the model's display name plus a per-model celestial glyph in a brand-ish color
+(no real logos — the glyph + name dodge trademark questions; see the visuals research doc). The old
+two-letter monogram badge has been retired in favor of the name. Post-game
 stats screen per model: decisions made, fallbacks, tokens/cost, and the private `thinking` reveal
 — "watch DeepSeek realize you were Merlin on quest 3" is the shareable moment. A per-model
 career record across games (localStorage): win rate as good/evil vs. you.
@@ -565,8 +566,8 @@ than distorting the baseline heuristics further.
 5. **Prompt injection via table talk.** Contained by design (§5): delimited untrusted block,
    boundary sanitization, engine-side legality, format-escape as the only real target. Residual
    risk accepted and honestly documented ("you may social-engineer the bots; that's the game").
-6. **Model naming/branding.** Displaying "GPT-4o mini" etc. as opponents is factual use, but use
-   monogram badges, not official logos. Slugs go stale on OpenRouter — the roster config isolates
+6. **Model naming/branding.** Displaying "GPT-4o mini" etc. as opponents is factual use, but show
+   the plain name and a neutral celestial glyph, not official logos. Slugs go stale on OpenRouter — the roster config isolates
    renames to one file (datingsim's alias-map lesson).
 7. **Human-absent phases.** When the human is dead-weight (not on team, not leader), the game is a
    spectator scene for 30s. Open: auto-advance vs. a "continue" button pacing control (lean:

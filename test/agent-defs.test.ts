@@ -20,12 +20,11 @@ test('built-in library: one agent per roster model plus autopilot, all valid', (
 test('publicInfo fills badges and maps engine to a display model', () => {
   const auto = publicInfo(builtinDefs().find((d) => d.id === 'autopilot')!)
   assert.equal(auto.model, 'rule-based')
-  assert.equal(auto.monogram, 'AP')
+  assert.ok(auto.color.length > 0)
   const custom = publicInfo(validateDef({
     id: 'chaos-goblin', name: 'Chaos Goblin',
     engine: { type: 'llm', model: 'deepseek', personality: 'be chaotic' },
   }))
-  assert.equal(custom.monogram, 'CG')
   assert.ok(custom.color.length > 0)
   assert.equal(custom.personality, 'be chaotic')
 })

@@ -275,7 +275,6 @@ input::placeholder { color: var(--faint); }
 .history-grid tbody tr:hover td { background: rgba(201, 168, 76, 0.05); }
 .history-grid td:first-child ~ td { min-width: 2rem; }
 .hg-name { text-align: left !important; font-weight: 600; font-family: var(--serif); }
-.hg-name .badge { margin-right: 0.4rem; }
 /* Quest header bands — the round outcome as a tinted strip across its proposals */
 .hg-quest.ok { color: #9db8ec; background: rgba(111, 143, 217, 0.16); border-color: #3a4d78; }
 .hg-quest.bad { color: #d69289; background: rgba(194, 94, 84, 0.16); border-color: #6e3a34; }
@@ -1035,13 +1034,6 @@ main aside { width: 232px; flex-shrink: 0; display: flex; flex-direction: column
 }
 .feed-row.moment.gold .feed-text { color: var(--gold); }
 
-.badge {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1.35rem; height: 1.35rem;
-  border-radius: 5px;
-  font: 700 0.56rem var(--mono); color: #fff;
-  flex-shrink: 0;
-}
 .chip { font-size: 0.66rem; padding: 0.08rem 0.45rem; border-radius: 3px; font-family: var(--mono); }
 .autopilot-chip { background: var(--night-2); border: 1px solid var(--line); color: var(--faint); margin-left: 0.45rem; }
 
@@ -1361,6 +1353,16 @@ footer .error::before {
 .winner-banner.ok { color: var(--good); }
 .winner-banner.bad { color: var(--evil); }
 .winner-banner .reason { font-size: 0.9rem; font-weight: 400; color: var(--dim); letter-spacing: 0.02em; }
+.assassin-mark {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.85rem; color: var(--evil); letter-spacing: 0.02em;
+}
+.assassin-mark .am-em { width: 0.9rem; height: 0.9rem; flex: none; }
+.tarot-mini.struck { box-shadow: 0 0 0 1px var(--evil), 0 0 14px -2px var(--evil); }
+.tarot-mini .tm-struck {
+  position: absolute; top: 0.3rem; right: 0.3rem;
+  width: 0.85rem; height: 0.85rem; color: var(--evil); opacity: 0.9;
+}
 .reveal-roles { display: flex; gap: 0.9rem; flex-wrap: wrap; font-size: 0.9rem; }
 .reveal-role { display: inline-flex; gap: 0.35rem; align-items: center; }
 .reveal-role.good { color: var(--good); }
@@ -1495,7 +1497,7 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
 .seatrow .mini {
   flex: 0 0 32px; width: 32px; height: 44px; border-radius: 4px;
   display: flex; align-items: center; justify-content: center;
-  font: 700 0.6rem var(--mono); color: var(--text);
+  font-size: 1.05rem; color: color-mix(in srgb, var(--mc, var(--gold)) 70%, var(--text));
   background: linear-gradient(175deg, var(--panel), var(--night-2));
   border: 1px solid var(--line);
   box-shadow: inset 0 0 0 1.5px var(--night-2), inset 0 0 0 2.5px color-mix(in srgb, var(--mc, var(--line)) 50%, var(--line));
@@ -1653,7 +1655,6 @@ label.field input, label.field select { width: 100%; margin-top: 4px; font-size:
   display: flex; flex-direction: column; gap: 2px; align-items: center;
 }
 .tm-name { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; font-size: 0.76rem; }
-.tm-name .badge { width: 1.05rem; height: 1.05rem; font-size: 0.44rem; }
 .tm-role { font: 500 0.52rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
 .reveal-actions { justify-content: center; }
 .reveal .thinking-timeline { width: 100%; max-height: none; flex: 1; text-align: left; }

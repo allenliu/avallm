@@ -8,22 +8,22 @@ export interface RosterEntry {
   id: string           // stable internal id
   displayName: string  // what the table shows
   slug: string         // OpenRouter model slug
-  badge: { color: string; monogram: string }
+  badge: { color: string }
   tier: 'cheap' | 'mid' | 'premium'
 }
 
 export const ROSTER: RosterEntry[] = [
   {
     id: 'deepseek', displayName: 'DeepSeek', slug: 'deepseek/deepseek-v4-flash',
-    badge: { color: '#4D6BFE', monogram: 'DS' }, tier: 'cheap',
+    badge: { color: '#4D6BFE' }, tier: 'cheap',
   },
   {
     id: 'gemini', displayName: 'Gemini', slug: 'google/gemini-3.1-flash-lite',
-    badge: { color: '#1A73E8', monogram: 'GM' }, tier: 'cheap',
+    badge: { color: '#1A73E8' }, tier: 'cheap',
   },
   {
     id: 'gemini-flash', displayName: 'Gemini Flash', slug: 'google/gemini-3-flash-preview',
-    badge: { color: '#34A853', monogram: 'GF' }, tier: 'mid',
+    badge: { color: '#34A853' }, tier: 'mid',
   },
   // Haiku is temporarily benched: at ~$1/$5 per M tokens it runs an order of
   // magnitude pricier than every other seat here, which dominates the spend on
@@ -32,23 +32,23 @@ export const ROSTER: RosterEntry[] = [
   // Arcana glyph are still wired up.
   // {
   //   id: 'haiku', displayName: 'Haiku', slug: 'anthropic/claude-haiku-4.5',
-  //   badge: { color: '#D97757', monogram: 'HK' }, tier: 'premium',
+  //   badge: { color: '#D97757' }, tier: 'premium',
   // },
   {
     id: 'kimi', displayName: 'Kimi', slug: 'moonshotai/kimi-k2.5',
-    badge: { color: '#16A8A8', monogram: 'KM' }, tier: 'mid',
+    badge: { color: '#16A8A8' }, tier: 'mid',
   },
   {
     id: 'glm', displayName: 'GLM', slug: 'z-ai/glm-4.6',
-    badge: { color: '#8B5CF6', monogram: 'GL' }, tier: 'mid',
+    badge: { color: '#8B5CF6' }, tier: 'mid',
   },
   {
     id: 'gpt-oss', displayName: 'GPT-OSS', slug: 'openai/gpt-oss-120b',
-    badge: { color: '#10A37F', monogram: 'GP' }, tier: 'cheap',
+    badge: { color: '#10A37F' }, tier: 'cheap',
   },
   {
     id: 'seed', displayName: 'Seed', slug: 'bytedance-seed/seed-2.0-lite',
-    badge: { color: '#F0424C', monogram: 'SD' }, tier: 'cheap',
+    badge: { color: '#F0424C' }, tier: 'cheap',
   },
 ]
 

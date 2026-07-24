@@ -2,15 +2,6 @@ import type { AgentInfo, PlayerView, Seat } from '../types.ts'
 import { latestLeans } from '../leans.ts'
 import { celestialFor } from './Arcana.tsx'
 
-export function ModelBadge({ info }: { info: AgentInfo | undefined }) {
-  if (!info) return null
-  return (
-    <span className="badge" style={{ background: info.color }} title={`${info.name} · ${info.model}`}>
-      {info.monogram}
-    </span>
-  )
-}
-
 // Everyone but the viewer, seated as small arcana cards along the far side of
 // the table. Positions are computed along the arc: edges sit low, the middle
 // seats stand behind the table's crest. Both axes are percentages of the arc

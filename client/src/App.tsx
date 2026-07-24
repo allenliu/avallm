@@ -14,7 +14,7 @@ import { Reference } from './components/Reference.tsx'
 import { Reveal } from './components/Reveal.tsx'
 import { RoleCard } from './components/RoleCard.tsx'
 import { SpectatorCard } from './components/SpectatorCard.tsx'
-import { ModelBadge, TableSeats } from './components/TableSeats.tsx'
+import { TableSeats } from './components/TableSeats.tsx'
 
 const Brand = () => <>Ava<span className="llm">LLM</span></>
 
@@ -320,7 +320,7 @@ export function App() {
         </span>
       </header>
       {showRef && <Reference view={view} bots={bots} library={library} onClose={() => setShowRef(false)} />}
-      {showHistory && <HistoryGrid view={view} bots={bots} onClose={() => setShowHistory(false)} />}
+      {showHistory && <HistoryGrid view={view} onClose={() => setShowHistory(false)} />}
       <div className="fartable">
         {/* Decorative sky — clipped to the zone (see .fartable-sky) so the arcs
             don't spill into the feed, while the seats' tooltips stay uncropped. */}
@@ -338,7 +338,7 @@ export function App() {
       </div>
       {gameOver ? (
         <main className="reveal-main">
-          <Reveal view={view} reveal={reveal} bots={bots} onNewGame={backToLanding} onCopyLog={copyLog} copyLabel={copyLabel} />
+          <Reveal view={view} reveal={reveal} onNewGame={backToLanding} onCopyLog={copyLog} copyLabel={copyLabel} />
         </main>
       ) : (
       <main>
@@ -939,7 +939,7 @@ function TablePicker({ library, table, onChange, onFill }: {
           const isLlm = seatIsLlm(seat)
           return (
             <div key={i} className="seatrow" style={{ ['--mc' as string]: info?.color ?? 'var(--line)' }}>
-              <span className="mini">{info?.monogram ?? '?'}</span>
+              <span className="mini">{celestialFor(info?.id, info?.name ?? '').glyph}</span>
               {/* Switching agents drops any model override — the new agent's own
                   default applies. An UNAVAILABLE agent (stale model suggestion)
                   stays selectable: the server's cure is a seat model override,
@@ -1148,7 +1148,6 @@ function AgentStudio({ library, onChanged }: { library: Library | null; onChange
         <button className="addagent" onClick={startCreate}>+ Inscribe your own agent</button>
         {customs.map((a) => (
           <div key={a.id} className={`custom-agent-row${a.unavailable ? ' unavailable' : ''}`}>
-            <ModelBadge info={a} />
             <span className="custom-agent-name">
               {a.name} v{a.version ?? 1}
               {a.tunedChars > 0 && <span className="tuned-note"> · tuned (~{tokenEst(a.tunedChars)} tokens)</span>}

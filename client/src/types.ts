@@ -72,7 +72,6 @@ export interface AgentInfo {
   about?: string
   model: string
   color: string
-  monogram: string
   personality?: string
   strategy?: string
   roleGuidance?: Record<string, string>

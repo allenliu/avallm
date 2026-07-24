@@ -363,6 +363,9 @@ async function galleryRun(browser) {
     // the previous variant's still-present node and shoot stale content.
     await page.waitForSelector(`.gallery-stage[data-variant="${id}"]`, { timeout: 5000 })
     const el = await page.waitForSelector(sel, { timeout: 5000 })
+    // The reveal spread flips its cards in with staggered delays (~3s for a full
+    // table); let them land face-up before the shot, like the live reveal capture.
+    if (id.startsWith('reveal')) await sleep(3300)
     if (hover) { await page.hover(hover); await sleep(150) } // reveal the hover-only tooltip
     const file = path.join(dir, `${id}.jpg`)
     await el.screenshot({ path: file, type: 'jpeg', quality: 82 })
