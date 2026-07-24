@@ -569,8 +569,11 @@ input::placeholder { color: var(--faint); }
   text-shadow: 0 0 10px color-mix(in srgb, var(--mc, var(--gold)) 65%, transparent);
 }
 .seat .seat-nm {
-  font-weight: 700; font-size: 0.8rem; line-height: 1.15; max-width: 88px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 700; font-size: 0.8rem; line-height: 1.15;
+  /* Show the whole name, never truncated: a long custom name is allowed to run
+     past the narrow card on one line rather than being cut with an ellipsis. It
+     stays centered on the seat, and the full name is also in the hover tooltip. */
+  white-space: nowrap;
   color: #f2ecdc; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 .seat.onquest .seat-card {
@@ -617,7 +620,7 @@ input::placeholder { color: var(--faint); }
 .farseats.crowded .seat { width: 78px; }
 .farseats.crowded .seat-card { width: 56px; height: 76px; }
 .farseats.crowded .sigil { width: 26px; height: 26px; font-size: 17px; }
-.farseats.crowded .seat-nm { font-size: 0.72rem; max-width: 74px; }
+.farseats.crowded .seat-nm { font-size: 0.72rem; }
 .farseats.crowded .seat-md { display: none; }
 
 /* the quest spread lying on the felt */
