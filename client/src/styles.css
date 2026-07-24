@@ -276,15 +276,21 @@ input::placeholder { color: var(--faint); }
 .history-grid td:first-child ~ td { min-width: 2rem; }
 .hg-name { text-align: left !important; font-weight: 600; font-family: var(--serif); }
 .hg-name .badge { margin-right: 0.4rem; }
-.hg-quest.ok { color: var(--ok); }
-.hg-quest.bad { color: var(--bad); }
-.hg-quest.pending { color: var(--gold); }
+/* Quest header bands — the round outcome as a tinted strip across its proposals */
+.hg-quest.ok { color: #9db8ec; background: rgba(111, 143, 217, 0.16); border-color: #3a4d78; }
+.hg-quest.bad { color: #d69289; background: rgba(194, 94, 84, 0.16); border-color: #6e3a34; }
+.hg-quest.pending { color: #d6b968; background: rgba(201, 168, 76, 0.14); border-color: #6d5c2c; }
 .hg-prop { color: var(--dim); font-weight: 400; }
-.hg-prop.rejected { color: var(--bad); }
-.hg-cell.on-team { background: rgba(201, 168, 76, 0.10); }
+/* Rejected proposals recede — dim the header and the whole column */
+.hg-prop.rejected { opacity: 0.45; }
+.hg-cell.rejected { opacity: 0.5; }
 .hg-cell.yes { color: var(--ok); }
 .hg-cell.no { color: var(--bad); }
+/* Team membership is the solid gold block you scan first; the vote mark rides on top.
+   Specificity beats the row-hover background so the fill survives hover. */
+.history-grid tbody td.hg-cell.on-team { background: var(--gold); color: #241c0e; font-weight: 700; }
 .hg-legend { color: var(--dim); font-size: 0.78rem; }
+.hg-key-team { background: var(--gold); color: #241c0e; font-weight: 700; padding: 0 0.35rem; border-radius: 3px; }
 
 /* ---- library tab / browsable prompts ---- */
 .lib-row { align-items: flex-start; }

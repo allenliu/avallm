@@ -72,11 +72,13 @@ export function HistoryGrid({ view, bots, onClose }: {
                       const cls = [
                         'hg-cell',
                         onTeam ? 'on-team' : '',
+                        p.approved === false ? 'rejected' : '',
                         vote === 'approve' ? 'yes' : vote === 'reject' ? 'no' : '',
                       ].join(' ')
+                      const mark = vote === 'approve' ? '✓' : vote === 'reject' ? '✗' : onTeam ? '·' : ''
                       return (
                         <td key={`${p.round}.${p.proposalNum}`} className={cls}>
-                          {isLeader ? '♛' : ''}{vote === 'approve' ? '✓' : vote === 'reject' ? '✗' : onTeam ? '·' : ''}
+                          {mark}{isLeader ? ' ♛' : ''}
                         </td>
                       )
                     }))}
@@ -87,7 +89,7 @@ export function HistoryGrid({ view, bots, onClose }: {
           </div>
         )}
         <p className="hg-legend">
-          ♛ leader · shaded = on the proposed team · ✓ approved · ✗ rejected · 🔨 hammer (5th proposal, locked in automatically, no vote)
+          <span className="hg-key-team">gold</span> = on the proposed team · ♛ leader · ✓ approved · ✗ rejected · dimmed column = proposal was rejected · 🔨 hammer (5th proposal, locked in automatically, no vote)
         </p>
       </div>
     </div>
