@@ -173,3 +173,68 @@ test('reflect fires after a quest resolves and feeds the next prompt', async () 
   assert.deepEqual(ev.visibility, { only: [g.leaderSeat] })
   assert.match(ev.payload.text as string, /failed the quest/)
 })
+
+test('reflect fires after a proposal is REJECTED, before any quest resolves', async () => {
+  const g = createGame({ seed: 'llm-vote-reflect', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
+  const client = fakeClient((opts) => {
+    if (opts.tag?.endsWith('/reflect')) return '{"suspicions":[{"seat":2,"read":"rejected a clean team","confidence":40}],"plan":"watch seat 2"}'
+    if (opts.tag?.endsWith('/vote')) return '{"vote":"reject"}'
+    if (opts.tag?.endsWith('/propose')) return '{"team":[0,1]}'
+    return '{"say":""}'
+  })
+  const agent = createLlmAgent({ modelId: 'kimi', client })
+
+  const { applyDecision } = await import('../server/engine/game.ts')
+  // Round 1, proposal 1: propose then reject it. No quest has resolved, but a
+  // rejection is public social evidence — the evidence cadence reflects on it.
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'reject' })
+  assert.ok(g.quests.every((q) => q.result === undefined), 'no quest should have resolved yet')
+
+  await agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 2 }, viewFor(g, 0))
+  assert.ok(client.calls.map((c) => c.tag).includes('kimi/reflect'), 'a rejection should trigger a reflect')
+})
+
+test('an APPROVED vote reveal alone does not trigger a reflect', async () => {
+  const g = createGame({ seed: 'llm-vote-reflect', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
+  const client = fakeClient((opts) => {
+    if (opts.tag?.endsWith('/reflect')) return '{"suspicions":[],"plan":"x"}'
+    if (opts.tag?.endsWith('/vote')) return '{"vote":"approve"}'
+    if (opts.tag?.endsWith('/propose')) return '{"team":[0,1]}'
+    return '{"say":""}'
+  })
+  const agent = createLlmAgent({ modelId: 'kimi', client })
+  const { applyDecision } = await import('../server/engine/game.ts')
+  // Team approved but the quest has NOT resolved yet: the approval carries no
+  // signal on its own (its test is the quest result to come), so no reflect.
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'approve' })
+  assert.ok(g.quests.every((q) => q.result === undefined), 'quest must not have resolved for this to isolate the approval')
+
+  await agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 1 }, viewFor(g, 0))
+  assert.ok(!client.calls.map((c) => c.tag).includes('kimi/reflect'), 'an approved reveal alone should not reflect')
+})
+
+test('AVALON_REFLECT_CADENCE=resolve suppresses the vote-triggered reflect', async () => {
+  const g = createGame({ seed: 'llm-vote-reflect', playerCount: 5, talk: { maxRounds: 0, maxRoundsAfterChange: 0 } })
+  const client = fakeClient((opts) => {
+    if (opts.tag?.endsWith('/reflect')) return '{"suspicions":[],"plan":"x"}'
+    if (opts.tag?.endsWith('/vote')) return '{"vote":"reject"}'
+    if (opts.tag?.endsWith('/propose')) return '{"team":[0,1]}'
+    return '{"say":""}'
+  })
+  const agent = createLlmAgent({ modelId: 'kimi', client })
+  const { applyDecision } = await import('../server/engine/game.ts')
+  applyDecision(g, g.leaderSeat, { kind: 'propose', team: [0, 1] })
+  for (const p of g.players) applyDecision(g, p.seat, { kind: 'vote', vote: 'reject' })
+
+  const prev = process.env.AVALON_REFLECT_CADENCE
+  process.env.AVALON_REFLECT_CADENCE = 'resolve'
+  try {
+    await agent.decide({ kind: 'vote', seat: 0, round: 1, proposalNum: 2 }, viewFor(g, 0))
+  } finally {
+    if (prev === undefined) delete process.env.AVALON_REFLECT_CADENCE
+    else process.env.AVALON_REFLECT_CADENCE = prev
+  }
+  assert.ok(!client.calls.map((c) => c.tag).includes('kimi/reflect'), 'resolve cadence should not reflect on a vote reveal')
+})

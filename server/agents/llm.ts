@@ -3,8 +3,10 @@
 //   2. on failure: ONE retry with the error appended
 //   3. on second failure: throw — the runner substitutes the heuristic and
 //      records the decision as degraded (never silent, never stalls).
-// Scratchpad: before deciding, if a quest resolved since the last reflect,
-// run a reflect call and fold the result into persistent private notes.
+// Scratchpad: before deciding, if new hard public evidence has landed since
+// the last reflect, run a reflect call and fold the result into persistent
+// private notes. "Hard evidence" = a quest resolved OR a proposal was REJECTED
+// (see maybeReflect for the cadence rationale).
 
 import { CALL_PARAMS } from '../llm/call-params.ts'
 import type { LlmCallKind } from '../llm/call-params.ts'
@@ -42,6 +44,7 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
   const overrides = opts.prompts ?? {}
   let scratchpad = ''
   let reflectedQuests = 0
+  let reflectedRejections = 0
   let pendingNotes: string | null = null
 
   async function callKind(
@@ -64,10 +67,44 @@ export function createLlmAgent(opts: LlmAgentOpts): AvalonAgent {
     })
   }
 
+  // Scratchpad refresh cadence. The scratchpad is the bot's private JUDGMENT
+  // and costs an ~800-token call; the deterministic facts dossier (facts.ts)
+  // and the raw vote/quest record are already rendered free every turn, so we
+  // only pay for judgment when the public evidence base actually changes.
+  //   'evidence' (default): reflect when a quest resolved OR a proposal was
+  //     REJECTED. Both are discrete, bounded hard-evidence moments, and
+  //     multiple reveals between a bot's turns collapse into one reflect.
+  //     A rejection is real social evidence the dossier never aggregates (who
+  //     was willing to sink a team, and who fought to seat one) — and unlike an
+  //     approval it carries genuine signal, since an APPROVED team's real test
+  //     is the quest result that follows, which already triggers a reflect on
+  //     its own. So we deliberately skip approved/unanimous reveals: reflecting
+  //     on a first-round "everyone approved" vote spends a call to conclude
+  //     "nothing to conclude yet" (observed in live capture). Table-talk turns
+  //     (the frequent, low-signal calls) never trigger a reflect either: the
+  //     model re-reads the live transcript every turn, so banking judgment on
+  //     each utterance would multiply cost for little gain.
+  //   'resolve': the older resolve-only cadence — a cost lever for talk-heavy
+  //     or budget-capped runs. Read at call time so a harness can flip it.
+  // Future refinements (deferred, see docs/ROADMAP.md): reflect on non-unanimous
+  // approvals too (not just rejections), or gate all vote-triggered reflects to
+  // post-first-resolve so they always have a quest result to reason against.
+  function reflectOnRejections(): boolean {
+    return process.env.AVALON_REFLECT_CADENCE?.trim().toLowerCase() !== 'resolve'
+  }
+
   async function maybeReflect(view: PlayerView): Promise<void> {
     const resolved = view.quests.filter((q) => q.result !== undefined).length
-    if (resolved <= reflectedQuests) return
+    // A rejected proposal has votes recorded and approved === false; the hammer
+    // (auto-approved, no vote) and every approved team are excluded.
+    const rejections = reflectOnRejections()
+      ? view.proposals.filter((p) => p.votes && p.approved === false).length
+      : 0
+    const questAdvanced = resolved > reflectedQuests
+    const rejectionsAdvanced = rejections > reflectedRejections
+    if (!questAdvanced && !rejectionsAdvanced) return
     reflectedQuests = resolved
+    reflectedRejections = rejections
     try {
       const content = await callKind('reflect', view)
       const parsed = parseDecision('reflect', content, view)

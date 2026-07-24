@@ -49,6 +49,17 @@ during M1→MP1 plus what deployment newly unblocks, in rough priority order.
 8. **Prompt iteration from real games.** The reveal logs (private thinking + actions) are a
    goldmine: recurring confusions (early-game state muddles, lean-vs-vote contradictions) become
    prompt or nudge fixes, like the direct-address and leader-defends-own-team nudges already did.
+   - **Scratchpad reflect cadence** (`server/agents/llm.ts` `maybeReflect`). The private
+     scratchpad refreshes via an ~800-token `reflect` call; the cadence is `AVALON_REFLECT_CADENCE`
+     (`evidence` default = reflect on a quest resolve OR a **rejected** proposal; `resolve` = the
+     older resolve-only lever). Approved/unanimous vote reveals are deliberately skipped — a live
+     capture showed a first-round "everyone approved" reflect spends a call to conclude "nothing to
+     conclude yet," while its real test is the quest result to come (which already reflects).
+     Deferred refinements to measure once #6's paired-seed harness can price play-strength gain
+     against the extra spend: (a) also reflect on **non-unanimous approvals** (a 3-2 approve is
+     contested signal a rejection-only gate misses); (b) gate all vote-triggered reflects to
+     **post-first-resolve**, so a vote reflect always has a quest result to reason against; (c)
+     revisit the flat 800-token `reflect` budget per model once coherence data (#5) exists.
 9. **Kimi cosmetic reasoning leak** (1 token/call): silence or tolerate explicitly; currently
    noisy in logs only.
 
