@@ -21,6 +21,10 @@ const SOLO_REQUIRED = [
 // these deterministically (act-propose / act-quest-good / act-assassinate), so the
 // playthrough versions are a contextual bonus, not a requirement.
 const SOLO_OPTIONAL = ['propose', 'quest-card', 'assassinate']
+// Forced deterministically via a dev-only hook rather than the deal: the harness
+// severs the seat's SSE stream (AVALON_DEV_SEVER) to surface the reconnect banner,
+// so it's required at both viewports like the other transient captures.
+const SOLO_FORCED = ['reconnect-banner']
 const DESKTOP_MULTIPLAYER = ['lobby-host', 'join-screen', 'spectator']
 const COMPONENTS = [
   'role-merlin', 'role-percival', 'role-servant', 'role-minion',
@@ -33,6 +37,7 @@ function build() {
   const out = []
   for (const vp of ['desktop', 'mobile']) {
     for (const name of SOLO_REQUIRED) out.push({ file: `${vp}/${name}.jpg`, required: true })
+    for (const name of SOLO_FORCED) out.push({ file: `${vp}/${name}.jpg`, required: true })
     for (const name of SOLO_OPTIONAL) out.push({ file: `${vp}/${name}.jpg`, required: false })
   }
   for (const name of DESKTOP_MULTIPLAYER) out.push({ file: `desktop/${name}.jpg`, required: true })

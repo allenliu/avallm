@@ -50,6 +50,16 @@ const PORT = Number(process.env.AVALON_PORT || process.env.PORT) || 8787
 // can capture the transient thinking / sealing-ballot UI. Unset (0) in prod.
 const BOT_DELAY_MS = Number(process.env.AVALON_BOT_DELAY_MS) || 0
 
+// Dev-only (off unless AVALON_DEV_SEVER=1): lets the screenshot harness force a
+// seat's SSE stream to drop so it can capture the client's reconnect banner —
+// the one transient state the harness otherwise can't reach (there's no natural
+// way to sever a live stream mid-shoot). When the flag is on, POST .../dev/sever
+// closes the seat's live stream AND records the token so its reconnect is refused
+// (503), keeping the banner up long enough to shoot. Both the route and the refusal
+// are gated on the flag, so in prod the route 404s and no stream is ever severed.
+const DEV_SEVER = process.env.AVALON_DEV_SEVER === '1'
+const severedTokens = new Set<string>()
+
 // Public-deployment gate: when AVALON_INVITE_CODE is set, creating anything
 // that can spend money or write disk (lobbies, games, custom agents) requires
 // the code. Joining an existing lobby by URL is deliberately NOT gated —
@@ -601,9 +611,22 @@ const server = http.createServer(async (req, res) => {
         if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
         return json(res, 200, { ok: true })
       }
+      // Dev-only sever hook (see DEV_SEVER): drop this seat's live stream now and
+      // record its token so the reconnect below is refused — the client's banner
+      // then stays up for the screenshot. The whole route is absent in prod.
+      if (DEV_SEVER && req.method === 'POST' && parts[3] === 'dev' && parts[4] === 'sever') {
+        const token = url.searchParams.get('token') ?? ''
+        if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
+        severedTokens.add(token)
+        for (const l of [...s.listeners]) if (l.token === token) { s.listeners.delete(l); l.res.end() }
+        return json(res, 200, { ok: true, severed: true })
+      }
       if (req.method === 'GET' && parts[3] === 'events') {
         const token = url.searchParams.get('token') ?? ''
         if (seatOf(s, token) === null) return json(res, 403, { error: 'not a player or spectator in this game' })
+        // A severed token (dev only) gets a hard error so EventSource gives up
+        // (readyState CLOSED, no more retries) and the reconnect banner holds still.
+        if (DEV_SEVER && severedTokens.has(token)) return json(res, 503, { error: 'stream severed (dev)' })
         sse(res)
         res.write(`data: ${JSON.stringify(payloadFor(s, token))}\n\n`)
         const listener = { res, token }

@@ -12,11 +12,12 @@
 //
 // Covered: setup (default/rules/agent form), a full autopilot playthrough
 // (discuss=reacting to a proposed team, vote, propose, quest, Record + Codex
-// sheets, reveal, thinking), lobby host view, join screen, and an in-game
-// spectator — desktop 1280x800 and mobile 390x844 (multiplayer set: desktop only).
-// Plus a fixture component gallery (docs/screens/components/) for the role cards
-// and action states a live deal only reaches by luck — see client/src/gallery.tsx.
-// TODO: error/reconnect banner (needs a way to sever SSE mid-shoot).
+// sheets, reveal, thinking), the error/reconnect banner (forced via a dev-only
+// SSE-sever hook — see disconnectRun / AVALON_DEV_SEVER below), lobby host view,
+// join screen, and an in-game spectator — desktop 1280x800 and mobile 390x844
+// (multiplayer set: desktop only). Plus a fixture component gallery
+// (docs/screens/components/) for the role cards and action states a live deal
+// only reaches by luck — see client/src/gallery.tsx.
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
 import net from 'node:net'
@@ -293,6 +294,45 @@ async function lobbyRun(browser) {
   await hostCtx.close(); await playerCtx.close(); await specCtx.close()
 }
 
+// ---------- reconnect banner: force an SSE drop via the dev-only sever hook ----------
+// The floating "connection lost — reconnecting…" toast only appears when a live SSE
+// stream drops, which no natural playthrough moment produces. The harness server runs
+// with AVALON_DEV_SEVER=1, which unlocks POST /api/game/:id/dev/sever: it closes this
+// seat's stream and refuses its reconnect (503) so the banner holds still for the shot.
+// Runs in a throwaway context per viewport — severing kills the game, so it can't
+// share the soloRun page. Both viewports, mirroring the other transient captures.
+async function disconnectRun(browser, viewportName, viewport) {
+  const ctx = await browser.createBrowserContext()
+  const page = await ctx.newPage()
+  await page.setViewport(viewport)
+  const shot = shooter(page, path.join(OUT, viewportName))
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('input[placeholder="You"]', { timeout: 15000 })
+  await sleep(300)
+  await typeInto(page, 'input[placeholder="You"]', 'Allen')
+  await clickByText(page, 'Autopilot (free)')
+  await sleep(200)
+  await clickByText(page, 'Sit down at the table')
+  await page.waitForSelector('.game', { timeout: 15000 })
+  await sleep(600)
+  // Sever from inside the page: it owns the game id (URL hash) and seat token
+  // (localStorage key avalon-game-token-<id>), so nothing has to thread through Node.
+  const severed = await page.evaluate(async () => {
+    const id = location.hash.replace('#/game/', '')
+    const token = localStorage.getItem(`avalon-game-token-${id}`)
+    if (!id || !token) return false
+    const r = await fetch(`/api/game/${id}/dev/sever?token=${encodeURIComponent(token)}`, { method: 'POST' })
+    return r.ok
+  })
+  if (!severed) throw new Error('dev sever hook failed — is AVALON_DEV_SEVER=1 set on the server?')
+  // The closed stream trips EventSource.onerror → the banner mounts; wait for it
+  // (not a fixed sleep) so a slow drop can't hand back a banner-less shot.
+  await page.waitForSelector('footer .error', { timeout: 5000 })
+  await sleep(250) // let the lay-in + comet pulse settle
+  await shot('reconnect-banner')
+  await ctx.close()
+}
+
 // ---------- component gallery (fixture-driven, luck-of-the-deal states) ----------
 async function galleryRun(browser) {
   const dir = path.join(OUT, 'components')
@@ -433,11 +473,16 @@ for (let tries = 0; ; tries++) {
   PORT += 1; BASE = `http://localhost:${PORT}`
 }
 
-// The bot-decision delay holds the transient thinking / sealing-ballot / beat
-// UI long enough to snapshot (autopilot otherwise decides in zero frames).
+// AVALON_BOT_DELAY_MS holds the transient thinking / sealing-ballot / beat UI long
+// enough to snapshot (autopilot otherwise decides in zero frames). AVALON_DEV_SEVER
+// unlocks the SSE-sever hook disconnectRun uses for the reconnect banner. Both are
+// dev-only and unset in prod.
 const server = spawn(process.execPath, ['server/server.ts'], {
   cwd: root,
-  env: { ...process.env, AVALON_PORT: String(PORT), PORT: String(PORT), AVALON_BOT_DELAY_MS: '1300' },
+  env: {
+    ...process.env, AVALON_PORT: String(PORT), PORT: String(PORT),
+    AVALON_BOT_DELAY_MS: '1300', AVALON_DEV_SEVER: '1',
+  },
   stdio: ['ignore', 'pipe', 'inherit'],
 })
 await new Promise((resolve, reject) => {
@@ -454,6 +499,8 @@ try {
   await soloRun(browser, 'desktop', { width: 1280, height: 800, deviceScaleFactor: 1 })
   await soloRun(browser, 'mobile', { width: 390, height: 844, deviceScaleFactor: 2 })
   await lobbyRun(browser)
+  await disconnectRun(browser, 'desktop', { width: 1280, height: 800, deviceScaleFactor: 1 })
+  await disconnectRun(browser, 'mobile', { width: 390, height: 844, deviceScaleFactor: 2 })
   await galleryRun(browser)
   await browser.close()
   writeManifest()

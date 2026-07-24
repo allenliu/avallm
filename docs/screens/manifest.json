@@ -13,6 +13,7 @@
     "components/role-spectator.jpg",
     "components/tip-quest.jpg",
     "components/tip-seat.jpg",
+    "desktop/assassin-beat.jpg",
     "desktop/codex-sheet.jpg",
     "desktop/discuss.jpg",
     "desktop/game-start.jpg",
@@ -20,7 +21,7 @@
     "desktop/lobby-host.jpg",
     "desktop/propose.jpg",
     "desktop/quest-ballot.jpg",
-    "desktop/quest-card.jpg",
+    "desktop/reconnect-banner.jpg",
     "desktop/record-sheet.jpg",
     "desktop/reveal-thinking.jpg",
     "desktop/reveal.jpg",
@@ -30,12 +31,14 @@
     "desktop/spectator.jpg",
     "desktop/vote-ballot.jpg",
     "desktop/vote.jpg",
+    "mobile/assassinate.jpg",
     "mobile/codex-sheet.jpg",
     "mobile/discuss.jpg",
     "mobile/game-start.jpg",
     "mobile/propose.jpg",
     "mobile/quest-ballot.jpg",
     "mobile/quest-card.jpg",
+    "mobile/reconnect-banner.jpg",
     "mobile/record-sheet.jpg",
     "mobile/reveal-thinking.jpg",
     "mobile/reveal.jpg",
@@ -45,5 +48,5 @@
     "mobile/vote-ballot.jpg",
     "mobile/vote.jpg"
   ],
-  "sourceHash": "c5418f4aeefbc8de"
+  "sourceHash": "dab8224220472941"
 }

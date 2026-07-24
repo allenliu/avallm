@@ -950,8 +950,12 @@ footer.endstage {
   max-height: 62vh; overflow-y: auto;
 }
 footer .error {
-  position: fixed; left: 50%; bottom: 118px; transform: translateX(-50%);
-  z-index: 60; margin: 0; max-width: min(92vw, 480px); white-space: nowrap;
+  /* Centered transform-free: the lay-in animation runs `both`, so its `transform:
+     none` end-state would clobber a translateX(-50%) and strand the toast with its
+     left edge at center (off-screen right on mobile). left/right:0 + auto margin
+     centers within max-width without any transform for lay to override. */
+  position: fixed; left: 0; right: 0; bottom: 118px; margin: 0 auto; width: fit-content;
+  z-index: 60; max-width: min(92vw, 480px); white-space: nowrap;
   font: 500 0.76rem var(--mono); letter-spacing: 0.04em; color: #f0cdc7;
   border: 1px solid var(--evil); border-radius: 6px;
   background: linear-gradient(180deg, rgba(56, 24, 22, 0.96), rgba(38, 17, 16, 0.96));
